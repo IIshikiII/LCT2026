@@ -1,32 +1,69 @@
-# React + TypeScript + Vite
+# АРМ диспетчера ОДС — фронтенд
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Веб-интерфейс диспетчера для сервиса прогнозирования аварий инженерных коллекторов
+(LCT2026, задача 8). Четыре экрана: дашборд рисков, карта объектов, журнал
+прогнозов, заявки на превентивное обслуживание.
 
-Currently, two official plugins are available:
+Приложение полностью работает **без бэкенда** — на заглушках в `src/mocks/`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Запуск
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev          # http://localhost:5173
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+`.env` создаётся из `.env.example`, по умолчанию `VITE_USE_MOCKS=true`.
+
+## Команды
+
+| Команда | Что делает |
+|---|---|
+| `npm run dev` | Дев-сервер с моками |
+| `npm run build` | Сборка (`tsc -b` + `vite build`) |
+| `npm run typecheck` | Только проверка типов |
+| `npm run lint` | oxlint |
+| `npm test` | Vitest, один прогон |
+| `npm run test:watch` | Vitest в наблюдении |
+
+Перед коммитом должны быть зелёными все четыре: `typecheck`, `lint`, `test`, `build`.
+
+## Документация
+
+Начинать отсюда: **[docs/README.md](docs/README.md)**.
+
+- [Архитектура](docs/01-architecture.md) — слои, поток данных, уровни защиты от
+  падений
+- [Контракт API](docs/02-api-contract.md) — ручки и железное правило трёх правок
+- [Точки расширения](docs/03-extension-points.md) — как добавить направление, блок,
+  действие, колонку, виджет
+- [Заглушки](docs/04-mocks.md) — что в `src/mocks/` и как это править
+- [Визуальный язык](docs/05-ui-kit.md), [состояние в URL](docs/06-url-state.md),
+  [тесты](docs/07-testing.md), [глоссарий](docs/08-glossary.md)
+- [Принятые решения (ADR)](docs/adr/) — почему нет стора, почему нет WebSocket,
+  почему направление это строка
+
+## Главное, что нужно знать до первой правки
+
+**Фронтенд не знает, сколько существует направлений прогнозирования и как они
+называются.** Он получает описание предметной области из `GET /meta` и строит
+интерфейс по нему.
+
+Отсюда три запрета, которые проверяются тестом `src/architecture.test.ts`:
+
+1. Никаких union-типов вида `type Direction = 'FIRE_RISK' | ...`. Только `string`
+   плюс реестр.
+2. Ни одного `switch` по коду направления.
+3. Доменных слов («пожарный», «датчик», «износ») нет нигде, кроме `src/mocks/`.
+
+Проверка гибкости: включи пятое направление в дев-панели (правый нижний угол) —
+оно должно само появиться в фильтрах, на карте и на дашборде.
+
+## Переключение на реальный бэкенд
+
+```
+VITE_USE_MOCKS=false
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+```
+
+Правок в коде не требуется: воркер MSW просто не поднимается.

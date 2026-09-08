@@ -17,5 +17,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
+    // Интеграционные тесты поднимают весь каркас поверх MSW и ждут повторных
+    // попыток запросов; пяти секунд по умолчанию на это не хватает.
+    testTimeout: 20_000,
   },
 })

@@ -4,5 +4,22 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/card/blockRegistry.tsx",
+        "src/card/actions/actionRegistry.tsx",
+        "src/table/columnRegistry.tsx",
+        "src/widgets/widgetRegistry.tsx",
+        "src/app/router.tsx",
+        "src/app/providers.tsx",
+        "src/shared/ui/Button.tsx",
+        "src/test/renderWithProviders.tsx"
+      ],
+      "rules": {
+        "react/only-export-components": "off"
+      }
+    }
+  ]
 }
