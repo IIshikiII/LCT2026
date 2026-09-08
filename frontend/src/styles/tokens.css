@@ -1,0 +1,56 @@
+/*
+ * Design tokens — АРМ диспетчера ОДС.
+ * Единственный источник цветов и типографики. См. spec §4.
+ * Тёмная тема единственная. Уровень риска кодируется дважды: цветом и планкой 3px.
+ */
+:root {
+  /* Поверхности */
+  --bg: #161c22;          /* фон приложения */
+  --panel: #1d242b;       /* панели */
+  --raised: #252e36;      /* строка при наведении, вложенные блоки */
+  --sunken: #10151a;      /* поля ввода */
+  --line: #2e3841;        /* разделители */
+  --line-strong: #3e4a55; /* границы активных элементов */
+
+  /* Текст */
+  --text: #e4e9ed;
+  --text-dim: #9aa8b4;
+  --text-mute: #6b7883;
+
+  /* Шкала риска — единственный смысловой цвет, холодный → горячий */
+  --risk-low: #3e8c74;
+  --risk-medium: #c89230;
+  --risk-high: #d4602f;
+  --risk-critical: #c43b36;
+
+  /* Типографика */
+  --font-ui: 'Golos Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+
+  --radius: 4px;          /* панели и контролы; строки таблицы — 0 */
+
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* tabular-nums для идентификаторов, времени и чисел в таблицах */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

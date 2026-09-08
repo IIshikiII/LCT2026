@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Builds
+**/dist/
+**/dist-ssr/
+**/coverage/
+
+# Env — commit only *.env.example
+.env
+.env.local
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+
+# Editor / OS
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code — personal machine-local settings
+.claude/settings.local.json

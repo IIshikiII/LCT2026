@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+@import './styles/tokens.css';
+
+/*
+ * Экспонируем токены в Tailwind v4 через @theme, чтобы работали утилиты
+ * вида bg-panel / text-dim / border-line. Значения — из styles/tokens.css.
+ */
+@theme {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+  --color-text-mute: var(--text-mute);
+  --color-risk-low: var(--risk-low);
+  --color-risk-medium: var(--risk-medium);
+  --color-risk-high: var(--risk-high);
+  --color-risk-critical: var(--risk-critical);
+
+  --font-ui: 'Golos Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+
+  --radius-DEFAULT: 4px;
+}
