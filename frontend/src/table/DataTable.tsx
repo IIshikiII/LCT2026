@@ -65,7 +65,7 @@ export function DataTable<Row>({
   }
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="relative h-full overflow-auto">
       <table className="w-full border-collapse text-[13px]">
         <caption className="sr-only">{caption}</caption>
         <thead className="sticky top-0 z-10 bg-panel">

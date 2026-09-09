@@ -44,7 +44,7 @@ export function OrderCard({ id, meta }: OrderCardProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="relative min-h-0 flex-1 overflow-y-auto">
         <header className="border-b border-line px-3 py-3">
           <div className="flex items-center gap-2">
             <span className="text-[13px] text-text-mute">Заявка</span>

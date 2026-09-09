@@ -10,7 +10,7 @@ import { WidgetRenderer } from '@/widgets/widgetRegistry'
 
 export function DashboardScreen({ meta }: { meta: AppMeta }) {
   return (
-    <div className="h-full overflow-y-auto p-3">
+    <div className="relative h-full overflow-y-auto p-3">
       <div className="grid auto-rows-min grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {meta.dashboardWidgets.map((code) => (
           <WidgetRenderer key={code} code={code} />
