@@ -14,9 +14,11 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import {
   Map as MapLibreMap,
   NavigationControl,
+  setWorkerUrl,
   type GeoJSONSource,
   type MapLayerMouseEvent,
 } from 'maplibre-gl'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { useEffect, useRef } from 'react'
 import { useTheme } from '@/shared/lib/theme'
 import type { AppMeta, FacilityCollection } from '@/shared/api/types'
@@ -28,6 +30,23 @@ import {
   pointStrokeExpression,
   radiusExpression,
 } from './mapStyle'
+
+/**
+ * Адрес воркера MapLibre задаётся явно, и это не перестраховка.
+ *
+ * Разбор тайлов идёт в веб-воркере, который MapLibre по умолчанию ищет рядом
+ * с собой — `new Worker(new URL('./maplibre-gl-worker.mjs', import.meta.url))`.
+ * Соседний файл туда не попадает: в деве предбандлер Vite кладёт в
+ * `.vite/deps/` только сам `maplibre-gl.js`, в сборке воркер тоже не
+ * эмитится. Запрос уходит в 404 — и карта молча остаётся пустой: источники
+ * навсегда числятся незагруженными, `queryRenderedFeatures` отдаёт нули, а в
+ * `map.on('error')` не приходит ничего. Единственный след — 404 во вкладке
+ * «Сеть».
+ *
+ * Файл в пакете самодостаточный (19 КБ, без импортов и importScripts),
+ * поэтому хватает `?url`: Vite кладёт его в ассеты и в деве, и в сборке.
+ */
+setWorkerUrl(maplibreWorkerUrl)
 
 const POINTS = 'facilities'
 const LINES = 'collector-lines'
