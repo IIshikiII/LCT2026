@@ -135,6 +135,20 @@ if [ "$SERVE_MODE" = static ]; then
         add_header Cache-Control "public, immutable";
     }
 
+    # nginx 1.18 не знает расширения .mjs и отдаёт его как
+    # application/octet-stream. Браузер отказывается исполнять модульный
+    # воркер с таким типом, а MapLibre разбирает тайлы именно в нём — карта
+    # молча остаётся пустой. Пустой types{} плюс default_type переопределяют
+    # тип для одного расширения, не трогая пакетный /etc/nginx/mime.types.
+    # Регулярное расположение приоритетнее префиксного /assets/, поэтому
+    # заголовки кэширования повторены здесь.
+    location ~* \.mjs\$ {
+        types { }
+        default_type application/javascript;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
     # Эти два обязаны обновляться сразу, иначе после передеплоя увидите старое.
     location = /mockServiceWorker.js { add_header Cache-Control "no-cache"; }
     location = /index.html          { add_header Cache-Control "no-cache"; }
