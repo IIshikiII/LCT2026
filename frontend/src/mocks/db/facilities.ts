@@ -55,12 +55,28 @@ function addressFor(rnd: ReturnType<typeof makeRng>): string {
   return `${rnd.pick(STREETS)}, д. ${rnd.int(1, 84)}${rnd.bool(0.25) ? ` стр. ${rnd.int(1, 4)}` : ''}`
 }
 
-/** Точка рядом с якорем участка на ломаной коллектора, с небольшим разбросом. */
-function pointNear(collector: Collector, anchor: number, rnd: ReturnType<typeof makeRng>) {
-  const base = collector.line[Math.min(anchor, collector.line.length - 1)] ?? [37.6173, 55.7558]
+/**
+ * Точка на трассе коллектора внутри участка.
+ *
+ * `t` — доля пути по сегменту от якоря участка к следующему: объекты участка
+ * раскладываются вдоль тоннеля равномерно, а не сваливаются в одну точку.
+ * Разброс оставлен маленьким (порядка полусотни метров): камера, люк и датчики
+ * стоят у коллектора, а не разбросаны по кварталу.
+ */
+function pointOnLine(
+  collector: Collector,
+  anchor: number,
+  t: number,
+  rnd: ReturnType<typeof makeRng>,
+) {
+  const line = collector.line
+  const index = Math.max(0, Math.min(anchor, line.length - 2))
+  const from = line[index] ?? [37.6173, 55.7558]
+  const to = line[index + 1] ?? from
+
   return {
-    lon: Number((base[0] + rnd.float(-0.0025, 0.0025, 5)).toFixed(5)),
-    lat: Number((base[1] + rnd.float(-0.0018, 0.0018, 5)).toFixed(5)),
+    lon: Number((from[0] + (to[0] - from[0]) * t + rnd.float(-0.0007, 0.0007, 5)).toFixed(5)),
+    lat: Number((from[1] + (to[1] - from[1]) * t + rnd.float(-0.0005, 0.0005, 5)).toFixed(5)),
   }
 }
 
@@ -70,12 +86,13 @@ function buildFacility(
   collector: Collector,
   sectionCode: string,
   anchor: number,
+  offset: number,
   chamber: string | undefined,
   device: string | undefined,
   sensorType: string | undefined,
 ): Facility {
   const rnd = makeRng(id)
-  const { lat, lon } = pointNear(collector, anchor, rnd)
+  const { lat, lon } = pointOnLine(collector, anchor, offset, rnd)
   const ageYears = rnd.float(1, 34, 1)
   const repairCount = rnd.int(0, 6)
 
@@ -116,45 +133,49 @@ function buildAll(): Facility[] {
     const chamberNo = rnd.int(1, 40)
     const chamber = `Камера ${chamberNo}`
 
-    facilities.push(
-      buildFacility(nextId(), FACILITY_KINDS.chamber, collector, section.code, section.anchor, chamber, undefined, undefined),
-    )
-    facilities.push(
-      buildFacility(nextId(), FACILITY_KINDS.hatch, collector, section.code, section.anchor, chamber, `Люк ${chamberNo}`, undefined),
-    )
+    // Сначала собираем состав участка, потом раскладываем его вдоль трассы:
+    // чтобы разнести объекты равномерно, надо заранее знать, сколько их.
+    // Порядок обращений к rnd сохранён — иначе поехал бы весь сид.
+    const specs: { kind: string; device?: string; sensorType?: string }[] = [
+      { kind: FACILITY_KINDS.chamber },
+      { kind: FACILITY_KINDS.hatch, device: `Люк ${chamberNo}` },
+    ]
 
     const sensorCount = rnd.int(3, 4)
     for (let i = 0; i < sensorCount; i += 1) {
       const type = rnd.pick(SENSOR_TYPES)
-      facilities.push(
-        buildFacility(
-          nextId(),
-          FACILITY_KINDS.sensor,
-          collector,
-          section.code,
-          section.anchor,
-          chamber,
-          `Датчик ${type}-${String(i + 1).padStart(2, '0')}`,
-          type,
-        ),
-      )
+      specs.push({
+        kind: FACILITY_KINDS.sensor,
+        device: `Датчик ${type}-${String(i + 1).padStart(2, '0')}`,
+        sensorType: type,
+      })
     }
 
     if (rnd.bool(0.45)) {
-      facilities.push(
-        buildFacility(nextId(), FACILITY_KINDS.ventShaft, collector, section.code, section.anchor, chamber, `Вентшахта ${rnd.int(1, 9)}`, undefined),
-      )
+      specs.push({ kind: FACILITY_KINDS.ventShaft, device: `Вентшахта ${rnd.int(1, 9)}` })
     }
     if (rnd.bool(0.3)) {
-      facilities.push(
-        buildFacility(nextId(), FACILITY_KINDS.pump, collector, section.code, section.anchor, chamber, `Насос ${rnd.int(1, 6)}`, undefined),
-      )
+      specs.push({ kind: FACILITY_KINDS.pump, device: `Насос ${rnd.int(1, 6)}` })
     }
     if (rnd.bool(0.35)) {
-      facilities.push(
-        buildFacility(nextId(), FACILITY_KINDS.structure, collector, section.code, section.anchor, chamber, 'Конструкция свода', undefined),
-      )
+      specs.push({ kind: FACILITY_KINDS.structure, device: 'Конструкция свода' })
     }
+
+    specs.forEach((spec, index) => {
+      facilities.push(
+        buildFacility(
+          nextId(),
+          spec.kind,
+          collector,
+          section.code,
+          section.anchor,
+          (index + 0.5) / specs.length,
+          chamber,
+          spec.device,
+          spec.sensorType,
+        ),
+      )
+    })
   }
 
   return facilities

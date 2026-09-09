@@ -35,6 +35,64 @@ describe('справочники', () => {
   })
 })
 
+/** Расстояние между точками в километрах. */
+function km(a: [number, number], b: [number, number]): number {
+  const R = 6371
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(b[1] - a[1])
+  const dLon = toRad(b[0] - a[0])
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a[1])) * Math.cos(toRad(b[1])) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
+
+/**
+ * Геометрия — не украшение: на ней держится читаемость карты.
+ *
+ * Коллектор в реальности тянется через город на километры. Пока трассы были
+ * короткими, а объекты участка сидели в одной точке, вся сеть схлопывалась в
+ * восемь пятен, карта на стартовом зуме показывала серые пузыри кластеров и
+ * ни одного цвета риска.
+ */
+describe('геометрия сети', () => {
+  it('коллекторы тянутся через город, а не свёрнуты в клубок', () => {
+    for (const collector of COLLECTORS) {
+      const first = collector.line[0]!
+      const last = collector.line[collector.line.length - 1]!
+      const length = km(first, last)
+      expect(length, `${collector.label}: ${length.toFixed(1)} км`).toBeGreaterThan(8)
+      expect(length, `${collector.label}: ${length.toFixed(1)} км`).toBeLessThan(30)
+    }
+  })
+
+  it('объекты участка растянуты вдоль трассы, а не свалены в точку', () => {
+    const bySection = new Map<string, [number, number][]>()
+    for (const f of FACILITIES) {
+      // section в FacilityRef необязателен; объект без участка группировать не по чему.
+      const key = f.section
+      if (!key) continue
+      const points = bySection.get(key) ?? []
+      points.push([f.lon, f.lat])
+      bySection.set(key, points)
+    }
+
+    for (const [section, points] of bySection) {
+      if (points.length < 2) continue
+      const spread = Math.max(...points.map((p) => km(points[0]!, p)))
+      expect(spread, `${section}: разброс ${(spread * 1000).toFixed(0)} м`).toBeGreaterThan(0.1)
+    }
+  })
+
+  it('участки покрывают всю трассу, а не только её начало', () => {
+    for (const collector of COLLECTORS) {
+      const anchors = SECTIONS.filter((s) => s.collector === collector.code).map((s) => s.anchor)
+      expect(Math.min(...anchors)).toBe(0)
+      expect(Math.max(...anchors)).toBeGreaterThanOrEqual(collector.line.length - 3)
+    }
+  })
+})
+
 describe('прогнозы', () => {
   it('детерминированы: повторная сборка даёт те же данные', () => {
     const first = db().predictions.map((p) => `${p.id}:${p.probability}:${p.facility.id}`)

@@ -54,20 +54,41 @@ const COLLECTOR_NAMES = [
   'Кунцевский',
 ]
 
-/** Строит ломаную из центра района: правдоподобные изгибы, шаг ~300–600 м. */
+/**
+ * Строит трассу коллектора: коридор через район, а не клубок.
+ *
+ * Коллектор — подземный тоннель, он тянется на километры по прямому в целом
+ * направлению и лишь слегка отклоняется, обходя застройку. Прежний вариант
+ * блуждал случайным шагом и укладывался в 3–5 км: на городском масштабе это
+ * читалось закорючкой, а все объекты слипались в одно пятно.
+ *
+ * Теперь берётся хорда через центр района: середина — сам центр, концы
+ * разнесены на `half` в обе стороны, поперёк накладывается плавная волна.
+ * Длина выходит 11–17 км.
+ *
+ * Множитель 0.6 у широты — поправка на масштаб: градус широты примерно вдвое
+ * длиннее градуса долготы на широте Москвы, иначе трасса вытянулась бы по
+ * вертикали. Пределы `half` и амплитуды подобраны так, чтобы вместе с
+ * разбросом объектов остаться в границах Москвы, которые проверяет seed.test.ts.
+ */
 function buildLine(seed: string, lat: number, lon: number, points: number): [number, number][] {
   const rnd = makeRng(seed)
-  const line: [number, number][] = []
-  let curLat = lat + rnd.float(-0.02, 0.02, 5)
-  let curLon = lon + rnd.float(-0.03, 0.03, 5)
-  let heading = rnd.float(0, Math.PI * 2, 4)
+  const heading = rnd.float(0, Math.PI * 2, 4)
+  const half = rnd.float(0.09, 0.14, 5)
+  const wave = rnd.float(0.006, 0.015, 5)
+  const phase = rnd.float(0, Math.PI * 2, 3)
 
+  const line: [number, number][] = []
   for (let i = 0; i < points; i += 1) {
-    line.push([Number(curLon.toFixed(5)), Number(curLat.toFixed(5))])
-    heading += rnd.float(-0.6, 0.6, 3)
-    const step = rnd.float(0.004, 0.009, 5)
-    curLat += Math.sin(heading) * step * 0.6
-    curLon += Math.cos(heading) * step
+    // -1 в начале трассы, +1 в конце.
+    const along = (i / (points - 1)) * 2 - 1
+    // Плавное отклонение поперёк хода, к концам сходит на нет.
+    const off = Math.sin(phase + along * Math.PI * 1.5) * wave * (1 - Math.abs(along) * 0.5)
+
+    const dLon = Math.cos(heading) * half * along - Math.sin(heading) * off
+    const dLat = (Math.sin(heading) * half * along + Math.cos(heading) * off) * 0.6
+
+    line.push([Number((lon + dLon).toFixed(5)), Number((lat + dLat).toFixed(5))])
   }
   return line
 }
@@ -78,7 +99,7 @@ export const COLLECTORS: Collector[] = COLLECTOR_NAMES.map((name, index) => {
     code: `COL-${String(index + 1).padStart(2, '0')}`,
     label: `Коллектор «${name}»`,
     district: district.code,
-    line: buildLine(`collector-${index}`, district.lat, district.lon, 14),
+    line: buildLine(`collector-${index}`, district.lat, district.lon, 24),
   }
 })
 
@@ -86,12 +107,15 @@ export const COLLECTORS: Collector[] = COLLECTOR_NAMES.map((name, index) => {
 export const SECTIONS: Section[] = COLLECTORS.flatMap((collector, ci) => {
   const rnd = makeRng(`sections-${collector.code}`)
   const count = rnd.int(10, 13)
+  const last = collector.line.length - 1
   return Array.from({ length: count }, (_, si) => ({
     code: `SEC-${String(ci + 1).padStart(2, '0')}-${String(si + 1).padStart(2, '0')}`,
     label: `Участок ${si + 1}`,
     collector: collector.code,
     district: collector.district,
-    anchor: Math.min(si, collector.line.length - 1),
+    // Участки распределены по всей трассе. Раньше здесь стоял Math.min(si, last),
+    // и при 24 точках на 10–13 участков вся вторая половина коллектора пустовала.
+    anchor: count > 1 ? Math.round((si * (last - 1)) / (count - 1)) : 0,
   }))
 })
 
