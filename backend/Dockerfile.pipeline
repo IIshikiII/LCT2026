@@ -1,0 +1,13 @@
+# Набор api + ml + клиент mlflow. Запускается по расписанию, порт не слушает.
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /srv
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONPATH=/srv
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project --group ml --group mlflow
+
+COPY app ./app
+COPY migrations ./migrations
+
+CMD ["uv", "run", "--no-sync", "python", "-m", "app.cli", "run-pipeline"]

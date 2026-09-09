@@ -1,0 +1,11 @@
+# Сервер трекинга MLflow. Отдельный набор зависимостей.
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /srv
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project --only-group mlflow
+
+EXPOSE 5000
+CMD ["uv", "run", "--no-sync", "mlflow", "server", "--host", "0.0.0.0", "--port", "5000"]
