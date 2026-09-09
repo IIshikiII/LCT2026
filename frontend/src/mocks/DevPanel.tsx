@@ -70,7 +70,7 @@ export function DevPanel() {
                 type="checkbox"
                 checked={flags[item.key]}
                 onChange={() => toggle(item.key)}
-                className="mt-0.5 size-3.5 accent-[#3d729f]"
+                className="mt-0.5 size-3.5 accent-[var(--accent-strong)]"
               />
               <span>
                 <span className="text-text-dim">{item.label}</span>

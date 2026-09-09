@@ -81,7 +81,7 @@ export function CloseOrderForm({ action, meta, onSubmit, onCancel, pending }: Ac
                 value={value}
                 checked={confirmed === value}
                 onChange={() => setConfirmed(value)}
-                className="size-3.5 accent-[#3d729f]"
+                className="size-3.5 accent-[var(--accent-strong)]"
               />
               {label}
             </label>

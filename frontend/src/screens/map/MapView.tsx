@@ -18,12 +18,14 @@ import {
   type MapLayerMouseEvent,
 } from 'maplibre-gl'
 import { useEffect, useRef } from 'react'
+import { useTheme } from '@/shared/lib/theme'
 import type { AppMeta, FacilityCollection } from '@/shared/api/types'
 import {
-  MAP_LINE,
   MOSCOW_CENTER,
   levelColorExpression,
+  mapColors,
   mapStyle,
+  pointStrokeExpression,
   radiusExpression,
 } from './mapStyle'
 
@@ -38,6 +40,7 @@ export interface MapViewProps {
 }
 
 export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
+  const { theme } = useTheme()
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<InstanceType<typeof MapLibreMap> | null>(null)
   const ready = useRef(false)
@@ -58,6 +61,8 @@ export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
     instance.addControl(new NavigationControl({ showCompass: false }), 'top-right')
 
     instance.on('load', () => {
+      const colors = mapColors()
+
       instance.addSource(LINES, {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
@@ -66,7 +71,7 @@ export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
         id: `${LINES}-layer`,
         type: 'line',
         source: LINES,
-        paint: { 'line-color': MAP_LINE, 'line-width': 2 },
+        paint: { 'line-color': colors.line, 'line-width': 2 },
       })
 
       instance.addSource(POINTS, {
@@ -83,8 +88,8 @@ export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
         source: POINTS,
         filter: ['has', 'point_count'],
         paint: {
-          'circle-color': '#252e36',
-          'circle-stroke-color': '#3e4a55',
+          'circle-color': colors.cluster,
+          'circle-stroke-color': colors.clusterLine,
           'circle-stroke-width': 1,
           'circle-radius': ['interpolate', ['linear'], ['get', 'point_count'], 2, 12, 60, 24],
         },
@@ -96,7 +101,7 @@ export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
         source: POINTS,
         filter: ['has', 'point_count'],
         layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 11 },
-        paint: { 'text-color': '#e4e9ed' },
+        paint: { 'text-color': colors.label },
       })
 
       instance.addLayer({
@@ -108,7 +113,7 @@ export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
           'circle-color': levelColorExpression(meta) as never,
           'circle-radius': radiusExpression as never,
           'circle-stroke-width': 1,
-          'circle-stroke-color': '#10151a',
+          'circle-stroke-color': colors.pointLine,
         },
       })
 
@@ -155,25 +160,39 @@ export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
     else instance.once('idle', apply)
   }, [data])
 
-  /* Раскраска: мета могла приехать позже карты или измениться. */
+  /*
+   * Раскраска. Один эффект на три причины перекрасить: мета могла приехать
+   * позже карты, выбор точки сменился, либо переключили тему (ADR 0009).
+   * MapLibre хранит цвета строками, поэтому тема не «протекает» в слои сама —
+   * значения приходится проставлять заново.
+   */
   useEffect(() => {
     const instance = map.current
-    if (!instance || !ready.current || !instance.getLayer('points')) return
-    instance.setPaintProperty('points', 'circle-color', levelColorExpression(meta) as never)
-  }, [meta])
+    if (!instance || !ready.current) return
+    const colors = mapColors()
 
-  /* Подсветка выбранной точки. */
-  useEffect(() => {
-    const instance = map.current
-    if (!instance || !ready.current || !instance.getLayer('points')) return
-    instance.setPaintProperty(
-      'points',
-      'circle-stroke-color',
-      selectedId
-        ? (['case', ['==', ['get', 'predictionId'], selectedId], '#e4e9ed', '#10151a'] as never)
-        : '#10151a',
-    )
-  }, [selectedId])
+    if (instance.getLayer('background')) {
+      instance.setPaintProperty('background', 'background-color', colors.background)
+    }
+    if (instance.getLayer(`${LINES}-layer`)) {
+      instance.setPaintProperty(`${LINES}-layer`, 'line-color', colors.line)
+    }
+    if (instance.getLayer('clusters')) {
+      instance.setPaintProperty('clusters', 'circle-color', colors.cluster)
+      instance.setPaintProperty('clusters', 'circle-stroke-color', colors.clusterLine)
+    }
+    if (instance.getLayer('cluster-count')) {
+      instance.setPaintProperty('cluster-count', 'text-color', colors.label)
+    }
+    if (instance.getLayer('points')) {
+      instance.setPaintProperty('points', 'circle-color', levelColorExpression(meta) as never)
+      instance.setPaintProperty(
+        'points',
+        'circle-stroke-color',
+        pointStrokeExpression(selectedId) as never,
+      )
+    }
+  }, [meta, selectedId, theme])
 
   return <div ref={container} className="h-full w-full" data-testid="map-canvas" />
 }

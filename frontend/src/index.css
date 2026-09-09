@@ -15,6 +15,15 @@
   --color-text: var(--text);
   --color-text-dim: var(--text-dim);
   --color-text-mute: var(--text-mute);
+  --color-text-on-accent: var(--text-on-accent);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-hover: var(--accent-hover);
+  --color-danger: var(--danger);
+  --color-danger-strong: var(--danger-strong);
+  --color-danger-hover: var(--danger-hover);
+  --color-secondary-hover: var(--secondary-hover);
   --color-risk-low: var(--risk-low);
   --color-risk-medium: var(--risk-medium);
   --color-risk-high: var(--risk-high);

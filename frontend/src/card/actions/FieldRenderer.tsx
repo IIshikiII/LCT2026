@@ -26,7 +26,7 @@ export function FieldRenderer({ field, meta, register, error, id }: FieldRendere
         <input
           id={id}
           type="checkbox"
-          className="size-3.5 accent-[#3d729f]"
+          className="size-3.5 accent-[var(--accent-strong)]"
           aria-invalid={Boolean(error)}
           {...register}
         />

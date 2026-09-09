@@ -21,6 +21,8 @@ const paths = {
   warning: 'M9 2.5 16.5 15h-15zM9 7v4M9 13.2v.1',
   refresh: 'M15 9a6 6 0 1 1-1.8-4.3M15 3v3h-3',
   check: 'M3.5 9.5l3.5 3.5 7.5-8',
+  sun: 'M9 5.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 1 0 0-6.8M9 1.6v1.8M9 14.6v1.8M1.6 9h1.8M14.6 9h1.8M3.75 3.75l1.3 1.3M12.95 12.95l1.3 1.3M14.25 3.75l-1.3 1.3M5.05 12.95l-1.3 1.3',
+  moon: 'M15 11.4A6.4 6.4 0 0 1 6.6 3 6.4 6.4 0 1 0 15 11.4z',
 } as const
 
 export type IconName = keyof typeof paths

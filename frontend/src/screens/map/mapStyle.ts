@@ -20,10 +20,28 @@ export function resolveCssColor(value: string, fallback: string): string {
   return resolved || fallback
 }
 
-export const MAP_BACKGROUND = '#10151a'
-export const MAP_LINE = '#2e3841'
+/**
+ * Палитра карты, снятая с активной темы (ADR 0009). Значения — обычные строки:
+ * MapLibre не понимает var(--x), поэтому при смене темы слои перекрашиваются
+ * вручную, см. эффект в MapView. Фолбэки — тёмные, на случай вызова до того,
+ * как применились стили.
+ */
+export function mapColors() {
+  return {
+    background: resolveCssColor('--sunken', '#10151a'),
+    line: resolveCssColor('--line', '#2e3841'),
+    cluster: resolveCssColor('--raised', '#252e36'),
+    clusterLine: resolveCssColor('--line-strong', '#3e4a55'),
+    label: resolveCssColor('--text', '#e4e9ed'),
+    /* Обводка точки: невыбранная сливается с фоном, выбранная — цвета текста. */
+    pointLine: resolveCssColor('--sunken', '#10151a'),
+    pointLineSelected: resolveCssColor('--text', '#e4e9ed'),
+    /* Уровень, которого нет в мете, — нейтральный серый, точка не пропадает. */
+    unknownLevel: resolveCssColor('--text-mute', '#6b7883'),
+  }
+}
 
-/** Пустой тёмный стиль: подложки нет, всё рисуем сами. */
+/** Пустой стиль: подложки нет, всё рисуем сами. Фон берётся из темы. */
 export function offlineStyle() {
   return {
     version: 8 as const,
@@ -33,7 +51,7 @@ export function offlineStyle() {
       {
         id: 'background',
         type: 'background' as const,
-        paint: { 'background-color': MAP_BACKGROUND },
+        paint: { 'background-color': mapColors().background },
       },
     ],
   }
@@ -49,8 +67,14 @@ export function levelColorExpression(meta: AppMeta): unknown[] {
   for (const level of meta.riskLevels) {
     pairs.push(level.code, resolveCssColor(level.colorVar, synthColor(level.code)))
   }
-  // Уровень, которого нет в мете, получает нейтральный серый — точка не пропадает.
-  return ['match', ['get', 'level'], ...pairs, '#6b7883']
+  return ['match', ['get', 'level'], ...pairs, mapColors().unknownLevel]
+}
+
+/** Обводка точек: выбранная выделяется цветом текста, остальные — фоном. */
+export function pointStrokeExpression(selectedId: string | undefined): unknown {
+  const { pointLine, pointLineSelected } = mapColors()
+  if (!selectedId) return pointLine
+  return ['case', ['==', ['get', 'predictionId'], selectedId], pointLineSelected, pointLine]
 }
 
 /** Радиус точки по вероятности: заметнее то, что вероятнее. */

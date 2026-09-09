@@ -10,9 +10,9 @@ import { cn } from '@/shared/lib/cn'
 export type ButtonKind = 'primary' | 'secondary' | 'danger' | 'ghost'
 
 const kinds: Record<ButtonKind, string> = {
-  primary: 'bg-[#2f5f8a] text-text border-[#3d729f] hover:bg-[#37709f]',
-  secondary: 'bg-raised text-text border-line-strong hover:bg-[#2d3740]',
-  danger: 'bg-[#7a2a27] text-text border-[#9a3733] hover:bg-[#8d312e]',
+  primary: 'bg-accent text-text-on-accent border-accent-strong hover:bg-accent-hover',
+  secondary: 'bg-raised text-text border-line-strong hover:bg-secondary-hover',
+  danger: 'bg-danger text-text-on-accent border-danger-strong hover:bg-danger-hover',
   ghost: 'bg-transparent text-text-dim border-transparent hover:bg-raised hover:text-text',
 }
 

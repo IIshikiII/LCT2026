@@ -1,7 +1,14 @@
 /*
  * Design tokens — АРМ диспетчера ОДС.
  * Единственный источник цветов и типографики. См. spec §4.
- * Тёмная тема единственная. Уровень риска кодируется дважды: цветом и планкой 3px.
+ *
+ * Тем две (ADR 0009). Тёмная — основная, живёт в :root и действует, пока на
+ * <html> нет атрибута data-theme="light". Светлая переопределяет те же имена
+ * ниже. Набор имён у тем общий и обязан таким оставаться: компонент берёт
+ * --panel, а не конкретный цвет, и про активную тему ничего не знает.
+ * Расхождение наборов ловит src/styles/tokens.test.ts.
+ *
+ * Уровень риска кодируется дважды: цветом и планкой 3px.
  */
 :root {
   /* Поверхности */
@@ -16,12 +23,22 @@
   --text: #e4e9ed;
   --text-dim: #9aa8b4;
   --text-mute: #6b7883;
+  --text-on-accent: #e9eef2; /* поверх заливки кнопки — светлый в обеих темах */
 
   /* Шкала риска — единственный смысловой цвет, холодный → горячий */
   --risk-low: #3e8c74;
   --risk-medium: #c89230;
   --risk-high: #d4602f;
   --risk-critical: #c43b36;
+
+  /* Управление: первичная кнопка, чекбоксы, опасное действие */
+  --accent: #2f5f8a;
+  --accent-strong: #3d729f;  /* граница кнопки и accent-color полей выбора */
+  --accent-hover: #37709f;
+  --danger: #7a2a27;
+  --danger-strong: #9a3733;
+  --danger-hover: #8d312e;
+  --secondary-hover: #2d3740;
 
   /* Типографика */
   --font-ui: 'Golos Text', system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -30,6 +47,39 @@
   --radius: 4px;          /* панели и контролы; строки таблицы — 0 */
 
   color-scheme: dark;
+}
+
+/*
+ * Светлая тема. Не инверсия тёмной: на белой панели те же цвета риска теряют
+ * контраст, поэтому шкала взята темнее и глуше, а не осветлена.
+ */
+:root[data-theme='light'] {
+  --bg: #e9edf1;
+  --panel: #ffffff;
+  --raised: #eef2f6;
+  --sunken: #f5f7f9;
+  --line: #d5dce2;
+  --line-strong: #aab5c0;
+
+  --text: #1a2128;
+  --text-dim: #4d5966;
+  --text-mute: #6b7680;
+  --text-on-accent: #ffffff;
+
+  --risk-low: #2f6f5b;
+  --risk-medium: #8f6210;
+  --risk-high: #b04a1c;
+  --risk-critical: #a62c28;
+
+  --accent: #2c6497;
+  --accent-strong: #245279;
+  --accent-hover: #245279;
+  --danger: #b03a34;
+  --danger-strong: #8f2d28;
+  --danger-hover: #99312c;
+  --secondary-hover: #e0e6ec;
+
+  color-scheme: light;
 }
 
 /*
