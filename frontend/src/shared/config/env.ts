@@ -12,4 +12,9 @@ export const env = {
   apiDocsUrl: import.meta.env.VITE_API_DOCS_URL ?? '/api/v1/docs',
   /** Внешняя подложка карты. Пусто — офлайн-стиль, см. ADR 0008. */
   mapStyleUrl: import.meta.env.VITE_MAP_STYLE_URL ?? '',
+  /**
+   * Границы округов Москвы. Лежат в public/geo и грузятся самой MapLibre со
+   * своего же origin — интернет карте по-прежнему не нужен (ADR 0008).
+   */
+  mapDistrictsUrl: `${import.meta.env.BASE_URL}geo/moscow-okrugs.geo.json`,
 } as const

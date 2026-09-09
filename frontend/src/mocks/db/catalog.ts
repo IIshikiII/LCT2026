@@ -1,30 +1,35 @@
 /**
- * Справочники инфраструктуры: районы, коллекторы, участки, виды объектов.
+ * Справочники инфраструктуры: округа, коллекторы, участки, виды объектов.
  *
  * Здесь живёт предметная область — и только здесь (ADR 0007). Приложение видит
  * всё это как строки, приходящие из API.
  *
- * Координаты синтетические: восемь ломаных в пределах МКАД. Настоящей геометрии
- * коллекторов у нас нет, а правдоподобный рисунок сети нужен, чтобы карта
- * читалась (ADR 0008).
+ * География настоящая: округа и их границы — из OpenStreetMap, см. db/geo.ts.
+ * Синтетическими остались только трассы коллекторов — подлинной геометрии сети
+ * у нас нет, — но каждая проложена внутри своего реального округа (ADR 0008).
  */
+import { OKRUGS } from './geo'
 import { makeRng } from './rng'
 
 export interface District {
   code: string
   label: string
-  /** центр района — вокруг него раскладываются коллекторы */
+  /** центр округа — точка, максимально удалённая от его границы */
   lat: number
   lon: number
 }
 
-export const DISTRICTS: District[] = [
-  { code: 'CAO', label: 'Центральный', lat: 55.7558, lon: 37.6173 },
-  { code: 'SAO', label: 'Северный', lat: 55.8385, lon: 37.5361 },
-  { code: 'VAO', label: 'Восточный', lat: 55.787, lon: 37.7756 },
-  { code: 'YUAO', label: 'Южный', lat: 55.6215, lon: 37.6541 },
-  { code: 'ZAO', label: 'Западный', lat: 55.7281, lon: 37.4436 },
-]
+/**
+ * Девять округов основной части города. ТиНАО и Зеленоград на подложке есть,
+ * но сети там нет: первые — почти сельская территория, второй — анклав в 37 км,
+ * коллекторная сеть в них неправдоподобна.
+ */
+export const DISTRICTS: District[] = OKRUGS.map((okrug) => ({
+  code: okrug.code,
+  label: okrug.label,
+  lat: okrug.center[1],
+  lon: okrug.center[0],
+}))
 
 export interface Collector {
   code: string
@@ -43,65 +48,31 @@ export interface Section {
   anchor: number
 }
 
-const COLLECTOR_NAMES = [
-  'Тверской',
-  'Замоскворецкий',
-  'Лефортовский',
-  'Дорогомиловский',
-  'Останкинский',
-  'Сокольнический',
-  'Даниловский',
-  'Кунцевский',
-]
-
-/**
- * Строит трассу коллектора: коридор через район, а не клубок.
- *
- * Коллектор — подземный тоннель, он тянется на километры по прямому в целом
- * направлению и лишь слегка отклоняется, обходя застройку. Прежний вариант
- * блуждал случайным шагом и укладывался в 3–5 км: на городском масштабе это
- * читалось закорючкой, а все объекты слипались в одно пятно.
- *
- * Теперь берётся хорда через центр района: середина — сам центр, концы
- * разнесены на `half` в обе стороны, поперёк накладывается плавная волна.
- * Длина выходит 11–17 км.
- *
- * Множитель 0.6 у широты — поправка на масштаб: градус широты примерно вдвое
- * длиннее градуса долготы на широте Москвы, иначе трасса вытянулась бы по
- * вертикали. Пределы `half` и амплитуды подобраны так, чтобы вместе с
- * разбросом объектов остаться в границах Москвы, которые проверяет seed.test.ts.
- */
-function buildLine(seed: string, lat: number, lon: number, points: number): [number, number][] {
-  const rnd = makeRng(seed)
-  const heading = rnd.float(0, Math.PI * 2, 4)
-  const half = rnd.float(0.09, 0.14, 5)
-  const wave = rnd.float(0.006, 0.015, 5)
-  const phase = rnd.float(0, Math.PI * 2, 3)
-
-  const line: [number, number][] = []
-  for (let i = 0; i < points; i += 1) {
-    // -1 в начале трассы, +1 в конце.
-    const along = (i / (points - 1)) * 2 - 1
-    // Плавное отклонение поперёк хода, к концам сходит на нет.
-    const off = Math.sin(phase + along * Math.PI * 1.5) * wave * (1 - Math.abs(along) * 0.5)
-
-    const dLon = Math.cos(heading) * half * along - Math.sin(heading) * off
-    const dLat = (Math.sin(heading) * half * along + Math.cos(heading) * off) * 0.6
-
-    line.push([Number((lon + dLon).toFixed(5)), Number((lat + dLat).toFixed(5))])
-  }
-  return line
+/** Коллектор назван по местности внутри своего округа. */
+const COLLECTOR_NAMES: Record<string, string> = {
+  CAO: 'Тверской',
+  SAO: 'Тимирязевский',
+  SVAO: 'Останкинский',
+  SZAO: 'Щукинский',
+  VAO: 'Сокольнический',
+  YUAO: 'Даниловский',
+  YUVAO: 'Лефортовский',
+  YUZAO: 'Черёмушкинский',
+  ZAO: 'Дорогомиловский',
 }
 
-export const COLLECTORS: Collector[] = COLLECTOR_NAMES.map((name, index) => {
-  const district = DISTRICTS[index % DISTRICTS.length] as District
-  return {
-    code: `COL-${String(index + 1).padStart(2, '0')}`,
-    label: `Коллектор «${name}»`,
-    district: district.code,
-    line: buildLine(`collector-${index}`, district.lat, district.lon, 24),
-  }
-})
+/**
+ * По коллектору на округ. Трасса не генерируется на лету: она посчитана один
+ * раз внутри настоящего полигона округа и лежит в db/geo.ts готовой ломаной —
+ * так коллектор гарантированно не выходит за границу своего округа и не
+ * пересекает соседний.
+ */
+export const COLLECTORS: Collector[] = OKRUGS.map((okrug, index) => ({
+  code: `COL-${String(index + 1).padStart(2, '0')}`,
+  label: `Коллектор «${COLLECTOR_NAMES[okrug.code] ?? okrug.label}»`,
+  district: okrug.code,
+  line: okrug.line,
+}))
 
 /** ~90 участков: по 11–12 на коллектор. */
 export const SECTIONS: Section[] = COLLECTORS.flatMap((collector, ci) => {

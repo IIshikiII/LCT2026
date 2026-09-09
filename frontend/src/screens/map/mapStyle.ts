@@ -30,6 +30,9 @@ export function mapColors() {
   return {
     background: resolveCssColor('--sunken', '#10151a'),
     line: resolveCssColor('--line', '#2e3841'),
+    /* Округа: суша чуть светлее фона, граница — заметной, но не спорящей с сетью. */
+    districtFill: resolveCssColor('--panel', '#1d242b'),
+    districtLine: resolveCssColor('--line-strong', '#3e4a55'),
     cluster: resolveCssColor('--raised', '#252e36'),
     clusterLine: resolveCssColor('--line-strong', '#3e4a55'),
     label: resolveCssColor('--text', '#e4e9ed'),

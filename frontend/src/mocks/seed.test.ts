@@ -17,12 +17,14 @@ import { TARGET_PRECISION, TARGET_RECALL } from './db/metrics'
 
 describe('справочники', () => {
   it('содержат объёмы из спецификации', () => {
-    expect(COLLECTORS).toHaveLength(8)
-    expect(DISTRICTS).toHaveLength(5)
-    expect(SECTIONS.length).toBeGreaterThanOrEqual(80)
-    expect(SECTIONS.length).toBeLessThanOrEqual(105)
-    expect(FACILITIES.length).toBeGreaterThanOrEqual(450)
-    expect(FACILITIES.length).toBeLessThanOrEqual(750)
+    // По коллектору на округ основной части города; ТиНАО и Зеленоград есть на
+    // подложке, но сети там нет.
+    expect(COLLECTORS).toHaveLength(9)
+    expect(DISTRICTS).toHaveLength(9)
+    expect(SECTIONS.length).toBeGreaterThanOrEqual(90)
+    expect(SECTIONS.length).toBeLessThanOrEqual(120)
+    expect(FACILITIES.length).toBeGreaterThanOrEqual(500)
+    expect(FACILITIES.length).toBeLessThanOrEqual(900)
   })
 
   it('раскладывает объекты в пределах Москвы', () => {

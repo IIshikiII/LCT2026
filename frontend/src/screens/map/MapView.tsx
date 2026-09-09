@@ -12,6 +12,7 @@
  */
 import 'maplibre-gl/dist/maplibre-gl.css'
 import {
+  AttributionControl,
   Map as MapLibreMap,
   NavigationControl,
   setWorkerUrl,
@@ -20,6 +21,7 @@ import {
 } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { useEffect, useRef } from 'react'
+import { env } from '@/shared/config/env'
 import { useTheme } from '@/shared/lib/theme'
 import type { AppMeta, FacilityCollection } from '@/shared/api/types'
 import {
@@ -50,6 +52,7 @@ setWorkerUrl(maplibreWorkerUrl)
 
 const POINTS = 'facilities'
 const LINES = 'collector-lines'
+const OKRUGS = 'moscow-okrugs'
 
 export interface MapViewProps {
   data: FacilityCollection | undefined
@@ -78,9 +81,33 @@ export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
       attributionControl: false,
     })
     instance.addControl(new NavigationControl({ showCompass: false }), 'top-right')
+    // Границы округов — данные OpenStreetMap под ODbL, лицензия требует
+    // указания источника.
+    instance.addControl(new AttributionControl({ compact: true }), 'bottom-right')
 
     instance.on('load', () => {
       const colors = mapColors()
+
+      // Округа Москвы: настоящая география, лежит в public/geo и грузится
+      // самой MapLibre со своего origin. Слои идут первыми — это подложка,
+      // сеть коллекторов рисуется поверх.
+      instance.addSource(OKRUGS, {
+        type: 'geojson',
+        data: env.mapDistrictsUrl,
+        attribution: '© OpenStreetMap contributors',
+      })
+      instance.addLayer({
+        id: `${OKRUGS}-fill`,
+        type: 'fill',
+        source: OKRUGS,
+        paint: { 'fill-color': colors.districtFill },
+      })
+      instance.addLayer({
+        id: `${OKRUGS}-line`,
+        type: 'line',
+        source: OKRUGS,
+        paint: { 'line-color': colors.districtLine, 'line-width': 1 },
+      })
 
       instance.addSource(LINES, {
         type: 'geojson',
@@ -192,6 +219,10 @@ export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
 
     if (instance.getLayer('background')) {
       instance.setPaintProperty('background', 'background-color', colors.background)
+    }
+    if (instance.getLayer(`${OKRUGS}-fill`)) {
+      instance.setPaintProperty(`${OKRUGS}-fill`, 'fill-color', colors.districtFill)
+      instance.setPaintProperty(`${OKRUGS}-line`, 'line-color', colors.districtLine)
     }
     if (instance.getLayer(`${LINES}-layer`)) {
       instance.setPaintProperty(`${LINES}-layer`, 'line-color', colors.line)
