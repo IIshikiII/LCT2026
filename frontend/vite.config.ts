@@ -7,6 +7,10 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // MapLibre создаёт свой воркер как модульный: new Worker(url, {type:'module'}).
+  // Сборка воркеров по умолчанию идёт в iife — формат для модульного воркера
+  // неподходящий. См. комментарий в src/screens/map/MapView.tsx.
+  worker: { format: 'es' },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

@@ -72,6 +72,7 @@ fi
 
 if [ "$SERVE_MODE" = static ]; then
     log "Собираю фронтенд"
+    ensure_node
     command -v node >/dev/null || die "Не найден node."
     NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
     [ "$NODE_MAJOR" -ge 20 ] || die "Vite 8 требует Node 20.19+, здесь $(node -v)."

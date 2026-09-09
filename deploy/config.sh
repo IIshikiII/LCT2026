@@ -45,6 +45,27 @@ preflight() {
 
 ensure_dig() { command -v dig >/dev/null || sudo apt-get install -y -qq dnsutils; }
 
+# Подходящий Node в PATH.
+#
+# nvm подключается из ~/.bashrc, а он при неинтерактивном входе не читается:
+# `ssh host 'bash deploy/update.sh'` видит системный node (в Ubuntu 22.04 это
+# v12) и сборка падает, хотя руками в терминале всё собирается. Берём самую
+# свежую версию из nvm сами.
+ensure_node() {
+    if command -v node >/dev/null 2>&1; then
+        local major
+        major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
+        [ "${major:-0}" -ge 20 ] && return 0
+    fi
+
+    local newest
+    newest=$(ls -d "$HOME"/.nvm/versions/node/v* 2>/dev/null | sort -V | tail -1)
+    if [ -n "$newest" ] && [ -x "$newest/bin/node" ]; then
+        PATH="$newest/bin:$PATH"
+        export PATH
+    fi
+}
+
 # Внешний адрес сервера. Без него не понять, указывает ли домен сюда.
 public_ip() {
     local ip

@@ -19,7 +19,7 @@ import {
   type GeoJSONSource,
   type MapLayerMouseEvent,
 } from 'maplibre-gl'
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { useEffect, useRef } from 'react'
 import { env } from '@/shared/config/env'
 import { useTheme } from '@/shared/lib/theme'
@@ -45,8 +45,16 @@ import {
  * `map.on('error')` не приходит ничего. Единственный след — 404 во вкладке
  * «Сеть».
  *
- * Файл в пакете самодостаточный (19 КБ, без импортов и importScripts),
- * поэтому хватает `?url`: Vite кладёт его в ассеты и в деве, и в сборке.
+ * Подключается он через `?worker&url`, и это не то же самое, что `?url`.
+ * Файл воркера в пакете не самодостаточен: он импортирует соседний
+ * `maplibre-gl-shared.mjs`. `?url` копирует в сборку только сам воркер, сосед
+ * остаётся в node_modules, и модульный воркер не стартует — не может
+ * разрешить импорт. В деве это не всплывает, потому что Vite отдаёт файл
+ * прямо из пакета, где сосед на месте: поломка видна только на собранной
+ * версии. `?worker&url` собирает воркер вместе с зависимостями в один ассет.
+ *
+ * MapLibre создаёт воркер модульным, поэтому в vite.config.ts выставлен
+ * `worker.format: 'es'`.
  */
 setWorkerUrl(maplibreWorkerUrl)
 
