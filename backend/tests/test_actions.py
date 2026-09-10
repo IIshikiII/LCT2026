@@ -66,9 +66,12 @@ def test_inspect_keeps_the_prediction_in_review() -> None:
     assert body["status"] == "IN_REVIEW"
 
 
-def test_an_unknown_code_moves_the_prediction_to_review() -> None:
-    # Поведение унаследовано от моков фронта. Ошибкой оно не считается.
-    assert ok("predictions", "P-1", "нет-такого-кода")["status"] == "IN_REVIEW"
+def test_an_unknown_code_answers_404_and_changes_nothing() -> None:
+    # Молчаливая смена статуса по неизвестному коду скрыла бы опечатку.
+    response = act("predictions", "P-1", "нет-такого-кода")
+    assert response.status_code == 404
+    assert "не существует" in response.json()["detail"]
+    assert client.get(f"{API_PREFIX}/predictions/P-1").json()["status"] == "NEW"
 
 
 def test_an_action_on_a_closed_prediction_answers_409() -> None:
@@ -132,8 +135,10 @@ def test_start_on_a_finished_order_answers_409() -> None:
     assert act("orders", "O-4", "start", crew="Бригада 1").status_code == 409
 
 
-def test_an_unknown_order_code_keeps_the_status() -> None:
-    assert ok("orders", "O-2", "нет-такого-кода")["status"] == "CONFIRMED"
+def test_an_unknown_order_code_answers_404() -> None:
+    response = act("orders", "O-2", "нет-такого-кода")
+    assert response.status_code == 404
+    assert client.get(f"{API_PREFIX}/orders/O-2").json()["status"] == "CONFIRMED"
 
 
 # --- аудит ---

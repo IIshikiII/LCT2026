@@ -30,11 +30,6 @@ TRANSITIONS: tuple[Transition, ...] = (
     Transition("close", ORDER, ("IN_PROGRESS",), "DONE"),
 )
 
-# Неизвестный код над прогнозом переводит его в работу. Так делают моки фронта,
-# и это поведение унаследовано, а не придумано. Для заявки моки оставляют статус
-# без изменений, поэтому здесь запасного перехода нет.
-UNKNOWN_PREDICTION_STATUS = "IN_REVIEW"
-
 
 def find(entity: str, code: str) -> Transition | None:
     return next(

@@ -36,15 +36,21 @@ def check_body(actions: list[ActionDef], code: str, body: dict[str, Any]) -> Non
 def next_status(entity: str, code: str, status: str) -> str:
     """Отдаёт следующий статус или отказывает.
 
-    Неизвестный код над прогнозом переводит его в работу: так делают моки.
-    Действие, недопустимое в текущем статусе, даёт 409. Сущность есть, тело
-    верное, но переход запрещён.
+    Неизвестный код даёт 404: такого действия не существует. Молчаливая смена
+    статуса по неизвестному коду скрывала бы опечатку и устаревшего клиента.
+
+    Известный код в неподходящем статусе даёт 409. Сущность есть, тело верное,
+    но переход запрещён.
     """
     move = transitions.find(entity, code)
     if move is None:
-        if entity == transitions.PREDICTION:
-            return transitions.UNKNOWN_PREDICTION_STATUS
-        return status
+        known = ", ".join(
+            sorted({item.code for item in transitions.TRANSITIONS if item.entity == entity})
+        )
+        raise HTTPException(
+            status_code=404,
+            detail=f"действия {code} не существует, известны: {known}",
+        )
 
     if status not in move.from_statuses:
         allowed = ", ".join(transitions.codes_for(entity, status)) or "нет доступных действий"
