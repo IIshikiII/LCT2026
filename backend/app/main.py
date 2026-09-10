@@ -10,8 +10,11 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from app import logging as app_logging
+from app.api import meta as meta_api
 from app.config import config
 from app.db import get_conn
+
+API_PREFIX = "/api/v1"
 
 app_logging.setup(config.log_level)
 
@@ -28,6 +31,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.include_router(meta_api.router, prefix=API_PREFIX)
 
 
 @app.get("/healthz")
