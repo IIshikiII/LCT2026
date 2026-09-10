@@ -16,6 +16,7 @@ from app.meta.catalog import (
     STATUSES,
     is_terminal,
     level_for,
+    level_order,
     statuses_for,
 )
 from app.meta.directions import REGISTRY, Direction, Reason, active, by_code
@@ -39,5 +40,6 @@ __all__ = [
     "by_code",
     "is_terminal",
     "level_for",
+    "level_order",
     "statuses_for",
 ]

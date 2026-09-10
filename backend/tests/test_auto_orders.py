@@ -129,14 +129,53 @@ def test_another_direction_gets_its_own_order(conn: Connection) -> None:
     assert len(orders(conn)) == 2
 
 
-@pytest.mark.parametrize("status", ["DONE", "REJECTED"])
-def test_a_finished_order_does_not_block_a_new_one(conn: Connection, status: str) -> None:
-    # Отклонённая заявка не признаёт объект исправным навсегда.
+def test_a_finished_order_does_not_block_a_new_one(conn: Connection) -> None:
+    # Выполненная заявка не запрещает новую: состояние объекта могло ухудшиться.
     auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
-    conn.execute(update(work_order).values(status=status))
+    conn.execute(update(work_order).values(status="DONE"))
     later = add_prediction(conn, "P-2", "HIGH", at=NOW + timedelta(minutes=15))
     assert auto_orders.create_for(conn, later) is not None
     assert len(orders(conn)) == 2
+
+
+def test_a_rejection_blocks_the_same_level(conn: Connection) -> None:
+    first = add_prediction(conn, "P-1", "HIGH")
+    auto_orders.create_for(conn, first)
+    conn.execute(update(prediction).where(prediction.c.id == "P-1").values(status="REJECTED"))
+    conn.execute(update(work_order).values(status="REJECTED"))
+
+    later = add_prediction(conn, "P-2", "HIGH", at=NOW + timedelta(minutes=15))
+    assert auto_orders.create_for(conn, later) is None, "отклонённый уровень повторять нельзя"
+
+
+def test_a_higher_level_breaks_through_the_rejection(conn: Connection) -> None:
+    # Отказ на HIGH ничего не говорит о CRITICAL.
+    auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
+    conn.execute(update(prediction).where(prediction.c.id == "P-1").values(status="REJECTED"))
+    conn.execute(update(work_order).values(status="REJECTED"))
+
+    later = add_prediction(conn, "P-2", "CRITICAL", at=NOW + timedelta(minutes=15))
+    assert auto_orders.create_for(conn, later) is not None
+
+
+def test_the_rejection_expires(conn: Connection) -> None:
+    # Отклонение — суждение о текущем состоянии, а не приговор объекту.
+    auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
+    conn.execute(update(prediction).where(prediction.c.id == "P-1").values(status="REJECTED"))
+    conn.execute(update(work_order).values(status="REJECTED"))
+
+    cooldown = by_code("SENSOR_FAILURE").reject_cooldown_hours
+    later = add_prediction(conn, "P-2", "HIGH", at=NOW + timedelta(hours=cooldown + 1))
+    assert auto_orders.create_for(conn, later) is not None
+
+
+def test_a_rejected_order_alone_blocks_the_same_level(conn: Connection) -> None:
+    # Диспетчер отклонил заявку, прогноз остался в работе. Бригаду не шлём.
+    auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
+    conn.execute(update(work_order).values(status="REJECTED"))
+
+    later = add_prediction(conn, "P-2", "HIGH", at=NOW + timedelta(minutes=15))
+    assert auto_orders.create_for(conn, later) is None
 
 
 def test_an_unknown_direction_creates_nothing(conn: Connection) -> None:

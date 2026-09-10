@@ -10,20 +10,20 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.engine import Connection
 
-from app.meta import by_code
+from app.meta import by_code, level_order
 from app.tables import prediction, work_order
 
 log = logging.getLogger(__name__)
 
 AUTO_CREATED = "AUTO_CREATED"
 
-# Заявка считается открытой, пока работа по ней не кончилась. Отклонённая
-# заявка не запрещает новую: диспетчер отклонил заявку, а не признал объект
-# исправным. Поток заявок останавливает отклонение самого прогноза.
+# Заявка считается открытой, пока работа по ней не кончилась.
 CLOSED_STATUSES = ("DONE", "REJECTED")
+
+REJECTED = "REJECTED"
 
 
 @dataclass(frozen=True)
@@ -59,6 +59,35 @@ def has_open_order(conn: Connection, facility_id: str, direction: str) -> bool:
     return found is not None
 
 
+def suppressed_level(conn: Connection, facility_id: str, direction: str, since: datetime) -> int:
+    """Отдаёт наибольший уровень, отклонённый на объекте за срок давности.
+
+    Отклонение — это суждение о текущем состоянии, а не приговор объекту.
+    Поэтому оно перестаёт действовать по сроку давности и перестаёт действовать
+    сразу, как только уровень вырос: отказ на HIGH ничего не говорит о
+    CRITICAL.
+
+    За время отклонения берётся момент расчёта прогноза. Диспетчер разбирает
+    прогноз внутри горизонта, поэтому разница несущественна, а запрос остаётся
+    без обращения к журналу действий.
+    """
+    rows = (
+        conn.execute(
+            select(prediction.c.level)
+            .outerjoin(work_order, work_order.c.prediction_id == prediction.c.id)
+            .where(
+                prediction.c.facility_id == facility_id,
+                prediction.c.direction == direction,
+                prediction.c.computed_at >= since,
+                or_(prediction.c.status == REJECTED, work_order.c.status == REJECTED),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return max((level_order(level) for level in rows), default=0)
+
+
 def create_for(conn: Connection, candidate: Candidate) -> str | None:
     """Создаёт заявку по прогнозу или отказывает.
 
@@ -76,8 +105,16 @@ def create_for(conn: Connection, candidate: Candidate) -> str | None:
     if has_open_order(conn, candidate.facility_id, candidate.direction):
         return None
 
-    # Половина горизонта, а не весь: заявка со сроком в конце горизонта
-    # приезжает ровно к предполагаемой аварии.
+    since = candidate.computed_at - timedelta(hours=direction.reject_cooldown_hours)
+    if level_order(candidate.level) <= suppressed_level(
+        conn, candidate.facility_id, candidate.direction, since
+    ):
+        return None
+
+    # Срок по умолчанию, до первого касания человеком. Настоящий срок
+    # назначает диспетчер при подтверждении заявки. Половина горизонта, а не
+    # весь: заявка со сроком в конце горизонта приезжает ровно к
+    # предполагаемой аварии.
     due_at = candidate.computed_at + timedelta(hours=candidate.horizon_hours * direction.due_factor)
     number = next_number(conn)
     order_id = f"WO-{number}"

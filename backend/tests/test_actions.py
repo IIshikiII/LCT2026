@@ -16,6 +16,8 @@ pytestmark = pytest.mark.usefixtures("seeded")
 
 client = TestClient(app)
 
+DUE = "2026-09-12T09:00:00Z"
+
 CLOSE_BODY = {
     "actualCause": "INTRUSION",
     "predictionConfirmed": True,
@@ -103,7 +105,7 @@ def test_min_length_is_checked_on_the_server() -> None:
 
 
 def test_the_order_lifecycle_runs_to_the_end() -> None:
-    assert ok("orders", "O-1", "confirm", assignee="Бригада 7")["status"] == "CONFIRMED"
+    assert ok("orders", "O-1", "confirm", assignee="Бригада 7", dueAt=DUE)["status"] == "CONFIRMED"
     assert ok("orders", "O-1", "start", crew="Бригада 7")["status"] == "IN_PROGRESS"
     closed = ok("orders", "O-1", "close", **CLOSE_BODY)
     assert closed["status"] == "DONE"
@@ -142,6 +144,31 @@ def test_an_unknown_order_code_answers_404() -> None:
 
 
 # --- аудит ---
+
+
+def test_confirm_takes_the_deadline_from_the_dispatcher() -> None:
+    # Расчётный срок автосоздания — заглушка. Настоящий срок ставит человек.
+    body = ok("orders", "O-1", "confirm", assignee="Бригада 7", dueAt=DUE)
+    assert body["dueAt"] == "2026-09-12T09:00:00Z"
+
+
+def test_confirm_needs_the_deadline() -> None:
+    response = act("orders", "O-1", "confirm", assignee="Бригада 7")
+    assert response.status_code == 422
+    assert "dueAt" in response.json()["detail"]
+
+
+def test_confirm_refuses_a_deadline_that_is_not_a_moment() -> None:
+    response = act("orders", "O-1", "confirm", assignee="Бригада 7", dueAt="завтра")
+    assert response.status_code == 422
+
+
+def test_the_deadline_hint_carries_the_horizon() -> None:
+    order = client.get(f"{API_PREFIX}/orders/O-1").json()
+    confirm = next(a for a in order["actions"] if a["code"] == "confirm")
+    hint = next(f for f in confirm["fields"] if f["name"] == "dueAt")["help"]
+    assert "горизонт 48 ч" in hint
+    assert "истекает" in hint
 
 
 def test_every_action_lands_in_the_audit_log() -> None:

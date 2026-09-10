@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from fastapi import HTTPException
 from sqlalchemy import Column
 from sqlalchemy.sql.elements import UnaryExpression
 
@@ -50,6 +51,23 @@ def order_by(
     if column is None:
         return fallback
     return column.desc() if direction == "desc" else column.asc()
+
+
+def parse_moment(raw: object, field: str) -> datetime:
+    """Разбирает метку времени из тела действия.
+
+    Непонятное значение — 422, а не молчаливое приведение: срок работ слишком
+    важен, чтобы угадывать его.
+    """
+    if not isinstance(raw, str):
+        raise HTTPException(status_code=422, detail=f"поле {field} принимает метку времени")
+    try:
+        moment = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise HTTPException(
+            status_code=422, detail=f"поле {field} не похоже на метку времени: {raw}"
+        ) from error
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 @dataclass(frozen=True)

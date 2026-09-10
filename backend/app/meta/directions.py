@@ -29,9 +29,11 @@ class Direction:
     min_horizon_hours: int
     reasons: tuple[Reason, ...]
     work_types: tuple[str, ...]
-    # Порог автозаявки и множитель срока. Спецификация §8.
+    # Порог автозаявки и множитель срока по умолчанию. Спецификация §8.
     order_levels: tuple[str, ...] = ("HIGH", "CRITICAL")
     due_factor: float = 0.5
+    # Сколько отклонение держит объект от новых заявок того же уровня.
+    reject_cooldown_hours: int = 168
     enabled_by_default: bool = True
 
     @property

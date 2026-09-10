@@ -6,8 +6,38 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+
 from app.meta import REJECTION_REASONS_REF, by_code
 from app.schemas import ActionDef, FieldDef
+
+
+@dataclass(frozen=True)
+class OrderContext:
+    """Числа этой заявки, которые видит диспетчер при подтверждении."""
+
+    direction: str | None = None
+    computed_at: datetime | None = None
+    horizon_hours: int | None = None
+
+    def deadline_help(self) -> str:
+        """Собирает подсказку к сроку из живых чисел прогноза.
+
+        Действия считает сервер, поэтому подсказка несёт контекст ещё до того,
+        как фронт научится рисовать его сам.
+        """
+        if self.computed_at is None or self.horizon_hours is None:
+            return "Срок, к которому работы должны быть закончены"
+        ends_at = self.computed_at + timedelta(hours=self.horizon_hours)
+        left = ends_at - datetime.now(UTC)
+        hours_left = int(left.total_seconds() // 3600)
+        tail = f"осталось {hours_left} ч" if hours_left > 0 else "горизонт уже истёк"
+        return (
+            f"Прогноз посчитан {self.computed_at:%d.%m %H:%M}, "
+            f"горизонт {self.horizon_hours} ч, истекает {ends_at:%d.%m %H:%M}, {tail}"
+        )
+
 
 COMMENT = FieldDef(name="comment", label="Комментарий", type="textarea")
 
@@ -74,12 +104,15 @@ def prediction_actions(status: str) -> list[ActionDef]:
     return []
 
 
-def order_actions(status: str, direction: str | None) -> list[ActionDef]:
+def order_actions(status: str, context: OrderContext | None = None) -> list[ActionDef]:
     """Действия заявки.
 
     Форма закрытия берёт список фактических причин у направления связанного
     прогноза. Поэтому `work_order.prediction_id` обязателен.
     """
+    context = context or OrderContext()
+    direction = context.direction
+
     if status == "AUTO_CREATED":
         return [
             ActionDef(
@@ -93,6 +126,15 @@ def order_actions(status: str, direction: str | None) -> list[ActionDef]:
                         type="text",
                         required=True,
                         min_length=2,
+                    ),
+                    # Срок при автосоздании — заглушка от горизонта. Настоящий
+                    # срок назначает человек: он один знает загрузку бригад.
+                    FieldDef(
+                        name="dueAt",
+                        label="Закончить работы к",
+                        type="datetime",
+                        required=True,
+                        help=context.deadline_help(),
                     ),
                     COMMENT,
                 ],

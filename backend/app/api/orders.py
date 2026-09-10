@@ -10,9 +10,9 @@ from sqlalchemy import Select, func, select, update
 from sqlalchemy.engine import Connection
 
 from app.api import common, mappers
-from app.api.common import iso
+from app.api.common import iso, parse_moment
 from app.db import get_conn, get_tx
-from app.domain import apply, order_actions, transitions
+from app.domain import OrderContext, apply, order_actions, transitions
 from app.schemas import Page, WorkOrder
 from app.tables import facility, prediction, work_order
 
@@ -29,7 +29,13 @@ SORT_FIELDS = {
 # Направление приходит из связанного прогноза: форма закрытия берёт по нему
 # список фактических причин.
 BASE = (
-    select(work_order, facility, prediction.c.direction)
+    select(
+        work_order,
+        facility,
+        prediction.c.direction,
+        prediction.c.computed_at,
+        prediction.c.horizon_hours,
+    )
     .join(facility, facility.c.id == work_order.c.facility_id)
     .join(prediction, prediction.c.id == work_order.c.prediction_id)
 )
@@ -45,11 +51,19 @@ def _filtered(statement: Select[Any], statuses: list[str], due_before: str | Non
     return statement
 
 
+def _context(row: Any) -> OrderContext:
+    return OrderContext(
+        direction=row.direction,
+        computed_at=row.computed_at,
+        horizon_hours=row.horizon_hours,
+    )
+
+
 def _row_to_order(row: Any) -> WorkOrder:
     return mappers.work_order(
         row,
         mappers.facility_ref(row),
-        list(order_actions(row.status, row.direction)),
+        list(order_actions(row.status, _context(row))),
     )
 
 
@@ -110,10 +124,13 @@ def act_on_order(
     row = _load(conn, order_id)
     status = row.status
 
-    apply.check_body(list(order_actions(status, row.direction)), code, body)
+    apply.check_body(list(order_actions(status, _context(row))), code, body)
     new_status = apply.next_status(transitions.ORDER, code, status)
 
     extra: dict[str, Any] = {}
+    if code == "confirm":
+        # Срок назначает диспетчер. Расчётный срок автосоздания был заглушкой.
+        extra["due_at"] = parse_moment(body["dueAt"], field="dueAt")
     if code == "close":
         extra["outcome"] = _outcome(body)
 

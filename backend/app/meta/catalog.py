@@ -125,6 +125,11 @@ def level_for(probability: float) -> str:
     return code
 
 
+def level_order(code: str) -> int:
+    """Отдаёт порядковый номер уровня. Неизвестный уровень считается низшим."""
+    return next((item.order for item in RISK_LEVELS if item.code == code), 0)
+
+
 def statuses_for(scope: str) -> tuple[Status, ...]:
     return tuple(status for status in STATUSES if status.scope == scope)
 
