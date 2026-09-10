@@ -23,7 +23,7 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
 import { useEffect, useRef } from 'react'
 import { env } from '@/shared/config/env'
 import { useTheme } from '@/shared/lib/theme'
-import type { AppMeta, FacilityCollection } from '@/shared/api/types'
+import type { AppMeta, FacilityCollection, LineCollection } from '@/shared/api/types'
 import {
   MOSCOW_CENTER,
   levelColorExpression,
@@ -62,21 +62,41 @@ const POINTS = 'facilities'
 const LINES = 'collector-lines'
 const OKRUGS = 'moscow-okrugs'
 
+/**
+ * Округление границ до 0.05° (около 3 км по долготе на широте Москвы).
+ *
+ * Без него каждый пиксель панорамирования давал бы новый ключ кэша и новый
+ * запрос. С запасом в полшага объекты у края экрана приезжают заранее, поэтому
+ * при небольшом сдвиге карты подгружать нечего.
+ */
+const BBOX_STEP = 0.05
+
+function roundBbox(west: number, south: number, east: number, north: number): string {
+  const down = (v: number) => Math.floor(v / BBOX_STEP) * BBOX_STEP
+  const up = (v: number) => Math.ceil(v / BBOX_STEP) * BBOX_STEP
+  return [down(west), down(south), up(east), up(north)].map((v) => v.toFixed(2)).join(',')
+}
+
 export interface MapViewProps {
   data: FacilityCollection | undefined
+  lines: LineCollection | undefined
   meta: AppMeta
   selectedId?: string
   onSelect: (predictionId: string) => void
+  /** Сообщает границы видимой области после того, как карта остановилась. */
+  onBoundsChange?: (bbox: string) => void
 }
 
-export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
+export function MapView({ data, lines, meta, selectedId, onSelect, onBoundsChange }: MapViewProps) {
   const { theme } = useTheme()
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<InstanceType<typeof MapLibreMap> | null>(null)
   const ready = useRef(false)
-  // Обработчик клика меняется вместе с пропсами, а слушатель вешается один раз.
+  // Обработчики меняются вместе с пропсами, а слушатели вешаются один раз.
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
+  const boundsRef = useRef(onBoundsChange)
+  boundsRef.current = onBoundsChange
 
   useEffect(() => {
     if (!container.current || map.current) return
@@ -187,6 +207,18 @@ export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
       instance.triggerRepaint()
     })
 
+    /*
+     * Границы видимой области — параметр bbox запроса объектов. Сообщаем их
+     * после загрузки и после каждой остановки карты, а не в процессе движения:
+     * иначе на каждый кадр панорамирования уходил бы запрос.
+     */
+    const report = () => {
+      const b = instance.getBounds()
+      boundsRef.current?.(roundBbox(b.getWest(), b.getSouth(), b.getEast(), b.getNorth()))
+    }
+    instance.on('load', report)
+    instance.on('moveend', report)
+
     map.current = instance
     return () => {
       instance.remove()
@@ -198,21 +230,33 @@ export function MapView({ data, meta, selectedId, onSelect }: MapViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /* Данные источников. */
+  /* Точки объектов. Меняются при каждом опросе и при сдвиге карты. */
   useEffect(() => {
     const instance = map.current
     if (!instance || !data) return
 
     const apply = () => {
       const points = instance.getSource(POINTS) as GeoJSONSource | undefined
-      const lines = instance.getSource(LINES) as GeoJSONSource | undefined
       points?.setData({ type: 'FeatureCollection', features: data.features } as never)
-      if (data.lines) lines?.setData(data.lines as never)
     }
 
     if (ready.current) apply()
     else instance.once('idle', apply)
   }, [data])
+
+  /* Трассы коллекторов. Приезжают один раз за сессию своей ручкой. */
+  useEffect(() => {
+    const instance = map.current
+    if (!instance || !lines) return
+
+    const apply = () => {
+      const source = instance.getSource(LINES) as GeoJSONSource | undefined
+      source?.setData(lines as never)
+    }
+
+    if (ready.current) apply()
+    else instance.once('idle', apply)
+  }, [lines])
 
   /*
    * Раскраска. Один эффект на три причины перекрасить: мета могла приехать

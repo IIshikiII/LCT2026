@@ -45,6 +45,24 @@ function param(request: Request, name: string): string | undefined {
   return new URL(request.url).searchParams.get(name) ?? undefined
 }
 
+/** Границы видимой области карты: `minLon,minLat,maxLon,maxLat`. */
+type Bbox = [number, number, number, number]
+
+/**
+ * Разбирает bbox. Мусор в параметре — не ошибка: карта просто получит все
+ * объекты, а не пустой экран.
+ */
+function parseBbox(value: string | undefined): Bbox | undefined {
+  if (!value) return undefined
+  const parts = value.split(',').map(Number)
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return undefined
+  return parts as Bbox
+}
+
+function insideBbox([minLon, minLat, maxLon, maxLat]: Bbox, lon: number, lat: number): boolean {
+  return lon >= minLon && lon <= maxLon && lat >= minLat && lat <= maxLat
+}
+
 function matchesFilters(record: PredictionRecord, request: Request): boolean {
   const direction = listParam(request, 'direction')
   const level = listParam(request, 'level')
@@ -184,12 +202,24 @@ export const handlers = [
   }),
 
   /* карта */
+  http.get(url('/facilities/lines'), async () =>
+    ok({
+      type: 'FeatureCollection',
+      features: COLLECTORS.map((c) => ({
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: c.line },
+        properties: { collector: c.label },
+      })),
+    }),
+  ),
+
   http.get(url('/facilities'), async ({ request }) => {
     if (devFlags.get('failLists')) return fail(500, 'Дев-панель: списки намеренно падают')
 
     const direction = listParam(request, 'direction')
     const level = listParam(request, 'level')
     const district = param(request, 'district')
+    const box = parseBbox(param(request, 'bbox'))
 
     // На карте показываем по одной точке на объект — с самым тяжёлым прогнозом.
     const worst = new Map<string, PredictionRecord>()
@@ -197,6 +227,7 @@ export const handlers = [
       if (direction.length && !direction.includes(record.direction)) continue
       if (level.length && !level.includes(record.level)) continue
       if (district && record.facility.district !== district) continue
+      if (box && !insideBbox(box, record.facility.lon, record.facility.lat)) continue
       const current = worst.get(record.facility.id)
       if (!current || current.probability < record.probability) {
         worst.set(record.facility.id, record)
@@ -217,19 +248,7 @@ export const handlers = [
       },
     }))
 
-    return ok({
-      type: 'FeatureCollection',
-      features,
-      // Ломаные коллекторов — подложка офлайн-стиля карты (ADR 0008).
-      lines: {
-        type: 'FeatureCollection',
-        features: COLLECTORS.map((c) => ({
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: c.line },
-          properties: { collector: c.label },
-        })),
-      },
-    })
+    return ok({ type: 'FeatureCollection', features })
   }),
 
   http.get(url('/facilities/:id'), async ({ params }) => {
@@ -281,8 +300,10 @@ export const handlers = [
       order.status = 'DONE'
       order.outcome = {
         actualCause: String(body['actualCause'] ?? ''),
-        // Разметка обязательна: из неё считаются Precision и Recall.
-        predictionConfirmed: body['predictionConfirmed'] === true || body['predictionConfirmed'] === 'true',
+        // Разметка обязательна: из неё считаются Precision и Recall. Принимаем
+        // только boolean — форма шлёт именно его, а бэкенд не должен наследовать
+        // терпимость к строке в поле, от которого зависит качество модели.
+        predictionConfirmed: body['predictionConfirmed'] === true,
         comment: String(body['comment'] ?? ''),
         closedAt: new Date().toISOString(),
       }

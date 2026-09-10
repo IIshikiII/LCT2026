@@ -14,20 +14,28 @@ except `config`, `db`, `logging`, `main`, `migrate` and `cli` is an empty
 Work through the tasks in order. Task 1 comes first, because the specification
 is the input of every task after it.
 
-The same review found seven gaps that the frontend must close, not the backend.
-They live in `frontend/docs/09-gap-tasks.md` and they are not repeated here. Read
-that list before you start task 6, because two of its decisions change what
-`/facilities` returns. See the section "Owned by the frontend" at the end.
+The same review found seven gaps on the frontend side. The frontend closed all
+seven. `frontend/docs/09-gap-tasks.md` records what changed and why. Two of those
+decisions changed this contract, and both are already folded into
+[04-api-required-by-frontend.md](04-api-required-by-frontend.md): the map now
+sends `bbox`, and the collector routes moved to `GET /facilities/lines`.
 
 ## Task 1. Fix the specification
 
 The specification is close to the frontend contract, but it disagrees with the
-mocks in five places. Fix `../../ARM-ODS-backend-spec.md` before you write code
+mocks in seven places. Fix `../../ARM-ODS-backend-spec.md` before you write code
 against it.
 
-The order status `DONE` was the sixth item here. The team resolved it the other
+The order status `DONE` was an eighth item here. The team resolved it the other
 way: the frontend moved to `DONE`, and specification §8 was right. Nothing to fix.
 
+- [ ] **§4, `/facilities` misses the `/facilities/lines` endpoint.** The collector
+      routes used to ride inside the `/facilities` response. The frontend moved
+      them to their own endpoint, because the map polls the points once per
+      minute and the routes never change. Add the endpoint to the list.
+- [ ] **§4, the time series take no parameters.** The specification writes
+      `GET /predictions/{id}/timeseries?from&to`. Nothing ever sent them, and the
+      frontend dropped them. Remove both from the line.
 - [ ] **§5 rule 3, the list of action codes is wrong.** It reads
       "`confirm`, `reject`, `confirm_order` (прогноз), `start`, `close` (заявка)".
       In the mocks `confirm` belongs to the order, not to the prediction, and the
@@ -112,10 +120,10 @@ reader who only knows the mocks.
 - [ ] `GET /predictions/{id}/timeseries` reading `sensor_reading`, with
       `markerAt` set to `computedAt`.
 - [ ] `GET /facilities` returning GeoJSON, one feature per facility, the
-      prediction with the highest probability, and `[lon, lat]` order.
-      Two parts of this endpoint wait on a frontend decision. Do not build them
-      yet. `bbox` has no caller today, and the collector routes may move out of
-      this response. See frontend tasks 2 and 4.
+      prediction with the highest probability, and `[lon, lat]` order. Filter by
+      `bbox` with the edges included. Ignore a `bbox` that does not parse.
+- [ ] `GET /facilities/lines` returning the collector routes. Separate endpoint,
+      because the map loads it once and never polls it.
 - [ ] `GET /facilities/{id}`.
 - [ ] `GET /orders` and `GET /orders/{id}`.
 - [ ] Return 404 with a readable message for every unknown id.
@@ -131,8 +139,8 @@ reader who only knows the mocks.
 - [ ] An unknown code must not return 500. The mocks move a prediction to
       `IN_REVIEW`.
 - [ ] `close` must write `outcome` with `predictionConfirmed`, and it must move
-      the linked prediction to `CLOSED`. Accept a boolean only. The mock handler
-      also accepts the string `"true"`, and frontend task 6 removes that.
+      the linked prediction to `CLOSED`. Accept a boolean only. A string does not
+      count as a confirmation.
 - [ ] Write every action to `action_log`.
 - [ ] Keep the cross entity effects the mocks have: `confirm_order` moves an
       `AUTO_CREATED` order to `CONFIRMED`, and `reject` on a prediction rejects
@@ -180,32 +188,32 @@ reader who only knows the mocks.
       `arm-backend-api-contract`, `arm-direction-plugin`, `arm-ingest`,
       `arm-ml-eval`.
 
-## Owned by the frontend
+## Settled by the frontend
 
-These seven gaps came out of the same review. The backend does not fix them, and
-they carry no task here. They are open in `frontend/docs/09-gap-tasks.md`.
+These seven gaps came out of the same review and belong to the frontend. All
+seven are closed. They carry no task here, and
+[04-api-required-by-frontend.md](04-api-required-by-frontend.md) already
+describes the result. The list stays so that nobody reopens a settled question.
 
-1. **The terminal order status. Closed already.** Specification §8 says `DONE`,
-   and the frontend used `CLOSED`. The frontend moved to `DONE`, so §8 stays as
-   it is. An order ends at `DONE`. A prediction ends at `CLOSED`.
-2. `frontend/docs/02-api-contract.md` has drifted from `schemas.ts` in eight
-   places. That document is the human readable face of this contract, so a
-   backend author who reads it gets a wrong `AppMeta`, a wrong
-   `PipelineHealth` and a wrong `DashboardSummary`.
-3. `bbox` has no caller. The parameter exists in the frontend filter builder, but
-   no screen sends it and the mock ignores it.
-4. The map drops the `status` filter while the journal keeps it. The frontend
-   decides whether this stays.
-5. The collector routes travel inside `/facilities` on every poll, once per
-   minute. The frontend decides where they move.
-6. `GET /predictions/{id}/timeseries` declares `from` and `to`, and the card
-   sends neither. If the frontend drops them, remove them from specification §4.
-7. The mock accepts the string `"true"` for `predictionConfirmed`. Do not copy
-   this into the backend.
+1. **The terminal order status.** Specification §8 says `DONE`, and the frontend
+   used `CLOSED`. The frontend moved to `DONE`, so §8 stays as it is. An order
+   ends at `DONE`. A prediction ends at `CLOSED`.
+2. **The frontend contract document.** `frontend/docs/02-api-contract.md` had
+   drifted from `schemas.ts` in eight places. It now matches.
+3. **`bbox` works.** The map sends the viewport after every `moveend`, rounded
+   outward to 0.05 degrees, and the mock filters by it.
+4. **The map ignores `status` and the date range on purpose.** It shows risk, not
+   the stage of work. The filter bar hides both controls on that screen, so the
+   interface does not offer a filter that does nothing.
+5. **The collector routes moved out of `/facilities`** into
+   `GET /facilities/lines`, loaded once per session.
+6. **The time series take no parameters.** `from` and `to` are gone from the
+   frontend contract. Task 1 removes them from specification §4.
+7. **`predictionConfirmed` takes a boolean only.** The string branch is gone from
+   the mock, and a test holds that line.
 
 Task 1 of this document still fixes the backend specification, because the
-specification is wrong on its own terms. The frontend list fixes the frontend
-document. The two do not overlap.
+specification is wrong on its own terms.
 
 ## Differences that are intentional
 

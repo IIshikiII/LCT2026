@@ -178,7 +178,12 @@ export const TimeSeriesResponseSchema = dto({
 export const FacilityCollectionSchema = dto({
   type: z.literal('FeatureCollection'),
   features: z.array(z.unknown()),
-  lines: z.unknown().optional(),
+})
+
+/** Трассы коллекторов. Тот же конверт, но приходит со своей ручки. */
+export const LineCollectionSchema = dto({
+  type: z.literal('FeatureCollection'),
+  features: z.array(z.unknown()),
 })
 
 export const ModelMetricListSchema = z.array(ModelMetricSchema)

@@ -245,13 +245,19 @@ export interface FacilityFeature {
 export interface FacilityCollection {
   type: 'FeatureCollection'
   features: FacilityFeature[]
-  /** линии коллекторов для офлайн-подложки (ADR 0008) */
-  lines?: {
-    type: 'FeatureCollection'
-    features: {
-      type: 'Feature'
-      geometry: { type: 'LineString'; coordinates: [number, number][] }
-      properties: { collector: string }
-    }[]
-  }
+}
+
+/**
+ * Трассы коллекторов — подложка офлайн-стиля карты (ADR 0008).
+ *
+ * Приходят отдельной ручкой, а не вместе с точками: геометрия сети не меняется,
+ * а точки опрашиваются раз в минуту.
+ */
+export interface LineCollection {
+  type: 'FeatureCollection'
+  features: {
+    type: 'Feature'
+    geometry: { type: 'LineString'; coordinates: [number, number][] }
+    properties: { collector: string }
+  }[]
 }

@@ -15,6 +15,11 @@ export const endpoints = {
   predictionAction: (id: string, code: string) => `/predictions/${id}/actions/${code}`,
 
   facilities: () => '/facilities',
+  /**
+   * Трассы коллекторов — отдельно от точек: геометрия сети не меняется, а
+   * список объектов опрашивается раз в минуту. См. docs/02-api-contract.md.
+   */
+  facilityLines: () => '/facilities/lines',
   facility: (id: string) => `/facilities/${id}`,
 
   orders: () => '/orders',

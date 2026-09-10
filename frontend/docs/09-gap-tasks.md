@@ -1,134 +1,130 @@
 # Frontend gaps found when the backend contract was written
 
 `backend/docs/04-api-required-by-frontend.md` states what the backend must serve.
-Writing it exposed gaps that belong to the frontend, not to the backend. This
-document lists them as tasks.
+Writing it exposed seven gaps that belong to the frontend, not to the backend.
 
-A gap belongs here when one of these is true:
+**All seven are closed.** This document keeps the record: what was wrong, what
+changed, and why. Read it before you reopen one of these questions.
 
-1. `frontend/docs/02-api-contract.md` disagrees with
-   `frontend/src/shared/api/schemas.ts`.
-2. The frontend sends a parameter that the mock handler ignores, so no test can
-   prove that the backend behaviour is right.
-3. The frontend declares a parameter that no screen ever sends, so the backend
+A gap belonged here when one of these was true:
+
+1. `docs/02-api-contract.md` disagreed with `src/shared/api/schemas.ts`.
+2. The frontend sent a parameter that the mock handler ignored, so no test could
+   prove that the backend behaviour was right.
+3. The frontend declared a parameter that no screen ever sent, so the backend
    would build a feature with no caller.
 
 The backend side of the same review is `backend/docs/05-gap-tasks.md`.
 
-Every task that changes the contract must also change the mocks in the same
-commit. `src/mocks/` is a backend stand-in, not a set of fixtures. A contract
-change that the mocks do not follow makes `VITE_USE_MOCKS=true` a lie.
+Every change here also changed the mocks. `src/mocks/` is a backend stand-in, not
+a set of fixtures. A contract change that the mocks do not follow makes
+`VITE_USE_MOCKS=true` a lie.
 
-## Task 1. Fix the contract document
+## Task 1. Fix the contract document. Done
 
 `docs/02-api-contract.md` calls itself a human readable projection of
-`schemas.ts`, and it says that a difference is a bug to fix. The document has
-drifted in eight places. Fix the document, not the code. In every case the code
-is right.
+`schemas.ts`, and it says that a difference is a bug to fix. The document had
+drifted in eight places. The code was right in every case, so the document moved.
 
-- [ ] `AppMeta` misses three fields. The document lists `directions`,
-      `riskLevels`, `journalColumns`, `dashboardWidgets` and `reasons`.
-      `AppMetaSchema` also has `statuses`, `districts` and `orderColumns`.
-- [ ] `GET /orders` misses the `sort` parameter. `orderParams` in
-      `src/shared/api/filters.ts` sends it, and the mock handler sorts by it.
-- [ ] `GET /facilities` misses the `district` parameter. `facilityParams` sends
-      it, and the mock handler filters by it.
-- [ ] The `properties` list of a map feature misses `address` and `collector`.
-      The mock handler sends both, and the map popup shows them.
-- [ ] `GET /metrics/pipeline` misses `targetComputeMs` and `targetHorizonHours`.
-      Both are in `PipelineHealthSchema`, and the dashboard widget needs them to
-      draw the target line.
-- [ ] `GET /dashboard/summary` misses `byStatus`. The document lists `byLevel`,
-      `byDirection`, `byOrderStatus` and `total`.
-- [ ] The time series response misses `markerAt` and the optional `unit` of a
-      series. Both are in `TimeSeriesResponseSchema`.
-- [ ] The `/facilities` response misses the optional `lines` field, which carries
-      the collector routes.
+- [x] `AppMeta` missed `statuses`, `districts` and `orderColumns`.
+- [x] `GET /orders` missed the `sort` parameter, which `orderParams` sends.
+- [x] `GET /facilities` missed the `district` parameter, which `facilityParams`
+      sends.
+- [x] The `properties` list of a map feature missed `address` and `collector`.
+- [x] `GET /metrics/pipeline` missed `targetComputeMs` and `targetHorizonHours`.
+- [x] `GET /dashboard/summary` missed `byStatus`.
+- [x] The time series response missed `markerAt` and the optional `unit`.
+- [x] The `/facilities` response documented no collector routes. Task 4 moved
+      them to their own endpoint, and the document now describes that.
 
-## Task 2. Decide what happens to `bbox`
+## Task 2. Make `bbox` work. Done
 
-`bbox` exists in `facilityParams` and in the signature of `useFacilities`, but
-`MapScreen` calls `useFacilities(api.filters)` with one argument. No screen ever
-sends it, and the mock handler in `src/mocks/handlers.ts` does not read it. The
-backend specification asks for the parameter anyway.
+`bbox` lived in `facilityParams` and in the signature of `useFacilities`, but
+`MapScreen` called `useFacilities(api.filters)` with one argument. No screen sent
+it, and the mock handler did not read it. The backend specification asked for the
+parameter anyway, so the backend would have built a feature with no caller.
 
-The map loads every facility at once. The mock seed holds a few hundred objects,
-so this works today. Real Moscow holds far more.
+The map loaded every facility at once. The mock seed holds a few hundred objects,
+so this worked. Real Moscow holds far more. The parameter stays, and it works.
 
-Recommended: keep `bbox` and make it work.
+- [x] `MapView` reports the viewport on `load` and on `moveend` through a new
+      `onBoundsChange` prop. It never reports during the movement itself.
+- [x] Bounds round outward to 0.05 degrees, about 3 km of longitude in Moscow.
+      Without rounding every pixel of panning would mint a new cache key. The
+      outward half step also pulls in objects just off screen, so a small pan
+      needs no request.
+- [x] `MapScreen` holds the box in state and passes it to `useFacilities`. Until
+      the map reports, the request goes without `bbox`.
+- [x] `useFacilities` keeps the previous page while a new box loads, so the map
+      does not blink empty.
+- [x] The `/facilities` mock handler filters by `bbox`, edges included.
+- [x] A `bbox` that does not parse is ignored, not an error. A dispatcher with a
+      broken URL sees every object, not an empty map.
+- [x] Tests in `src/mocks/handlers.test.ts` cover the filter, the empty area and
+      the broken value.
 
-- [ ] Send the viewport bounds from `MapScreen` after the map stops moving.
-      Round the numbers, so a small pan does not make a new cache key.
-- [ ] Filter by `bbox` in the `/facilities` mock handler.
-- [ ] Add a test that proves a facility outside the box does not come back.
-- [ ] Write the rounding rule into `docs/02-api-contract.md`.
-
-If the team decides against it, delete `bbox` from `filters.ts` and from
-`useFacilities`, and remove it from the backend contract document. Do not leave a
-third state where the parameter exists and nothing sends it.
-
-## Task 3. Decide whether the map obeys the status filter
+## Task 3. Decide whether the map obeys the status filter. Done, no code change
 
 The journal filters predictions by `status`. The map does not, because
-`facilityParams` drops `status` on purpose. The filter bar is shared, so a
-dispatcher sets a status filter, switches to the map, and sees points that the
-filter should have hidden.
+`facilityParams` drops `status` and the date range.
 
-This may be correct. A map of risk is not a map of workflow state. The problem is
-that nothing says so, so the next reader treats it as a bug.
+This turned out to be correct, and the interface already told the truth: the map
+passes `withStatus={false}` and `withPeriod={false}` to `FilterBar`, so neither
+control appears on that screen. A map of risk is not a map of workflow state.
 
-- [ ] Pick one: send `status` from the map, or keep the current behaviour.
-- [ ] If the behaviour stays, note it in `docs/02-api-contract.md` and grey out
-      the status filter on the map screen, so the interface does not lie.
-- [ ] If `status` starts to travel, add it to `facilityParams`, read it in the
-      `/facilities` mock handler, and add a test.
+The gap was in the documentation alone. Nothing said so, so the next reader would
+have treated it as a bug.
 
-## Task 4. Stop refetching the collector routes every minute
+- [x] `docs/02-api-contract.md` records the decision and the reason.
+- [x] `backend/docs/04-api-required-by-frontend.md` tells the backend author not
+      to expect `status` on this endpoint.
 
-`/facilities` returns the point features and the `lines` collection together. The
-whole application polls once per minute, so the map refetches the collector
-routes 60 times per hour. The routes do not change. On real network data this
-payload dominates the response.
+## Task 4. Stop refetching the collector routes every minute. Done
 
-- [ ] Choose the fix: a separate endpoint such as `GET /facilities/lines` with a
-      long `staleTime`, or an `include=lines` parameter that the map sends once.
-- [ ] Change the `/facilities` mock handler to match the choice.
-- [ ] Update `docs/02-api-contract.md` and
-      `backend/docs/04-api-required-by-frontend.md` together.
+`/facilities` returned the point features and the collector routes together. The
+application polls once per minute, so the map refetched geometry that never
+changes 60 times per hour. On real network data that payload would dominate.
 
-Note for the map: the okrug polygons already load from
-`public/geo/moscow-okrugs.geo.json` and never touch the API. The collector routes
-are the only geometry that still travels on every poll.
+- [x] New endpoint `GET /facilities/lines`, added to `endpoints.ts`,
+      `schemas.ts` (`LineCollectionSchema`) and `types.ts` (`LineCollection`).
+- [x] New hook `useFacilityLines` with `staleTime: Infinity` and no polling.
+- [x] `lines` left `FacilityCollection`. `MapView` takes the routes as its own
+      prop and fills that source in its own effect.
+- [x] The mock handler serves the new endpoint, and `/facilities` no longer
+      carries `lines`.
+- [x] Tests cover both sides: the new endpoint returns `LineString` features, and
+      the old response no longer carries them.
 
-## Task 5. Decide whether the card picks a time window
+The okrug polygons were never part of this. They load from
+`public/geo/moscow-okrugs.geo.json` and never touch the API.
 
-The contract declares `GET /predictions/{id}/timeseries?from&to`.
-`usePredictionTimeseries` sends neither, and the mock handler reads neither. The
-card shows whatever window the server chose.
+## Task 5. Decide whether the card picks a time window. Done
 
-- [ ] Pick one: add a window selector to the card, or drop the two parameters.
-- [ ] If the parameters stay, send them from the card and honour them in the mock
-      handler, and add a test.
-- [ ] If they go, remove them from `docs/02-api-contract.md` and tell the backend
-      to remove them from specification §4.
+The contract declared `GET /predictions/{id}/timeseries?from&to`.
+`usePredictionTimeseries` sent neither, and the mock handler read neither.
 
-## Task 6. Remove the string fallback for `predictionConfirmed`
+The card shows the window the server chose, and no screen offers a window
+selector. Two parameters that nothing sends are two parameters the backend would
+implement blind, so they are gone.
 
-The `/orders/:id/actions/:code` mock handler accepts the boolean `true` and the
-string `"true"`:
+- [x] `docs/02-api-contract.md` drops them and says that the server picks the
+      window.
+- [x] `backend/docs/04-api-required-by-frontend.md` records the same.
+- [x] Task 1 of `backend/docs/05-gap-tasks.md` removes them from specification §4.
 
-```ts
-predictionConfirmed: body['predictionConfirmed'] === true || body['predictionConfirmed'] === 'true',
-```
+The frontend code needed no change. It never sent them.
 
-`CloseOrderForm` already sends a real boolean (`confirmed === 'yes'`), so the
-string branch is dead. If it stays, the backend copies it, and the field that
-feeds Precision and Recall gains a second accepted type for no reason.
+## Task 6. Remove the string fallback for `predictionConfirmed`. Done
 
-- [ ] Delete the string branch from the mock handler.
-- [ ] Add a test that a non boolean value does not count as a confirmation.
-- [ ] Change the note in `backend/docs/04-api-required-by-frontend.md`, which
-      currently records the string form as accepted behaviour.
+The `/orders/:id/actions/:code` mock handler accepted the boolean `true` and the
+string `"true"`. `CloseOrderForm` sends a real boolean (`confirmed === 'yes'`), so
+the string branch was dead. Left alone, the backend would have copied it, and the
+field that feeds Precision and Recall would accept two types for no reason.
+
+- [x] The string branch is gone from the mock handler.
+- [x] A test proves that `"true"` does not count as a confirmation and that
+      `true` does.
+- [x] `backend/docs/04-api-required-by-frontend.md` now says "boolean only".
 
 ## Task 7. Rename the terminal order status to `DONE`. Done
 
@@ -156,7 +152,7 @@ The action code stays `close`. Only the resulting status changed.
 
 ## Not a frontend gap
 
-These came up in the same review and belong to the backend. They stay in
+These came out of the same review and belong to the backend. They stay in
 `backend/docs/05-gap-tasks.md`.
 
 1. The backend specification lists the action codes wrongly. It puts `confirm` on

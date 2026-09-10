@@ -5,7 +5,8 @@
  * поэтому переход между экранами сохраняет выборку, а ссылка на карту с
  * открытой карточкой восстанавливает то же состояние.
  */
-import { useFacilities } from '@/shared/api/queries'
+import { useState } from 'react'
+import { useFacilities, useFacilityLines } from '@/shared/api/queries'
 import type { AppMeta } from '@/shared/api/types'
 import { usePredictionFilters, useSelected } from '@/shared/lib/urlState'
 import { ErrorState, Spinner } from '@/shared/ui/states'
@@ -16,7 +17,13 @@ import { MapView } from './MapView'
 export function MapScreen({ meta }: { meta: AppMeta }) {
   const api = usePredictionFilters()
   const [selected, select] = useSelected('prediction')
-  const query = useFacilities(api.filters)
+  /*
+   * Границы видимой области. До первого сообщения от карты запрос уходит без
+   * bbox — иначе на первом кадре пришлось бы гадать, что попадает в экран.
+   */
+  const [bbox, setBbox] = useState<string | undefined>(undefined)
+  const query = useFacilities(api.filters, bbox)
+  const lines = useFacilityLines()
 
   const features = query.data?.features ?? []
 
@@ -40,7 +47,14 @@ export function MapScreen({ meta }: { meta: AppMeta }) {
           />
         ) : (
           <>
-            <MapView data={query.data} meta={meta} selectedId={selected} onSelect={select} />
+            <MapView
+              data={query.data}
+              lines={lines.data}
+              meta={meta}
+              selectedId={selected}
+              onSelect={select}
+              onBoundsChange={setBbox}
+            />
             <MapLegend meta={meta} total={features.length} />
             {query.isPending ? (
               <div className="absolute inset-0 flex items-center justify-center bg-bg/60">

@@ -52,6 +52,7 @@ frontend side of the same contract.
 | 4 | GET | `/predictions/{id}/timeseries` | `TimeSeriesResponse` | Prediction card |
 | 5 | POST | `/predictions/{id}/actions/{code}` | `PredictionDetail` | Prediction card |
 | 6 | GET | `/facilities` | GeoJSON `FeatureCollection` | Map |
+| 6a | GET | `/facilities/lines` | GeoJSON `FeatureCollection` | Map. Loaded once |
 | 7 | GET | `/facilities/{id}` | `FacilityRef` | Map |
 | 8 | GET | `/orders` | Envelope of `WorkOrder` | Orders |
 | 9 | GET | `/orders/{id}` | `WorkOrder` | Order card |
@@ -113,8 +114,10 @@ unknown type.
 
 ### 3.4 GET /predictions/{id}/timeseries
 
-The frontend sends no parameters today. The contract keeps optional `from` and
-`to` for later use.
+No parameters. The server picks the window, and the card draws what arrives. The
+contract carried optional `from` and `to` earlier. Nothing ever sent them, so
+they are gone. Specification §4 still lists them, and task 1 of
+`05-gap-tasks.md` removes them.
 
 Returns `{ series: Series[], markerAt?: string }`. `markerAt` marks the moment of
 the prediction on the chart. The mocks set it to `computedAt`.
@@ -140,17 +143,19 @@ An unknown code must not fail. The mocks move the prediction to `IN_REVIEW`.
 | `direction` | string | yes | Same meaning as in `/predictions` |
 | `level` | string | yes | Same meaning as in `/predictions` |
 | `district` | string | no | Same meaning as in `/predictions` |
-| `bbox` | string | no | `minLon,minLat,maxLon,maxLat`. No caller yet. See below |
+| `bbox` | string | no | `minLon,minLat,maxLon,maxLat` |
 
 The map shows one point per facility. When a facility has several predictions,
 return the one with the highest `probability`. The mocks do exactly this and they
 ignore `status` and the date range here.
 
-Two warnings before you build this endpoint. The `bbox` parameter has no caller:
-the map requests every facility at once, and the mock ignores `bbox`. The `lines`
-field ships the collector routes on every poll, once per minute, although the
-routes never change. Frontend tasks 2 and 4 in `frontend/docs/09-gap-tasks.md`
-settle both. Wait for them.
+The map sends `bbox` after every `moveend`, rounded outward to 0.05 degrees. Keep
+a facility when its point falls inside the box, edges included. A `bbox` that
+does not parse is not an error: ignore it and return everything. An empty result
+is a valid answer.
+
+The map does not filter by `status` or by a date range here. It shows risk, not
+the stage of work on it, so the filter bar hides both controls on that screen.
 
 Response is a GeoJSON `FeatureCollection`:
 
@@ -171,14 +176,21 @@ Response is a GeoJSON `FeatureCollection`:
         "collector": "..."
       }
     }
-  ],
-  "lines": { "type": "FeatureCollection", "features": [] }
+  ]
 }
 ```
 
-`coordinates` is `[lon, lat]` in that order. The optional `lines` field carries
-the collector routes as `LineString` features with a `collector` property. The
-map draws them as a background layer.
+`coordinates` is `[lon, lat]` in that order.
+
+### 3.6a GET /facilities/lines
+
+No parameters. Returns a GeoJSON `FeatureCollection` of `LineString` features.
+Every feature carries a `collector` property with the name of the route. The map
+draws them as a background layer under the points.
+
+This is a separate endpoint on purpose. The routes never change, and the map
+polls the points once per minute. The frontend requests the routes once per
+session and never refetches them.
 
 ### 3.7 GET /facilities/{id}
 
@@ -207,9 +219,9 @@ Same rules as the prediction action endpoint. The response is the whole updated
 
 The code `close` must accept `predictionConfirmed` and store it in
 `outcome.predictionConfirmed`. This flag is the source of honest Precision and
-Recall on real data. Accept a boolean only. The mock also accepts the string
-`"true"`, but the close form already sends a real boolean, so that branch is
-dead. Frontend task 6 removes it. Do not copy it.
+Recall on real data. Accept a boolean only. The mock rejects the string `"true"`,
+and a test holds that line. A value of any other type does not count as a
+confirmation.
 
 ### 3.11 GET /metrics/models
 

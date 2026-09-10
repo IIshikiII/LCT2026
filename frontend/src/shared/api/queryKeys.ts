@@ -15,6 +15,7 @@ export const queryKeys = {
   predictionTimeseries: (id: string) => ['prediction', id, 'timeseries'] as const,
 
   facilities: (f: PredictionFilters) => ['facilities', f] as const,
+  facilityLines: () => ['facility-lines'] as const,
 
   orders: (f: OrderFilters) => ['orders', f] as const,
   order: (id: string) => ['order', id] as const,

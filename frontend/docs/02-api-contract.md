@@ -52,7 +52,10 @@ GET /meta → AppMeta
 interface AppMeta {
   directions: DirectionMeta[]        // { code, label, shortLabel, accent, minHorizonHours }
   riskLevels: RiskLevelMeta[]        // { code, label, colorVar, order }
-  journalColumns: string[]           // ключи колонок в нужном порядке
+  statuses: StatusMeta[]             // { code, label, scope: 'prediction' | 'order' }
+  districts: { code, label }[]       // округа для фильтра
+  journalColumns: string[]           // ключи колонок журнала в нужном порядке
+  orderColumns: string[]             // ключи колонок заявок в нужном порядке
   dashboardWidgets: string[]         // коды виджетов в нужном порядке
   reasons: Record<string, { code: string; label: string }[]>
 }
@@ -61,18 +64,26 @@ interface AppMeta {
 `reasons` — справочники для полей формы типа `select`: ключ словаря совпадает с
 `optionsRef` в `FieldDef`.
 
+`statuses` различает сущности полем `scope`: один и тот же код может встретиться
+дважды. Сейчас так ведёт себя только `REJECTED`. Терминальные статусы разные:
+у заявки `DONE`, у прогноза `CLOSED`.
+
 ### Прогнозы
 
 ```
 GET  /predictions?direction&level&status&district&from&to&sort&page&pageSize
      → { items: Prediction[], page, pageSize, total }
 GET  /predictions/{id}                → PredictionDetail
-GET  /predictions/{id}/timeseries?from&to → { series: [{ name, points: [{t, v}] }] }
+GET  /predictions/{id}/timeseries     → { series: [{ name, unit?, points: [{t, v}] }],
+                                          markerAt? }
 POST /predictions/{id}/actions/{code} → PredictionDetail
 ```
 
 Параметры `direction`, `level`, `status` — повторяемые (`?direction=A&direction=B`),
 это мультивыбор. `sort` — `field:asc` / `field:desc`.
+
+У таймсерий параметров нет: окно выбирает сервер, а карточка рисует то, что
+пришло. `markerAt` — момент прогноза, вертикальная отметка на графике.
 
 `PredictionDetail` = `Prediction` + `blocks: CardBlock[]` + `actions: ActionDef[]`.
 
@@ -93,19 +104,35 @@ POST /orders/{id}/actions/{code}
 ### Объекты и карта
 
 ```
-GET /facilities?bbox&direction&level → GeoJSON FeatureCollection
-GET /facilities/{id}                 → FacilityRef
+GET /facilities?bbox&direction&level&district → GeoJSON FeatureCollection
+GET /facilities/lines                         → GeoJSON FeatureCollection (LineString)
+GET /facilities/{id}                          → FacilityRef
 ```
 
 `properties` каждой точки содержит `facilityId`, `level`, `direction`,
-`predictionId`, `probability` — этого хватает и для раскраски, и для клика.
+`predictionId`, `probability`, `address`, `collector` — этого хватает и для
+раскраски, и для клика, и для всплывающей подписи.
+
+`bbox` — `minLon,minLat,maxLon,maxLat`. Карта сообщает границы после остановки
+(`moveend`) и округляет их до 0.05°, иначе каждый пиксель панорамирования давал
+бы новый ключ кэша и новый запрос.
+
+Карта не фильтрует по `status` и по периоду: она показывает риск, а не стадию
+работы с ним. Поэтому `facilityParams` эти поля не шлёт, а `FilterBar` на карте
+получает `withStatus={false}` и `withPeriod={false}` — интерфейс не предлагает
+фильтр, который не действует.
+
+Трассы коллекторов лежат на отдельной ручке `/facilities/lines`, а не в ответе
+`/facilities`. Геометрия сети не меняется, а точки опрашиваются раз в минуту:
+возить одно вместе с другим значит гонять неизменную геометрию 60 раз в час.
+Хук `useFacilityLines` берёт её один раз за сессию (`staleTime: Infinity`).
 
 ### Заявки
 
 ```
-GET  /orders?status&dueBefore&page&pageSize → { items: WorkOrder[], ... }
-GET  /orders/{id}                            → WorkOrder
-POST /orders/{id}/actions/{code}             → WorkOrder
+GET  /orders?status&dueBefore&sort&page&pageSize → { items: WorkOrder[], ... }
+GET  /orders/{id}                                 → WorkOrder
+POST /orders/{id}/actions/{code}                  → WorkOrder
 ```
 
 Закрытие заявки (`code = 'close'`) обязано принести `outcome.predictionConfirmed`.
@@ -120,14 +147,19 @@ POST /orders/{id}/actions/{code}             → WorkOrder
 GET /metrics/models      → ModelMetric[]   { direction, precision, recall,
                                              targetPrecision, targetRecall, evaluatedAt }
 GET /metrics/pipeline    → { lastRunAt, lastRunMs, freshnessMinutes,
-                             maxComputeMs, minHorizonHours }
-GET /dashboard/summary   → { byLevel, byDirection, byOrderStatus, total }
+                             maxComputeMs, minHorizonHours,
+                             targetComputeMs, targetHorizonHours }
+GET /dashboard/summary   → { byLevel, byDirection, byStatus, byOrderStatus, total }
 GET /dashboard/top-risks?limit=10 → Prediction[]
 ```
 
-`byLevel`, `byDirection`, `byOrderStatus` — это `Record<string, number>`, а не
-массивы с фиксированными ключами. Появилось направление — появился ключ, дашборд
-подхватил.
+`byLevel`, `byDirection`, `byStatus`, `byOrderStatus` — это `Record<string, number>`,
+а не массивы с фиксированными ключами. Появилось направление — появился ключ,
+дашборд подхватил.
+
+Целевые значения ТЗ (`targetPrecision`, `targetRecall`, `targetComputeMs`,
+`targetHorizonHours`) приходят с сервера. Фронт их не хардкодит: поменялось ТЗ —
+поменялся ответ, а не код.
 
 ## Как добавить ручку: пример целиком
 

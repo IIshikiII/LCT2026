@@ -20,6 +20,7 @@ import {
   AppMetaSchema,
   DashboardSummarySchema,
   FacilityCollectionSchema,
+  LineCollectionSchema,
   ModelMetricListSchema,
   PipelineHealthSchema,
   PredictionDetailSchema,
@@ -33,6 +34,7 @@ import type {
   AppMeta,
   DashboardSummary,
   FacilityCollection,
+  LineCollection,
   ModelMetric,
   PageResult,
   PipelineHealth,
@@ -154,6 +156,25 @@ export function useFacilities(filters: PredictionFilters, bbox?: string) {
         params: facilityParams(filters, bbox),
         signal,
       }),
+    // Пока карта не сообщила границы, показываем прошлую выборку, а не пустоту.
+    placeholderData: (prev) => prev,
+  })
+}
+
+/**
+ * Трассы коллекторов. Геометрия сети не меняется, поэтому запрашивается один
+ * раз за сессию и не участвует в опросе раз в минуту (ADR 0005).
+ */
+export function useFacilityLines() {
+  return useQuery({
+    queryKey: queryKeys.facilityLines(),
+    queryFn: ({ signal }) =>
+      apiGet<LineCollection>(endpoints.facilityLines(), LineCollectionSchema, { signal }),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    retry: 1,
   })
 }
 
