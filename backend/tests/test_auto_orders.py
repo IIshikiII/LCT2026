@@ -83,6 +83,16 @@ def add_prediction(
     return auto_orders.Candidate(code, direction, "F-1", level, horizon, at)
 
 
+def reject(conn: Connection, code: str, until: datetime) -> None:
+    """Имитирует отклонение: статус и момент снятия мьюта."""
+    conn.execute(
+        update(prediction)
+        .where(prediction.c.id == code)
+        .values(status="REJECTED", suppress_until=until)
+    )
+    conn.execute(update(work_order).values(status="REJECTED"))
+
+
 def orders(conn: Connection) -> list[object]:
     return list(conn.execute(select(work_order)).all())
 
@@ -139,10 +149,8 @@ def test_a_finished_order_does_not_block_a_new_one(conn: Connection) -> None:
 
 
 def test_a_rejection_blocks_the_same_level(conn: Connection) -> None:
-    first = add_prediction(conn, "P-1", "HIGH")
-    auto_orders.create_for(conn, first)
-    conn.execute(update(prediction).where(prediction.c.id == "P-1").values(status="REJECTED"))
-    conn.execute(update(work_order).values(status="REJECTED"))
+    auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
+    reject(conn, "P-1", NOW + timedelta(days=7))
 
     later = add_prediction(conn, "P-2", "HIGH", at=NOW + timedelta(minutes=15))
     assert auto_orders.create_for(conn, later) is None, "отклонённый уровень повторять нельзя"
@@ -151,31 +159,29 @@ def test_a_rejection_blocks_the_same_level(conn: Connection) -> None:
 def test_a_higher_level_breaks_through_the_rejection(conn: Connection) -> None:
     # Отказ на HIGH ничего не говорит о CRITICAL.
     auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
-    conn.execute(update(prediction).where(prediction.c.id == "P-1").values(status="REJECTED"))
-    conn.execute(update(work_order).values(status="REJECTED"))
+    reject(conn, "P-1", NOW + timedelta(days=7))
 
     later = add_prediction(conn, "P-2", "CRITICAL", at=NOW + timedelta(minutes=15))
     assert auto_orders.create_for(conn, later) is not None
 
 
-def test_the_rejection_expires(conn: Connection) -> None:
-    # Отклонение — суждение о текущем состоянии, а не приговор объекту.
+def test_the_mute_expires(conn: Connection) -> None:
+    # Мьют — суждение о текущем состоянии, а не приговор объекту.
     auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
-    conn.execute(update(prediction).where(prediction.c.id == "P-1").values(status="REJECTED"))
-    conn.execute(update(work_order).values(status="REJECTED"))
+    reject(conn, "P-1", NOW + timedelta(days=7))
 
-    cooldown = by_code("SENSOR_FAILURE").reject_cooldown_hours
-    later = add_prediction(conn, "P-2", "HIGH", at=NOW + timedelta(hours=cooldown + 1))
+    later = add_prediction(conn, "P-2", "HIGH", at=NOW + timedelta(days=8))
     assert auto_orders.create_for(conn, later) is not None
 
 
-def test_a_rejected_order_alone_blocks_the_same_level(conn: Connection) -> None:
-    # Диспетчер отклонил заявку, прогноз остался в работе. Бригаду не шлём.
-    auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
-    conn.execute(update(work_order).values(status="REJECTED"))
-
-    later = add_prediction(conn, "P-2", "HIGH", at=NOW + timedelta(minutes=15))
-    assert auto_orders.create_for(conn, later) is None
+def test_the_mute_length_follows_the_reason() -> None:
+    # Дубль живёт сутки, особенность объекта никуда не денется за месяц.
+    day = auto_orders.suppress_until("DUPLICATE", "SENSOR_FAILURE", NOW)
+    month = auto_orders.suppress_until("KNOWN_ISSUE", "SENSOR_FAILURE", NOW)
+    default = auto_orders.suppress_until(None, "SENSOR_FAILURE", NOW)
+    assert day == NOW + timedelta(hours=24)
+    assert month == NOW + timedelta(hours=720)
+    assert default == NOW + timedelta(hours=by_code("SENSOR_FAILURE").reject_cooldown_hours)
 
 
 def test_an_unknown_direction_creates_nothing(conn: Connection) -> None:

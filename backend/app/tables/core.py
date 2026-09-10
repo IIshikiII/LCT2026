@@ -164,6 +164,8 @@ prediction = Table(
     Column("blocks", JSONB, nullable=False, default=list),
     # Вход модели: имя признака -> число. Наружу не отдаётся.
     Column("features", JSONB, nullable=False, default=dict),
+    # Момент снятия мьюта. Ставит диспетчер при отклонении.
+    _ts("suppress_until"),
     Column("model_version", Text),
     Column("run_id", BigInteger),
 )

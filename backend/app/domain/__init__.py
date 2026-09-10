@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.domain.actions import OrderContext, order_actions, prediction_actions
-from app.domain.auto_orders import Candidate, create_for, create_missing
+from app.domain.auto_orders import Candidate, create_for, create_missing, suppress_until
 from app.domain.transitions import (
     ORDER,
     PREDICTION,
@@ -24,6 +24,7 @@ __all__ = [
     "Transition",
     "create_for",
     "create_missing",
+    "suppress_until",
     "codes_for",
     "find",
     "order_actions",

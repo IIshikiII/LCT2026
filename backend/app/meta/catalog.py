@@ -116,6 +116,26 @@ REJECTION_REASONS: tuple[Reason, ...] = (
 )
 
 
+# Сколько держится мьют после отклонения, по причине отклонения. Диспетчер
+# может назвать свой срок, эти числа — только подсказка по умолчанию.
+# Длина следует из смысла причины: дубль живёт сутки, особенность объекта —
+# месяц, потому что она никуда не денется.
+REJECTION_MUTE_HOURS: dict[str, int] = {
+    "KNOWN_ISSUE": 720,
+    "PLANNED_WORKS": 168,
+    "DUPLICATE": 24,
+    "LOW_PRIORITY": 168,
+    "MODEL_ERROR": 168,
+}
+
+
+def mute_hours(reason: str | None, fallback: int) -> int:
+    """Отдаёт длину мьюта по причине отклонения."""
+    if reason is None:
+        return fallback
+    return REJECTION_MUTE_HOURS.get(reason, fallback)
+
+
 def level_for(probability: float) -> str:
     """Отдаёт код уровня риска по вероятности."""
     code = RISK_LEVELS[0].code

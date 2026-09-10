@@ -12,7 +12,7 @@ from sqlalchemy.engine import Connection
 from app.api import common, mappers
 from app.api.common import iso, parse_moment
 from app.db import get_conn, get_tx
-from app.domain import OrderContext, apply, order_actions, transitions
+from app.domain import OrderContext, apply, order_actions, suppress_until, transitions
 from app.schemas import Page, WorkOrder
 from app.tables import facility, prediction, work_order
 
@@ -142,8 +142,25 @@ def act_on_order(
             update(prediction).where(prediction.c.id == row.prediction_id).values(status="CLOSED")
         )
 
+    if code == "reject":
+        # Прогноз может остаться в работе, но решение «бригаду не шлём» принято.
+        # Предлагать ту же заявку снова нельзя.
+        conn.execute(
+            update(prediction)
+            .where(prediction.c.id == row.prediction_id)
+            .values(suppress_until=_mute_until(body, row.direction))
+        )
+
     apply.log(conn, transitions.ORDER, order_id, code, body)
     return _row_to_order(_load(conn, order_id))
+
+
+def _mute_until(body: dict[str, Any], direction: str) -> datetime:
+    """Момент, до которого направление на объекте не предлагает новых заявок."""
+    named = body.get("suppressUntil")
+    if named:
+        return parse_moment(named, field="suppressUntil")
+    return suppress_until(body.get("reason"), direction, datetime.now(UTC))
 
 
 def _outcome(body: dict[str, Any]) -> dict[str, Any]:

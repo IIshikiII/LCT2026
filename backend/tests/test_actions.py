@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -11,6 +12,7 @@ from sqlalchemy import select
 from app.db import engine
 from app.main import API_PREFIX, app
 from app.tables import action_log
+from app.tables import prediction as prediction_table
 
 pytestmark = pytest.mark.usefixtures("seeded")
 
@@ -56,6 +58,42 @@ def test_reject_on_a_prediction_rejects_its_open_order() -> None:
     ok("predictions", "P-1", "reject", reason="MODEL_ERROR", comment="ошибка модели")
     order = client.get(f"{API_PREFIX}/orders/O-1").json()
     assert order["status"] == "REJECTED"
+
+
+def test_rejecting_a_prediction_mutes_the_facility() -> None:
+    ok("predictions", "P-1", "reject", reason="MODEL_ERROR", comment="ошибка модели")
+    with engine().connect() as conn:
+        until = conn.execute(
+            select(prediction_table.c.suppress_until).where(prediction_table.c.id == "P-1")
+        ).scalar_one()
+    assert until is not None and until > datetime.now(UTC)
+
+
+def test_the_dispatcher_names_the_mute_length() -> None:
+    # Диспетчер знает, что работы на объекте идут до пятницы. Конфиг не знает.
+    ok(
+        "predictions",
+        "P-1",
+        "reject",
+        reason="PLANNED_WORKS",
+        comment="работы до пятницы",
+        suppressUntil="2026-09-18T18:00:00Z",
+    )
+    with engine().connect() as conn:
+        until = conn.execute(
+            select(prediction_table.c.suppress_until).where(prediction_table.c.id == "P-1")
+        ).scalar_one()
+    assert until == datetime(2026, 9, 18, 18, 0, tzinfo=UTC)
+
+
+def test_rejecting_an_order_mutes_its_prediction() -> None:
+    # Прогноз остаётся в работе, но решение «бригаду не шлём» уже принято.
+    ok("orders", "O-1", "reject", reason="LOW_PRIORITY", comment="отложено до планового ТО")
+    with engine().connect() as conn:
+        until = conn.execute(
+            select(prediction_table.c.suppress_until).where(prediction_table.c.id == "P-1")
+        ).scalar_one()
+    assert until is not None
 
 
 def test_the_answer_carries_the_new_actions() -> None:

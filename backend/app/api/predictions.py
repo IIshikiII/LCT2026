@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -10,7 +11,7 @@ from sqlalchemy.engine import Connection
 
 from app.api import common, mappers
 from app.db import get_conn, get_tx
-from app.domain import apply, prediction_actions, transitions
+from app.domain import apply, prediction_actions, suppress_until, transitions
 from app.schemas import Page, Prediction, PredictionDetail, Series, SeriesPoint, TimeSeriesResponse
 from app.tables import facility, prediction, sensor_reading, work_order
 
@@ -184,7 +185,11 @@ def act_on_prediction(
     apply.check_body(list(prediction_actions(status)), code, body)
     new_status = apply.next_status(transitions.PREDICTION, code, status)
 
-    apply.set_status(conn, prediction, prediction_id, status, new_status)
+    extra: dict[str, Any] = {}
+    if code == "reject":
+        extra["suppress_until"] = _mute_until(body, row)
+
+    apply.set_status(conn, prediction, prediction_id, status, new_status, **extra)
     _cascade_to_order(conn, row.order_id, code)
     apply.log(conn, transitions.PREDICTION, prediction_id, code, body)
 
@@ -194,6 +199,18 @@ def act_on_prediction(
         updated.blocks,
         list(prediction_actions(updated.status)),
     )
+
+
+def _mute_until(body: dict[str, Any], row: Any) -> datetime:
+    """Момент, до которого направление на объекте не предлагает новых заявок.
+
+    Диспетчер называет свой срок. Без ответа срок следует из причины
+    отклонения.
+    """
+    named = body.get("suppressUntil")
+    if named:
+        return common.parse_moment(named, field="suppressUntil")
+    return suppress_until(body.get("reason"), row.direction, datetime.now(UTC))
 
 
 def _cascade_to_order(conn: Connection, order_id: str | None, code: str) -> None:

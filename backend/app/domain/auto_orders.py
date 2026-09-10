@@ -10,10 +10,10 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from app.meta import by_code, level_order
+from app.meta import by_code, level_order, mute_hours
 from app.tables import prediction, work_order
 
 log = logging.getLogger(__name__)
@@ -22,8 +22,6 @@ AUTO_CREATED = "AUTO_CREATED"
 
 # Заявка считается открытой, пока работа по ней не кончилась.
 CLOSED_STATUSES = ("DONE", "REJECTED")
-
-REJECTED = "REJECTED"
 
 
 @dataclass(frozen=True)
@@ -59,27 +57,30 @@ def has_open_order(conn: Connection, facility_id: str, direction: str) -> bool:
     return found is not None
 
 
-def suppressed_level(conn: Connection, facility_id: str, direction: str, since: datetime) -> int:
-    """Отдаёт наибольший уровень, отклонённый на объекте за срок давности.
+def suppress_until(reason: str | None, direction_code: str, at: datetime) -> datetime:
+    """Считает момент снятия мьюта, когда диспетчер не назвал свой.
 
-    Отклонение — это суждение о текущем состоянии, а не приговор объекту.
-    Поэтому оно перестаёт действовать по сроку давности и перестаёт действовать
-    сразу, как только уровень вырос: отказ на HIGH ничего не говорит о
-    CRITICAL.
+    Длина следует из причины отклонения: дубль живёт сутки, особенность
+    объекта — месяц. Запасное значение лежит в записи направления.
+    """
+    direction = by_code(direction_code)
+    fallback = direction.reject_cooldown_hours if direction else 168
+    return at + timedelta(hours=mute_hours(reason, fallback))
 
-    За время отклонения берётся момент расчёта прогноза. Диспетчер разбирает
-    прогноз внутри горизонта, поэтому разница несущественна, а запрос остаётся
-    без обращения к журналу действий.
+
+def suppressed_level(conn: Connection, facility_id: str, direction: str, at: datetime) -> int:
+    """Отдаёт наибольший уровень, заглушённый на объекте на этот момент.
+
+    Отклонение — суждение о текущем состоянии, а не приговор объекту. Поэтому
+    мьют истекает по времени и снимается сразу, как только уровень вырос: отказ
+    на HIGH ничего не говорит о CRITICAL.
     """
     rows = (
         conn.execute(
-            select(prediction.c.level)
-            .outerjoin(work_order, work_order.c.prediction_id == prediction.c.id)
-            .where(
+            select(prediction.c.level).where(
                 prediction.c.facility_id == facility_id,
                 prediction.c.direction == direction,
-                prediction.c.computed_at >= since,
-                or_(prediction.c.status == REJECTED, work_order.c.status == REJECTED),
+                prediction.c.suppress_until > at,
             )
         )
         .scalars()
@@ -105,9 +106,8 @@ def create_for(conn: Connection, candidate: Candidate) -> str | None:
     if has_open_order(conn, candidate.facility_id, candidate.direction):
         return None
 
-    since = candidate.computed_at - timedelta(hours=direction.reject_cooldown_hours)
     if level_order(candidate.level) <= suppressed_level(
-        conn, candidate.facility_id, candidate.direction, since
+        conn, candidate.facility_id, candidate.direction, candidate.computed_at
     ):
         return None
 
