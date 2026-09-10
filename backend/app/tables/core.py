@@ -160,7 +160,10 @@ prediction = Table(
     Column("compute_ms", Integer, nullable=False),
     Column("status", Text, nullable=False),
     Column("summary", Text, nullable=False, default=""),
+    # Витрина для диспетчера. Ей разрешено быть неполной и битой.
     Column("blocks", JSONB, nullable=False, default=list),
+    # Вход модели: имя признака -> число. Наружу не отдаётся.
+    Column("features", JSONB, nullable=False, default=dict),
     Column("model_version", Text),
     Column("run_id", BigInteger),
 )

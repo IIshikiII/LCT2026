@@ -73,3 +73,10 @@ def test_sensor_reading_is_partitioned() -> None:
             text("SELECT relkind FROM pg_class WHERE relname = 'sensor_reading'")
         ).scalar_one()
     assert kind == "p"
+
+
+@pytest.mark.usefixtures("migrated_database")
+def test_prediction_keeps_the_feature_snapshot() -> None:
+    # Без снимка разбор ошибки модели через полгода невозможен: сырьё к тому
+    # времени изменится.
+    assert "features" in _columns(prediction.name)
