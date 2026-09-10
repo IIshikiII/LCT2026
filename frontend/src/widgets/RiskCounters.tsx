@@ -20,7 +20,7 @@ export function RiskCounters() {
   const query = useDashboardSummary()
 
   return (
-    <Panel title="Прогнозы по уровням риска" className="col-span-2">
+    <Panel title="Прогнозы по уровням риска" className="md:col-span-3 xl:col-span-2">
       {query.isPending ? (
         <Skeleton className="h-24" />
       ) : query.isError ? (

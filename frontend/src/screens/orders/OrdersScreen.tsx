@@ -7,7 +7,7 @@
  */
 import { useOrders } from '@/shared/api/queries'
 import type { AppMeta } from '@/shared/api/types'
-import { statusOptions } from '@/shared/lib/risk'
+import { statusColor, statusOptions } from '@/shared/lib/risk'
 import { useOrderFilters, useSelected } from '@/shared/lib/urlState'
 import { Button } from '@/shared/ui/Button'
 import { Chip } from '@/shared/ui/Chip'
@@ -32,6 +32,7 @@ export function OrdersScreen({ meta }: { meta: AppMeta }) {
             <Chip
               key={status.code}
               label={status.label}
+              color={statusColor(status.code, 'order', meta)}
               active={api.filters.status.includes(status.code)}
               onToggle={() => api.toggleStatus(status.code)}
             />

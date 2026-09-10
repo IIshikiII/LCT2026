@@ -11,9 +11,11 @@ import {
   findDirection,
   findRiskLevel,
   findStatus,
+  isTerminalStatus,
   levelColor,
   levelsBySeverity,
   sortedLevels,
+  statusColor,
   statusOptions,
   synthColor,
 } from './risk'
@@ -93,6 +95,22 @@ describe('статусы', () => {
 
   it('подставляют код вместо подписи для неизвестного статуса', () => {
     expect(findStatus('WAT', 'order', FALLBACK_META).label).toBe('WAT')
+  })
+
+  it('берут цвет метки из меты и разворачивают имя токена', () => {
+    expect(statusColor('AUTO_CREATED', 'order', FALLBACK_META)).toBe('var(--state-attention)')
+    expect(statusColor('DONE', 'order', FALLBACK_META)).toBe('var(--state-done)')
+  })
+
+  it('оставляют неизвестный статус без цвета — метка нейтральна', () => {
+    expect(statusColor('WAT', 'order', FALLBACK_META)).toBeUndefined()
+  })
+
+  it('знают, какие статусы конечные', () => {
+    expect(isTerminalStatus('DONE', 'order', FALLBACK_META)).toBe(true)
+    expect(isTerminalStatus('REJECTED', 'order', FALLBACK_META)).toBe(true)
+    expect(isTerminalStatus('IN_PROGRESS', 'order', FALLBACK_META)).toBe(false)
+    expect(isTerminalStatus('WAT', 'order', FALLBACK_META)).toBe(false)
   })
 
   it('отдают список статусов нужной области для фильтра', () => {

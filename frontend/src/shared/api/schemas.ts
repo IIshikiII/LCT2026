@@ -33,6 +33,8 @@ export const StatusMetaSchema = dto({
   code: z.string(),
   label: z.string(),
   scope: z.string(),
+  colorVar: z.string().optional(),
+  terminal: z.boolean().optional(),
 })
 
 export const ReasonOptionSchema = dto({

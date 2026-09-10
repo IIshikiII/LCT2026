@@ -10,8 +10,22 @@
  */
 import { Link } from 'react-router-dom'
 import type { AppMeta, Prediction, WorkOrder } from '@/shared/api/types'
-import { DASH, fmtDateTime, fmtDueIn, fmtFacilityPath, fmtHours, fmtPct } from '@/shared/lib/format'
-import { directionAccent, directionLabel, statusLabel } from '@/shared/lib/risk'
+import {
+  DASH,
+  fmtDateTime,
+  fmtDueIn,
+  fmtFacilityPath,
+  fmtHours,
+  fmtPct,
+  isOverdue,
+} from '@/shared/lib/format'
+import {
+  directionAccent,
+  directionLabel,
+  isTerminalStatus,
+  statusColor,
+  statusLabel,
+} from '@/shared/lib/risk'
 import { Badge } from '@/shared/ui/Badge'
 import { Mono } from '@/shared/ui/Mono'
 import { RiskBar } from '@/shared/ui/RiskBar'
@@ -96,7 +110,11 @@ export const predictionColumns: Record<string, ColumnDef<Prediction>> = {
     header: 'Статус',
     width: 160,
     sortable: true,
-    cell: (row, meta) => <Badge>{statusLabel(row.status, 'prediction', meta)}</Badge>,
+    cell: (row, meta) => (
+      <Badge color={statusColor(row.status, 'prediction', meta)}>
+        {statusLabel(row.status, 'prediction', meta)}
+      </Badge>
+    ),
   },
   order: {
     key: 'order',
@@ -132,19 +150,36 @@ export const orderColumns: Record<string, ColumnDef<WorkOrder>> = {
     header: 'Срок',
     width: 190,
     sortable: true,
-    cell: (row) => (
-      <span className="flex flex-col leading-tight">
-        <Mono className="text-text-dim">{fmtDateTime(row.dueAt)}</Mono>
-        <span className="text-[12px] text-text-mute">{fmtDueIn(row.dueAt)}</span>
-      </span>
-    ),
+    /*
+     * У завершённой заявки срок — просто факт, а не долг: «просрочено на 3 дня»
+     * под выполненной работой сбивает с толку и раздувает список красного.
+     * Конечность статуса берётся из меты, а не из сравнения с кодом.
+     */
+    cell: (row, meta) => {
+      const done = isTerminalStatus(row.status, 'order', meta)
+      const late = !done && isOverdue(row.dueAt)
+      return (
+        <span className="flex flex-col leading-tight">
+          <Mono className={late ? 'text-risk-high' : 'text-text-dim'}>{fmtDateTime(row.dueAt)}</Mono>
+          {done ? null : (
+            <span className={late ? 'text-[12px] text-risk-high' : 'text-[12px] text-text-mute'}>
+              {fmtDueIn(row.dueAt)}
+            </span>
+          )}
+        </span>
+      )
+    },
   },
   orderStatus: {
     key: 'orderStatus',
     header: 'Статус',
     width: 180,
     sortable: true,
-    cell: (row, meta) => <Badge>{statusLabel(row.status, 'order', meta)}</Badge>,
+    cell: (row, meta) => (
+      <Badge color={statusColor(row.status, 'order', meta)}>
+        {statusLabel(row.status, 'order', meta)}
+      </Badge>
+    ),
   },
   prediction: {
     key: 'prediction',

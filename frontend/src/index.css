@@ -28,6 +28,10 @@
   --color-risk-medium: var(--risk-medium);
   --color-risk-high: var(--risk-high);
   --color-risk-critical: var(--risk-critical);
+  --color-state-attention: var(--state-attention);
+  --color-state-progress: var(--state-progress);
+  --color-state-done: var(--state-done);
+  --color-state-muted: var(--state-muted);
 
   --font-ui: 'Golos Text', system-ui, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;

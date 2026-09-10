@@ -10,7 +10,14 @@ import { Link } from 'react-router-dom'
 import { usePrediction, usePredictionAction } from '@/shared/api/queries'
 import type { AppMeta } from '@/shared/api/types'
 import { fmtDateTime, fmtDuration, fmtFacilityPath, fmtHours, fmtPct } from '@/shared/lib/format'
-import { directionAccent, directionLabel, levelColor, levelLabel, statusLabel } from '@/shared/lib/risk'
+import {
+  directionAccent,
+  directionLabel,
+  levelColor,
+  levelLabel,
+  statusColor,
+  statusLabel,
+} from '@/shared/lib/risk'
 import { Badge } from '@/shared/ui/Badge'
 import { Mono } from '@/shared/ui/Mono'
 import { ErrorState, Spinner } from '@/shared/ui/states'
@@ -54,7 +61,9 @@ export function PredictionCard({ id, meta }: PredictionCardProps) {
               {directionLabel(prediction.direction, meta)}
             </Badge>
             <span className="text-[13px] text-text-dim">{levelLabel(prediction.level, meta)} риск</span>
-            <Badge className="ml-auto">{statusLabel(prediction.status, 'prediction', meta)}</Badge>
+            <Badge className="ml-auto" color={statusColor(prediction.status, 'prediction', meta)}>
+              {statusLabel(prediction.status, 'prediction', meta)}
+            </Badge>
           </div>
 
           <h2 className="mt-2 text-[14px] text-text">{prediction.facility.address}</h2>

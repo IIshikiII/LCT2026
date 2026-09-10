@@ -1,8 +1,13 @@
 /**
- * Рельс разделов: четыре иконки, состав из флагов экранов.
+ * Рельс разделов: иконка и подпись под ней, состав из флагов экранов.
  *
- * Иконка без подписи допустима здесь и только здесь — у каждой есть title и
- * доступное имя (docs/05-ui-kit.md).
+ * Подпись видна всегда. Голые иконки диспетчеры читали неправильно: значение
+ * раскрывалось только по наведению, а на дежурстве никто не водит мышью по
+ * панели, чтобы выяснить, куда ведёт кнопка. Ширины 72 px хватает на короткое
+ * слово, и рельс остаётся рельсом, а не боковым меню.
+ *
+ * Подписи короче пунктов навигации: «Дашборд» вместо «Дашборд рисков». Полное
+ * название остаётся в `title` и в доступном имени.
  *
  * Внизу, отбитый от разделов, — переключатель темы (ADR 0009). Это
  * единственная кнопка рельса, которая не ведёт на экран, поэтому она вынесена
@@ -39,8 +44,8 @@ function ThemeToggle() {
 
 export function Rail() {
   return (
-    <div className="flex w-12 shrink-0 flex-col border-r border-line bg-panel py-2">
-      <nav aria-label="Разделы" className="flex flex-col gap-1">
+    <div className="flex w-[72px] shrink-0 flex-col border-r border-line bg-panel py-2">
+      <nav aria-label="Разделы" className="flex flex-col gap-0.5">
         {enabledNavItems().map((item) => (
           <NavLink
             key={item.path}
@@ -50,16 +55,20 @@ export function Rail() {
             aria-label={item.label}
             className={({ isActive }) =>
               cn(
-                'mx-1.5 flex h-9 items-center justify-center rounded outline-offset-[-2px]',
-                'transition-colors duration-150',
+                'relative mx-1.5 flex flex-col items-center gap-1 rounded px-1 py-2',
+                'outline-offset-[-2px] transition-colors duration-150',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-line-strong',
+                // Активный раздел кодируется дважды: заливкой и планкой слева.
+                'before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px]',
+                'before:rounded-[1px] before:transition-colors before:duration-150',
                 isActive
-                  ? 'bg-raised text-text'
-                  : 'text-text-mute hover:bg-raised hover:text-text-dim',
+                  ? 'bg-raised text-text before:bg-accent-strong'
+                  : 'text-text-mute before:bg-transparent hover:bg-raised hover:text-text-dim',
               )
             }
           >
             <Icon name={item.icon} size={18} />
+            <span className="text-[11px] leading-none">{item.short}</span>
           </NavLink>
         ))}
       </nav>

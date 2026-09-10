@@ -8,7 +8,7 @@ import { Panel } from '@/shared/ui/Panel'
 
 export function GenericWidget({ code }: { code: string }) {
   return (
-    <Panel title="Виджет не реализован" className="col-span-2">
+    <Panel title="Виджет не реализован" className="md:col-span-3 xl:col-span-3">
       <p className="text-[13px] text-text-mute">
         Дашборд запросил виджет <code className="mono text-text-dim">{code}</code>, но в реестре
         такого нет. Остальные виджеты работают.

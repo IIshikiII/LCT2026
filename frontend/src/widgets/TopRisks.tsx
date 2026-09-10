@@ -18,7 +18,7 @@ export function TopRisks() {
   const query = useTopRisks(10)
 
   return (
-    <Panel title="Топ-10 объектов риска" className="col-span-3 row-span-2" padded={false}>
+    <Panel title="Топ-10 объектов риска" className="md:col-span-3 xl:col-span-4" padded={false}>
       {query.isPending ? (
         <TableSkeleton rows={10} />
       ) : query.isError ? (

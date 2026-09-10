@@ -269,8 +269,26 @@ mocks drop predictions with status `REJECTED` or `CLOSED`.
 `RiskLevelMeta`: `code`, `label`, `colorVar` (a CSS variable name such as
 `--risk-high`), `order` (number).
 
-`StatusMeta`: `code`, `label`, `scope`. `scope` is `prediction` or `order`. The
-same code may appear twice with a different scope. `REJECTED` does.
+`StatusMeta`: `code`, `label`, `scope`, `colorVar` (optional), `terminal`
+(optional). `scope` is `prediction` or `order`. The same code may appear twice
+with a different scope. `REJECTED` does.
+
+`colorVar` colours the dot in the status label, exactly like `colorVar` on a risk
+level. Send a token name from the state palette, not a risk colour: the two
+palettes stay apart on purpose, and a green from the risk scale reads as "low
+risk", not as "finished".
+
+| Token | Meaning | Codes today |
+|---|---|---|
+| `--state-attention` | waits for the dispatcher | `NEW`, `AUTO_CREATED` |
+| `--state-progress` | work runs | `IN_REVIEW`, `ORDER_CONFIRMED`, `CONFIRMED`, `IN_PROGRESS` |
+| `--state-done` | finished | `CLOSED`, `DONE` |
+| `--state-muted` | dropped | `REJECTED` |
+
+`terminal: true` marks a status where the work has ended. The interface stops
+showing an overdue warning for such an entity. Set it on `DONE`, `REJECTED` and
+`CLOSED`. A status without `colorVar` gets a neutral label, and a status without
+`terminal` counts as open.
 
 A key of `reasons` matches the `optionsRef` of a form field. See section 7.
 

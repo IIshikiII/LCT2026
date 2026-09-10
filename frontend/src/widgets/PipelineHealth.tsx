@@ -40,7 +40,7 @@ export function PipelineHealth() {
   const data = query.data
 
   return (
-    <Panel title="Конвейер расчёта" className="col-span-2">
+    <Panel title="Конвейер расчёта" className="md:col-span-3 xl:col-span-2">
       {query.isPending ? (
         <Skeleton className="h-24" />
       ) : query.isError || !data ? (

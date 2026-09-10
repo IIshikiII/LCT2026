@@ -51,7 +51,7 @@ export function ModelMetrics() {
   const query = useModelMetrics()
 
   return (
-    <Panel title="Соответствие метрикам ТЗ" className="col-span-3">
+    <Panel title="Соответствие метрикам ТЗ" className="md:col-span-3 xl:col-span-4">
       {query.isPending ? (
         <Skeleton className="h-24" />
       ) : query.isError ? (

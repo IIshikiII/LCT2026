@@ -52,7 +52,7 @@ GET /meta → AppMeta
 interface AppMeta {
   directions: DirectionMeta[]        // { code, label, shortLabel, accent, minHorizonHours }
   riskLevels: RiskLevelMeta[]        // { code, label, colorVar, order }
-  statuses: StatusMeta[]             // { code, label, scope: 'prediction' | 'order' }
+  statuses: StatusMeta[]             // { code, label, scope, colorVar?, terminal? }
   districts: { code, label }[]       // округа для фильтра
   journalColumns: string[]           // ключи колонок журнала в нужном порядке
   orderColumns: string[]             // ключи колонок заявок в нужном порядке
@@ -67,6 +67,14 @@ interface AppMeta {
 `statuses` различает сущности полем `scope`: один и тот же код может встретиться
 дважды. Сейчас так ведёт себя только `REJECTED`. Терминальные статусы разные:
 у заявки `DONE`, у прогноза `CLOSED`.
+
+Ещё два поля статуса необязательные, но меняют вид экрана:
+
+- `colorVar` — цвет точки в метке: имя токена (`--state-progress`) или готовый
+  цвет. Палитра стадий отдельная от шкалы риска, см. [adr/0010-status-colour-from-meta.md](adr/0010-status-colour-from-meta.md).
+  Без него метка остаётся нейтральной.
+- `terminal` — работа закончена. У такой сущности интерфейс не пишет
+  «просрочено»: срок остаётся фактом, но перестаёт быть долгом.
 
 ### Прогнозы
 

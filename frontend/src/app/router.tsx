@@ -27,14 +27,16 @@ export interface NavItem {
   key: FeatureKey
   path: string
   label: string
+  /** Подпись под иконкой в рельсе. Одно слово, иначе рельс расползётся. */
+  short: string
   icon: IconName
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard', path: '/', label: 'Дашборд рисков', icon: 'dashboard' },
-  { key: 'map', path: '/map', label: 'Карта объектов', icon: 'map' },
-  { key: 'journal', path: '/journal', label: 'Журнал прогнозов', icon: 'journal' },
-  { key: 'orders', path: '/orders', label: 'Заявки', icon: 'orders' },
+  { key: 'dashboard', path: '/', label: 'Дашборд рисков', short: 'Дашборд', icon: 'dashboard' },
+  { key: 'map', path: '/map', label: 'Карта объектов', short: 'Карта', icon: 'map' },
+  { key: 'journal', path: '/journal', label: 'Журнал прогнозов', short: 'Журнал', icon: 'journal' },
+  { key: 'orders', path: '/orders', label: 'Заявки', short: 'Заявки', icon: 'orders' },
 ]
 
 export function enabledNavItems(): NavItem[] {

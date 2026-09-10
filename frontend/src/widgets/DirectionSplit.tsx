@@ -22,7 +22,7 @@ export function DirectionSplit() {
   const max = Math.max(...directions.map((d) => counts[d.code] ?? 0), 1)
 
   return (
-    <Panel title="Прогнозы по направлениям" className="col-span-3">
+    <Panel title="Прогнозы по направлениям" className="md:col-span-3 xl:col-span-4">
       {query.isPending ? (
         <Skeleton className="h-24" />
       ) : query.isError ? (

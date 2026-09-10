@@ -29,17 +29,22 @@ export function buildMeta(): AppMeta {
       { code: 'CRITICAL', label: 'Критический', colorVar: '--risk-critical', order: 4 },
     ],
 
+    /*
+     * Цвет статуса назначает бэкенд, а не фронт (ADR 0010). Гамма одна на обе
+     * сущности и читается по стадии работы: синий — ждёт решения диспетчера,
+     * лиловый — идёт, зелёный — закончено, серый — снято.
+     */
     statuses: [
-      { code: 'NEW', label: 'Новый', scope: 'prediction' },
-      { code: 'IN_REVIEW', label: 'На рассмотрении', scope: 'prediction' },
-      { code: 'ORDER_CONFIRMED', label: 'Заявка подтверждена', scope: 'prediction' },
-      { code: 'REJECTED', label: 'Отклонён', scope: 'prediction' },
-      { code: 'CLOSED', label: 'Закрыт', scope: 'prediction' },
-      { code: 'AUTO_CREATED', label: 'Создана автоматически', scope: 'order' },
-      { code: 'CONFIRMED', label: 'Подтверждена', scope: 'order' },
-      { code: 'IN_PROGRESS', label: 'В работе', scope: 'order' },
-      { code: 'REJECTED', label: 'Отклонена', scope: 'order' },
-      { code: 'DONE', label: 'Выполнена', scope: 'order' },
+      { code: 'NEW', label: 'Новый', scope: 'prediction', colorVar: '--state-attention' },
+      { code: 'IN_REVIEW', label: 'На рассмотрении', scope: 'prediction', colorVar: '--state-progress' },
+      { code: 'ORDER_CONFIRMED', label: 'Заявка подтверждена', scope: 'prediction', colorVar: '--state-progress' },
+      { code: 'REJECTED', label: 'Отклонён', scope: 'prediction', colorVar: '--state-muted', terminal: true },
+      { code: 'CLOSED', label: 'Закрыт', scope: 'prediction', colorVar: '--state-done', terminal: true },
+      { code: 'AUTO_CREATED', label: 'Создана автоматически', scope: 'order', colorVar: '--state-attention' },
+      { code: 'CONFIRMED', label: 'Подтверждена', scope: 'order', colorVar: '--state-progress' },
+      { code: 'IN_PROGRESS', label: 'В работе', scope: 'order', colorVar: '--state-progress' },
+      { code: 'REJECTED', label: 'Отклонена', scope: 'order', colorVar: '--state-muted', terminal: true },
+      { code: 'DONE', label: 'Выполнена', scope: 'order', colorVar: '--state-done', terminal: true },
     ],
 
     districts: DISTRICTS.map((d) => ({ code: d.code, label: d.label })),

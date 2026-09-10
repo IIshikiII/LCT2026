@@ -9,7 +9,7 @@
  */
 import type { ReactNode } from 'react'
 import { useMeta } from '@/shared/api/queries'
-import { directionOptions, levelsBySeverity, statusOptions } from '@/shared/lib/risk'
+import { directionOptions, levelsBySeverity, statusColor, statusOptions } from '@/shared/lib/risk'
 import type { PredictionFilterApi } from '@/shared/lib/urlState'
 import { Button } from '@/shared/ui/Button'
 import { Chip } from '@/shared/ui/Chip'
@@ -74,6 +74,7 @@ export function FilterBar({
             <Chip
               key={status.code}
               label={status.label}
+              color={statusColor(status.code, 'prediction', meta)}
               active={filters.status.includes(status.code)}
               onToggle={() => api.toggle('status', status.code)}
             />

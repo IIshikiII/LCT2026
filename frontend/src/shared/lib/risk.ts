@@ -134,6 +134,25 @@ export function statusLabel(code: string, scope: string, meta: AppMeta): string 
   return findStatus(code, scope, meta).label
 }
 
+/**
+ * Цвет метки статуса, пригодный для CSS. Разворачивает имя токена так же, как
+ * `levelColor`. Статус без цвета в мете остаётся нейтральным: возвращается
+ * undefined, и метка рисуется без точки.
+ */
+export function statusColor(code: string, scope: string, meta: AppMeta): string | undefined {
+  const colorVar = findStatus(code, scope, meta).colorVar
+  if (!colorVar) return undefined
+  return colorVar.startsWith('--') ? `var(${colorVar})` : colorVar
+}
+
+/**
+ * Работа по сущности закончена. Отсюда интерфейс знает, что просрочка уже не
+ * новость, а не из сравнения кода статуса с зашитой строкой.
+ */
+export function isTerminalStatus(code: string, scope: string, meta: AppMeta): boolean {
+  return findStatus(code, scope, meta).terminal === true
+}
+
 export function statusOptions(scope: string, meta: AppMeta): StatusMeta[] {
   return meta.statuses.filter((s) => s.scope === scope)
 }

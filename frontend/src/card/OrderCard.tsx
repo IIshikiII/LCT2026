@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom'
 import { useOrder, useOrderAction } from '@/shared/api/queries'
 import type { AppMeta } from '@/shared/api/types'
 import { fmtDateTime, fmtDueIn, fmtFacilityPath, isOverdue } from '@/shared/lib/format'
-import { statusLabel } from '@/shared/lib/risk'
+import { isTerminalStatus, statusColor, statusLabel } from '@/shared/lib/risk'
 import { Badge } from '@/shared/ui/Badge'
 import { Mono } from '@/shared/ui/Mono'
 import { ErrorState, Spinner } from '@/shared/ui/states'
@@ -37,7 +37,9 @@ export function OrderCard({ id, meta }: OrderCardProps) {
   }
 
   const order = query.data
-  const overdue = isOverdue(order.dueAt) && order.status !== 'DONE'
+  // Конечность статуса — из меты: код завершения знает бэкенд, не карточка.
+  const done = isTerminalStatus(order.status, 'order', meta)
+  const overdue = !done && isOverdue(order.dueAt)
   const cause = (meta.reasons[order.outcome ? findCausesRef(meta, order.outcome.actualCause) : ''] ?? []).find(
     (r) => r.code === order.outcome?.actualCause,
   )
@@ -49,7 +51,9 @@ export function OrderCard({ id, meta }: OrderCardProps) {
           <div className="flex items-center gap-2">
             <span className="text-[13px] text-text-mute">Заявка</span>
             <Mono className="text-text">{order.number}</Mono>
-            <Badge className="ml-auto">{statusLabel(order.status, 'order', meta)}</Badge>
+            <Badge className="ml-auto" color={statusColor(order.status, 'order', meta)}>
+              {statusLabel(order.status, 'order', meta)}
+            </Badge>
           </div>
 
           <h2 className="mt-2 text-[14px] text-text">{order.facility.address}</h2>
@@ -66,9 +70,11 @@ export function OrderCard({ id, meta }: OrderCardProps) {
                 <Mono className={overdue ? 'text-risk-high' : 'text-text-dim'}>
                   {fmtDateTime(order.dueAt)}
                 </Mono>
-                <span className={overdue ? 'ml-2 text-risk-high' : 'ml-2 text-text-mute'}>
-                  {fmtDueIn(order.dueAt)}
-                </span>
+                {done ? null : (
+                  <span className={overdue ? 'ml-2 text-risk-high' : 'ml-2 text-text-mute'}>
+                    {fmtDueIn(order.dueAt)}
+                  </span>
+                )}
               </dd>
             </div>
             <div className="flex justify-between gap-2">
