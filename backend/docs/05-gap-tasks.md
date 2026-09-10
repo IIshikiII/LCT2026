@@ -34,7 +34,7 @@ against it.
 The order status `DONE` was another item here. The team resolved it the other
 way: the frontend moved to `DONE`, and specification §8 was right. Nothing to fix.
 
-- [ ] **§4, `statuses` misses two fields.** The specification writes
+- [x] **§4, `statuses` misses two fields.** The specification writes
       `statuses[{code,label,scope}]`. A status also carries `colorVar` (colour of
       the dot in the label) and `terminal` (work is over, stop warning about the
       deadline). Both are optional in the schema and both change the screen, so
@@ -42,32 +42,32 @@ way: the frontend moved to `DONE`, and specification §8 was right. Nothing to f
       [04-api-required-by-frontend.md](04-api-required-by-frontend.md) and
       `frontend/docs/adr/0010-status-colour-from-meta.md`.
 
-- [ ] **§4, `/facilities` misses the `/facilities/lines` endpoint.** The collector
+- [x] **§4, `/facilities` misses the `/facilities/lines` endpoint.** The collector
       routes used to ride inside the `/facilities` response. The frontend moved
       them to their own endpoint, because the map polls the points once per
       minute and the routes never change. Add the endpoint to the list.
-- [ ] **§4, the time series take no parameters.** The specification writes
+- [x] **§4, the time series take no parameters.** The specification writes
       `GET /predictions/{id}/timeseries?from&to`. Nothing ever sent them, and the
       frontend dropped them. Remove both from the line.
-- [ ] **§5 rule 3, the list of action codes is wrong.** It reads
+- [x] **§5 rule 3, the list of action codes is wrong.** It reads
       "`confirm`, `reject`, `confirm_order` (прогноз), `start`, `close` (заявка)".
       In the mocks `confirm` belongs to the order, not to the prediction, and the
       prediction code `inspect` is missing. Correct sets: prediction takes
       `confirm_order`, `inspect`, `reject`. Order takes `confirm`, `reject`,
       `start`, `close`.
-- [ ] **§4, `/facilities` misses the `district` parameter.** The specification
+- [x] **§4, `/facilities` misses the `district` parameter.** The specification
       lists `?bbox&direction&level`. `facilityParams` in
       `frontend/src/shared/api/filters.ts` also sends `district`. Add it.
-- [ ] **§4, `/orders` misses the `sort` parameter.** The specification lists
+- [x] **§4, `/orders` misses the `sort` parameter.** The specification lists
       `?status&dueBefore&page&pageSize`. `orderParams` also sends `sort`. Add it,
       and add the sort whitelist of both lists to the specification.
-- [ ] **§6, the data model has no source for the time series.** The card needs
+- [x] **§6, the data model has no source for the time series.** The card needs
       `GET /predictions/{id}/timeseries` with named series such as
       `Температура` and `Влажность в камере`. The schema holds `alarm_event`
       (discrete events) and `weather_hourly` (district level), but no table of
       sensor readings. Add a `sensor_reading` table to §6, partitioned by month
       like `alarm_event`.
-- [ ] **§6, the data model has no source for the `/meta` dictionaries.** `/meta`
+- [x] **§6, the data model has no source for the `/meta` dictionaries.** `/meta`
       must return `districts` with a label and `reasons` per direction. Neither
       lives in the schema. State in §6 that `app/meta/` owns them as a code
       registry, or add tables. Pick one and write it down.
@@ -75,9 +75,9 @@ way: the frontend moved to `DONE`, and specification §8 was right. Nothing to f
 Two more points are worth stating in the specification, because they surprise a
 reader who only knows the mocks.
 
-- [ ] **§4, `/facilities` properties.** The mocks also send `address` and
+- [x] **§4, `/facilities` properties.** The mocks also send `address` and
       `collector` in `properties`. The map popup uses them. Add both to the list.
-- [ ] **§4, four endpoints skip the list envelope.** `/facilities` and
+- [x] **§4, four endpoints skip the list envelope.** `/facilities` and
       `/facilities/lines` return GeoJSON, `/metrics/models` and
       `/dashboard/top-risks` return a bare array. The sentence
       "все списки - конверт" reads as if they do not.

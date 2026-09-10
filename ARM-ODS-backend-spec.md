@@ -207,16 +207,20 @@ backend/
 
 ## 4. Контракт API — что реализовать буквально
 
-База `/api/v1`. Все списки — конверт `{ items, page, pageSize, total }`.
+База `/api/v1`. Списки отдаются конвертом `{ items, page, pageSize, total }`.
+Четыре эндпоинта конверт не используют, и это намеренно: `/facilities` и
+`/facilities/lines` отдают GeoJSON, `/metrics/models` и `/dashboard/top-risks`
+отдают голый массив.
 
 - `GET  /meta`
 - `GET  /predictions?direction&level&status&district&from&to&sort&page&pageSize`
 - `GET  /predictions/{id}`
-- `GET  /predictions/{id}/timeseries?from&to`
+- `GET  /predictions/{id}/timeseries`
 - `POST /predictions/{id}/actions/{code}`
-- `GET  /facilities?bbox&direction&level` (GeoJSON FeatureCollection)
+- `GET  /facilities?bbox&direction&level&district` (GeoJSON FeatureCollection)
+- `GET  /facilities/lines` (GeoJSON FeatureCollection трасс коллекторов)
 - `GET  /facilities/{id}`
-- `GET  /orders?status&dueBefore&page&pageSize`
+- `GET  /orders?status&dueBefore&sort&page&pageSize`
 - `GET  /orders/{id}`
 - `POST /orders/{id}/actions/{code}`
 - `GET  /metrics/models`
@@ -224,10 +228,27 @@ backend/
 - `GET  /dashboard/summary`
 - `GET  /dashboard/top-risks?limit=10`
 
+Трассы коллекторов отдаёт отдельный эндпоинт `/facilities/lines`. Причина:
+карта опрашивает точки раз в минуту, а трассы не меняются. Фронт берёт их один
+раз за сессию.
+
+Эндпоинт `/predictions/{id}/timeseries` параметров не принимает. Окно выбирает
+сервер.
+
 Правила параметров: `direction`, `level`, `status` — повторяемые
 (`?direction=A&direction=B`), это мультивыбор, в FastAPI — `Query(default=[])`.
 `sort` — строка `field:asc` / `field:desc`, поля белым списком.
 `bbox` — `minLon,minLat,maxLon,maxLat`.
+
+Белый список полей сортировки. Ключи совпадают с ключами колонок, поэтому
+заголовок таблицы сортирует то, что показывает.
+
+- Прогнозы: `computedAt`, `probability`, `horizon`, `direction`, `status`,
+  `facility` (по адресу), `summary`, `risk` (по вероятности).
+- Заявки: `number`, `dueAt`, `orderStatus`, `workType`, `facility` (по адресу).
+
+Неизвестное поле в `sort` — не ошибка. Сервер его пропускает и отдаёт список в
+порядке по умолчанию.
 Все временные метки — ISO-8601 UTC со сдвигом (`2026-09-09T12:00:00Z`).
 Ключи полей — camelCase (фронт ждёт именно их): в pydantic-моделях
 `alias_generator=to_camel`, `populate_by_name=True`, ответы через
@@ -239,7 +260,8 @@ backend/
 
 - `AppMeta`: `directions[{code,label,shortLabel,accent,minHorizonHours}]`,
   `riskLevels[{code,label,colorVar,order}]`,
-  `statuses[{code,label,scope}]` (`scope` = `prediction` | `order`),
+  `statuses[{code,label,scope,colorVar?,terminal?}]` (`scope` = `prediction` |
+  `order`),
   `districts[{code,label}]`, `journalColumns[str]`, `orderColumns[str]`,
   `dashboardWidgets[str]`, `reasons: {ключ -> [{code,label}]}`.
 - `FacilityRef`: `id, collector, section?, chamber?, device?, district, address,
@@ -262,8 +284,28 @@ backend/
   где первые четыре — словари `код -> число`, а не массивы фиксированной формы.
 - Таймсерии: `{ series: [{ name, unit?, points: [{t, v}] }], markerAt? }`.
 - `/facilities` — GeoJSON `FeatureCollection`; в `properties` каждой точки:
-  `facilityId, level, direction, predictionId, probability`. Допустимо
-  дополнительное поле `lines` (GeoJSON трасс коллекторов) — фронт его переживёт.
+  `facilityId, level, direction, predictionId, probability, address, collector`.
+  Последние два показывает всплывающая подсказка карты. Координаты — `[lon, lat]`
+  в этом порядке.
+- `/facilities/lines` — GeoJSON `FeatureCollection` из `LineString`; у каждой
+  трассы свойство `collector` с названием.
+
+Поля `colorVar` и `terminal` у статуса необязательны в схеме, но оба меняют
+экран, поэтому сервер обязан их слать. `colorVar` красит точку в подписи
+статуса. Брать имя токена из палитры состояний, а не из палитры риска: зелёный
+из шкалы риска читается как «низкий риск», а не как «работа закончена».
+
+| Токен | Значение | Коды сегодня |
+|---|---|---|
+| `--state-attention` | ждёт диспетчера | `NEW`, `AUTO_CREATED` |
+| `--state-progress` | работа идёт | `IN_REVIEW`, `ORDER_CONFIRMED`, `CONFIRMED`, `IN_PROGRESS` |
+| `--state-done` | закончено | `CLOSED`, `DONE` |
+| `--state-muted` | отброшено | `REJECTED` |
+
+Признак `terminal: true` помечает статус, на котором работа закончилась. Фронт
+перестаёт предупреждать о сроке. Ставить его на `DONE`, `REJECTED` и `CLOSED`.
+Статус без `colorVar` получает нейтральную подпись, статус без `terminal`
+считается открытым.
 
 ### Типы блоков карточки, которые фронт умеет рисовать
 
@@ -284,10 +326,12 @@ backend/
    телом из значений полей формы. Ответ — обновлённая сущность целиком.
    Отдельных ручек `/confirm`, `/reject`, `/close` не заводить.
 3. **`actions` вычисляются сервером** от текущего статуса сущности и роли
-   пользователя. Фронт кнопки не придумывает. Известные коды в моках:
-   `confirm`, `reject`, `confirm_order` (прогноз), `start`, `close` (заявка).
+   пользователя. Фронт кнопки не придумывает. Коды в моках: прогноз принимает
+   `confirm_order`, `inspect`, `reject`; заявка принимает `confirm`, `reject`,
+   `start`, `close`. Код `confirm` принадлежит заявке, а не прогнозу.
    Действие `close` обязано принимать `outcome.predictionConfirmed` — это
-   источник честных Precision/Recall.
+   источник честных Precision/Recall. Значение только булево: строка `"true"`
+   подтверждением не считается.
 4. **Состав UI приходит из `/meta`**: колонки журнала, виджеты дашборда,
    справочники причин. Менять состав экрана — значит менять `/meta`, а не фронт.
 5. **Терпимость к неизвестному взаимна**: фронт разбирает ответы мягко, поэтому
@@ -305,6 +349,12 @@ backend/
   (истинная/ложная). Основная таблица, миллионы строк: штатное декларативное
   партиционирование PostgreSQL по месяцу плюс индекс `(sensor_id, occurred_at)`.
   Никаких расширений СУБД для этого не требуется.
+- `sensor_reading` — показания датчиков: датчик, объект, метрика (`metric`),
+  время, значение, единица. Источник для `GET /predictions/{id}/timeseries` и
+  для блока `timeseries` в карточке. Таблица `alarm_event` хранит дискретные
+  события, а `weather_hourly` — данные по району, поэтому ни та ни другая
+  графики карточки не закрывает. Партиционирование по месяцу, как у
+  `alarm_event`, плюс индекс `(facility_id, metric, observed_at)`.
 - `fault_log` — журнал неисправностей датчиков ОДС.
 - `repair` — история ремонтов и ТО (регламент и факт).
 - `permit` — допуски и заявки на работы АРМ-Контроль (организация, тип работ,
@@ -320,6 +370,12 @@ backend/
 - `pipeline_run` — прогон конвейера: начало, длительность, число прогнозов,
   версия моделей.
 - `model_metric` — метрики по направлению и дате оценки.
+
+Справочники `/meta` в схеме не лежат. Направления, уровни риска, статусы,
+районы, колонки, виджеты и списки причин держит реестр `app/meta/` в коде.
+Причина: они меняются вместе с кодом роутеров и плагинов, а не вместе с
+данными, и добавление направления не должно требовать миграции. Район объекта
+остаётся полем `facility.district`; реестр даёт этому коду подпись.
 
 Уровни риска считаются из вероятности порогами, задаваемыми на направление в
 конфиге, а не хардкодом: `LOW < 0.3 ≤ MEDIUM < 0.55 ≤ HIGH < 0.78 ≤ CRITICAL`
