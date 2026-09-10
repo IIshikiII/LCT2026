@@ -10,6 +10,7 @@ from __future__ import annotations
 from app.tables.core import (
     action_log,
     alarm_event,
+    collector,
     facility,
     fault_log,
     inspection,
@@ -29,6 +30,7 @@ from app.tables.core import (
 __all__ = [
     "action_log",
     "alarm_event",
+    "collector",
     "facility",
     "fault_log",
     "inspection",

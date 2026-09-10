@@ -53,6 +53,23 @@ def test_four_directions_by_default() -> None:
     assert "FLOOD_RISK" not in body["reasons"]
 
 
+def test_the_journal_and_the_map_accept_the_fifth_code(
+    five_directions: TestClient,
+) -> None:
+    """Фильтр по новому коду обязан работать без правки роутеров.
+
+    Прогнозов по нему нет, и пустой ответ здесь — верный ответ. Проверяется,
+    что код проходит через фильтр, а не падает и не игнорируется.
+    """
+    journal = five_directions.get("/api/v1/predictions", params={"direction": "FLOOD_RISK"})
+    assert journal.status_code == 200
+    assert journal.json()["total"] == 0
+
+    facilities = five_directions.get("/api/v1/facilities", params={"direction": "FLOOD_RISK"})
+    assert facilities.status_code == 200
+    assert facilities.json()["features"] == []
+
+
 def test_the_fifth_direction_appears_with_its_reason_list(
     five_directions: TestClient,
 ) -> None:

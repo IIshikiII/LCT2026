@@ -41,6 +41,16 @@ facility = Table(
     Column("is_active", Boolean, nullable=False, default=True),
 )
 
+collector = Table(
+    "collector",
+    metadata,
+    Column("code", Text, primary_key=True),
+    Column("label", Text, nullable=False),
+    Column("district", Text),
+    # Ломаная как массив пар [lon, lat]. Порядок тот же, что в GeoJSON.
+    Column("line", JSONB, nullable=False),
+)
+
 sensor = Table(
     "sensor",
     metadata,

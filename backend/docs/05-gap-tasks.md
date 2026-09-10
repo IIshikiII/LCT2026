@@ -130,20 +130,20 @@ reader who only knows the mocks.
 
 ## Task 6. Read endpoints
 
-- [ ] `GET /predictions` with all nine parameters, the repeatable ones included,
+- [x] `GET /predictions` with all nine parameters, the repeatable ones included,
       the inclusive end of day on `to`, the sort whitelist, and the envelope.
-- [ ] `GET /predictions/{id}` returning `blocks` from the stored JSONB and
+- [x] `GET /predictions/{id}` returning `blocks` from the stored JSONB and
       `actions` from the domain layer.
-- [ ] `GET /predictions/{id}/timeseries` reading `sensor_reading`, with
+- [x] `GET /predictions/{id}/timeseries` reading `sensor_reading`, with
       `markerAt` set to `computedAt`.
-- [ ] `GET /facilities` returning GeoJSON, one feature per facility, the
+- [x] `GET /facilities` returning GeoJSON, one feature per facility, the
       prediction with the highest probability, and `[lon, lat]` order. Filter by
       `bbox` with the edges included. Ignore a `bbox` that does not parse.
-- [ ] `GET /facilities/lines` returning the collector routes. Separate endpoint,
+- [x] `GET /facilities/lines` returning the collector routes. Separate endpoint,
       because the map loads it once and never polls it.
-- [ ] `GET /facilities/{id}`.
-- [ ] `GET /orders` and `GET /orders/{id}`.
-- [ ] Return 404 with a readable message for every unknown id.
+- [x] `GET /facilities/{id}`.
+- [x] `GET /orders` and `GET /orders/{id}`.
+- [x] Return 404 with a readable message for every unknown id.
 
 ## Task 7. Actions and the domain layer
 
