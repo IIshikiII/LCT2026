@@ -1,0 +1,11 @@
+# Образ разработки: набор api + ml + ingest + инструменты. В прод не идёт.
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /srv
+# Окружение лежит вне /srv. Каталог /srv в разработке закрывает монтирование.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONPATH=/srv UV_PROJECT_ENVIRONMENT=/opt/venv
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --group ml --group ingest
+
+CMD ["uv", "run", "--no-sync", "pytest"]

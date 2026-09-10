@@ -1,0 +1,98 @@
+name: arm-ods
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-arm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arm}
+      POSTGRES_DB: ${POSTGRES_DB:-arm}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-arm}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arm}:${POSTGRES_PASSWORD:-arm}@db:5432/${POSTGRES_DB:-arm}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/srv/app:ro
+      - ./migrations:/srv/migrations:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    command:
+      - uv
+      - run
+      - --no-sync
+      - mlflow
+      - server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --backend-store-uri
+      - postgresql+psycopg://${POSTGRES_USER:-arm}:${POSTGRES_PASSWORD:-arm}@db:5432/mlflow
+      - --artifacts-destination
+      - /srv/artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./artifacts:/srv/artifacts
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Разовые команды. Запуск: docker compose run --rm pipeline <команда>
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile.pipeline
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arm}:${POSTGRES_PASSWORD:-arm}@db:5432/${POSTGRES_DB:-arm}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./app:/srv/app:ro
+      - ./migrations:/srv/migrations:ro
+      - ./data:/srv/data:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Тесты и линт. Запуск: docker compose run --rm dev <команда>
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arm}:${POSTGRES_PASSWORD:-arm}@db:5432/${POSTGRES_DB:-arm}_test
+      LOG_LEVEL: WARNING
+    volumes:
+      - .:/srv
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

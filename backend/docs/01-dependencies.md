@@ -1,0 +1,93 @@
+# Зависимости
+
+Спецификация §2 делит зависимости на непересекающиеся наборы. Образ, который
+слушает порт, не содержит ничего из остальных наборов.
+
+| Набор | Где стоит | Прямые зависимости |
+|---|---|---|
+| `api` | `Dockerfile.api`, `Dockerfile.pipeline` | fastapi, uvicorn, pydantic, sqlalchemy, psycopg |
+| `ml` | `Dockerfile.pipeline` | scikit-learn |
+| `ingest` | не стоит в проде | openpyxl |
+| `mlflow` | `Dockerfile.mlflow`, `Dockerfile.pipeline` | mlflow, psycopg |
+| `dev` | `Dockerfile.dev` | ruff, pytest, mypy, httpx2 |
+
+## Дерево набора api
+
+Спецификация требует, чтобы дерево помещалось на экран. Проверка:
+
+```
+docker run --rm -v "$PWD":/w -w /w \
+  ghcr.io/astral-sh/uv:python3.12-bookworm-slim uv tree --no-dev --frozen
+```
+
+Состояние на 2026-09-10:
+
+```
+arm-ods-backend v0.1.0
+├── fastapi v0.141.1
+│   ├── annotated-doc v0.0.5
+│   ├── pydantic v2.13.5
+│   │   ├── annotated-types v0.8.0
+│   │   ├── pydantic-core v2.46.5
+│   │   │   └── typing-extensions v4.16.0
+│   │   ├── typing-extensions v4.16.0
+│   │   └── typing-inspection v0.4.4
+│   │       └── typing-extensions v4.16.0
+│   ├── starlette v1.6.0
+│   │   ├── anyio v4.15.1
+│   │   │   ├── idna v3.19
+│   │   │   └── typing-extensions v4.16.0
+│   │   └── typing-extensions v4.16.0
+│   ├── typing-extensions v4.16.0
+│   └── typing-inspection v0.4.4 (*)
+├── psycopg[binary] v3.3.5
+│   ├── typing-extensions v4.16.0
+│   └── psycopg-binary v3.3.5 (extra: binary)
+├── pydantic v2.13.5 (*)
+├── sqlalchemy v2.0.52
+│   ├── greenlet v3.5.5
+│   └── typing-extensions v4.16.0
+└── uvicorn v0.52.4
+    ├── click v8.5.0
+    └── h11 v0.16.0
+```
+
+## Отклонения от спецификации
+
+Все три отклонения лежат вне образа `api`.
+
+### httpx2 в наборе dev
+
+Спецификация ждала, что http-клиент приедет транзитивно с
+`fastapi.testclient`. Starlette 1.6 его больше не тянет и требует явно.
+Без него не собирается ни один тест API. Своя замена — это http-клиент
+поверх сокетов, то есть сотни строк.
+
+### psycopg в наборе mlflow
+
+Образ MLflow ставится командой `uv sync --only-group mlflow`, то есть без
+зависимостей проекта. Хранилище трекинга — PostgreSQL, поэтому драйвер нужен
+этому набору отдельно.
+
+### Игнор одного предупреждения в pytest
+
+Настройка `filterwarnings = ["error"]` превращает предупреждения в ошибки.
+Starlette 1.6 сам зовёт устаревший алиас `anyio.abc.BlockingPortal`, поэтому
+сборка тестов падала. Игнор в `pyproject.toml` точечный, по тексту сообщения.
+Снять его, когда starlette перестанет звать этот алиас.
+
+## Что проверить перед передачей кода
+
+Лицензии `psycopg` и `httpx2` не проверены по метаданным пакетов.
+Спецификация §2 разрешает только MIT, BSD и Apache-2.0 и запрещает LGPL со
+статической линковкой. Проверьте обе лицензии до передачи сервиса
+эксплуатирующей организации.
+
+## Как добавить зависимость
+
+1. Проверьте, что её отсутствие означает больше сотни строк своего кода.
+2. Выберите набор. Набор `api` растёт только в крайнем случае.
+3. Добавьте строку в `pyproject.toml`.
+4. Обновите `uv.lock` командой из раздела выше.
+5. Опишите зависимость здесь: задачу, лицензию, дату последнего релиза.
+6. Пересоберите образы командой `docker compose build`.
