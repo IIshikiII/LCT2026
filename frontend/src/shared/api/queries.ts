@@ -2,7 +2,8 @@
  * Хуки данных. Всё, что экраны знают о сети, — это функции отсюда.
  *
  * Опрос раз в минуту задан в providers.tsx глобально (ADR 0005). Здесь только
- * отклонения от него: /meta не опрашивается вовсе, метрики — реже.
+ * отклонения от него: /meta и трассы коллекторов не опрашиваются вовсе,
+ * метрики моделей — реже.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FALLBACK_META } from '@/shared/config/fallbacks'

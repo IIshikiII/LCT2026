@@ -298,20 +298,29 @@ GET  /meta                                   → AppMeta   (грузится о�
 GET  /predictions?direction&level&status&district&from&to&sort&page&pageSize
 GET  /predictions/{id}                       → PredictionDetail
 POST /predictions/{id}/actions/{code}        тело = значения полей формы
-GET  /predictions/{id}/timeseries?from&to    ряд для графика в карточке
+GET  /predictions/{id}/timeseries            ряд для графика в карточке
 
-GET  /facilities?bbox&direction&level        → GeoJSON FeatureCollection
+GET  /facilities?bbox&direction&level&district → GeoJSON FeatureCollection
+GET  /facilities/lines                       трассы коллекторов, грузятся один раз
 GET  /facilities/{id}
 
-GET  /orders?status&dueBefore&page&pageSize
+GET  /orders?status&dueBefore&sort&page&pageSize
 GET  /orders/{id}
 POST /orders/{id}/actions/{code}
 
 GET  /metrics/models                         → ModelMetric[]
-GET  /metrics/pipeline                       → { lastRunAt, lastRunMs, freshnessMinutes }
-GET  /dashboard/summary                      → счётчики по уровням, направлениям, заявкам
+GET  /metrics/pipeline                       → { lastRunAt, lastRunMs, freshnessMinutes,
+                                                 maxComputeMs, minHorizonHours,
+                                                 targetComputeMs, targetHorizonHours }
+GET  /dashboard/summary                      → счётчики по уровням, направлениям,
+                                                 статусам прогнозов и статусам заявок
 GET  /dashboard/top-risks?limit=10           → Prediction[]
 ```
+
+Окно графика выбирает сервер: у таймсерий параметров нет. Трассы коллекторов
+живут на своей ручке, потому что геометрия сети не меняется, а точки на карте
+опрашиваются раз в минуту. Границы `bbox` карта шлёт после остановки, округляя
+их до 0.05°.
 
 Один эндпоинт действий — ключевое решение. Форма отправляется как есть, бэкенд знает,
 что делать с кодом. Ответ — обновлённый `PredictionDetail`, чтобы фронт не гадал,

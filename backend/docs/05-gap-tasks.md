@@ -15,10 +15,11 @@ Work through the tasks in order. Task 1 comes first, because the specification
 is the input of every task after it.
 
 The same review found seven gaps on the frontend side. The frontend closed all
-seven. `frontend/docs/09-gap-tasks.md` records what changed and why. Two of those
-decisions changed this contract, and both are already folded into
+seven, so no task list remains there. Two of those decisions changed this
+contract, and both are already folded into
 [04-api-required-by-frontend.md](04-api-required-by-frontend.md): the map now
-sends `bbox`, and the collector routes moved to `GET /facilities/lines`.
+sends `bbox`, and the collector routes moved to `GET /facilities/lines`. The
+section "Settled by the frontend" at the end lists all seven.
 
 ## Task 1. Fix the specification
 
