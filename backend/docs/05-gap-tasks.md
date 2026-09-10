@@ -165,12 +165,12 @@ reader who only knows the mocks.
 
 ## Task 8. Automatic work orders
 
-- [ ] Create an order for a prediction at level `HIGH` or `CRITICAL` when the
+- [x] Create an order for a prediction at level `HIGH` or `CRITICAL` when the
       facility has no open order for the same direction.
-- [ ] Set `dueAt` to `computedAt + horizonHours * 0.5`, with the coefficient in
+- [x] Set `dueAt` to `computedAt + horizonHours * 0.5`, with the coefficient in
       the direction config.
-- [ ] Take `workType` from the direction plugin.
-- [ ] Keep the thresholds and the duplicate rule in config, not in code.
+- [x] Take `workType` from the direction plugin.
+- [x] Keep the thresholds and the duplicate rule in config, not in code.
 
 ## Task 9. Metrics and dashboard
 
