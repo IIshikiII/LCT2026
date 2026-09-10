@@ -131,12 +131,15 @@ def order_actions(status: str, direction: str | None) -> list[ActionDef]:
                         required=True,
                         options_ref=options_ref,
                     ),
+                    # Прогноз — это вероятность. Спросить «сбылась ли
+                    # вероятность» нельзя, поэтому вопрос о пользе заявки.
+                    # Формулировка временная, см. корневой TODO.md.
                     FieldDef(
                         name="predictionConfirmed",
-                        label="Прогноз подтвердился",
+                        label="Заявка была целесообразна",
                         type="boolean",
                         required=True,
-                        help="Ответ идёт в расчёт Precision и Recall",
+                        help="Ответ обучает модель после ввода в эксплуатацию",
                     ),
                     FieldDef(
                         name="comment",

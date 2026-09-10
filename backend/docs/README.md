@@ -11,6 +11,7 @@
 | [04-api-layer.md](04-api-layer.md) | Как устроены роутеры, логи запросов и ошибки |
 | [04-api-required-by-frontend.md](04-api-required-by-frontend.md) | Что обязан отдавать сервер, поле в поле |
 | [05-gap-tasks.md](05-gap-tasks.md) | Что ещё не сделано, по задачам |
+| [06-labels-and-metrics.md](06-labels-and-metrics.md) | Откуда берётся правильный ответ для модели и для метрик |
 | [04-api-required-by-frontend.md](04-api-required-by-frontend.md) | Какие ручки и формы ответов нужны фронтенду |
 | [05-gap-tasks.md](05-gap-tasks.md) | Чего не хватает до рабочего контракта: список задач |
 
