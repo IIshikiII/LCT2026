@@ -21,14 +21,26 @@ contract, and both are already folded into
 sends `bbox`, and the collector routes moved to `GET /facilities/lines`. The
 section "Settled by the frontend" at the end lists all seven.
 
+One later change also touched the contract: a status now carries `colorVar` and
+`terminal` in `/meta`. Section 4 of the contract document describes both, and
+task 1 below adds them to the specification.
+
 ## Task 1. Fix the specification
 
 The specification is close to the frontend contract, but it disagrees with the
-mocks in seven places. Fix `../../ARM-ODS-backend-spec.md` before you write code
+mocks in eight places. Fix `../../ARM-ODS-backend-spec.md` before you write code
 against it.
 
-The order status `DONE` was an eighth item here. The team resolved it the other
+The order status `DONE` was another item here. The team resolved it the other
 way: the frontend moved to `DONE`, and specification §8 was right. Nothing to fix.
+
+- [ ] **§4, `statuses` misses two fields.** The specification writes
+      `statuses[{code,label,scope}]`. A status also carries `colorVar` (colour of
+      the dot in the label) and `terminal` (work is over, stop warning about the
+      deadline). Both are optional in the schema and both change the screen, so
+      the backend has to send them. See section 4 of
+      [04-api-required-by-frontend.md](04-api-required-by-frontend.md) and
+      `frontend/docs/adr/0010-status-colour-from-meta.md`.
 
 - [ ] **§4, `/facilities` misses the `/facilities/lines` endpoint.** The collector
       routes used to ride inside the `/facilities` response. The frontend moved
@@ -65,9 +77,10 @@ reader who only knows the mocks.
 
 - [ ] **§4, `/facilities` properties.** The mocks also send `address` and
       `collector` in `properties`. The map popup uses them. Add both to the list.
-- [ ] **§4, three endpoints skip the list envelope.** `/facilities`,
-      `/metrics/models` and `/dashboard/top-risks` return a bare array or a
-      GeoJSON object. The sentence "все списки - конверт" reads as if they do not.
+- [ ] **§4, four endpoints skip the list envelope.** `/facilities` and
+      `/facilities/lines` return GeoJSON, `/metrics/models` and
+      `/dashboard/top-risks` return a bare array. The sentence
+      "все списки - конверт" reads as if they do not.
 
 ## Task 2. Define the tables
 
@@ -99,6 +112,9 @@ reader who only knows the mocks.
       districts, journal columns, order columns, dashboard widgets, and reason
       lists. Take the reference values from section 5 of
       [04-api-required-by-frontend.md](04-api-required-by-frontend.md).
+- [ ] Give every status a `colorVar` and mark the terminal ones with
+      `terminal: true`. Skip this and the interface loses the colour of the
+      status column and starts calling finished orders overdue.
 - [ ] Serve `GET /api/v1/meta` from the registry.
 - [ ] Write the flexibility test: add a fifth direction to the registry, and the
       new code must appear in `/meta`, in `/predictions` filters, in `/facilities`

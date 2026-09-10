@@ -25,7 +25,7 @@ frontend side of the same contract.
 2. All field names are camelCase. Use `alias_generator=to_camel` and
    `populate_by_name=True` in pydantic, then dump with `by_alias=True`.
 3. All timestamps are ISO-8601 UTC strings, for example `2026-09-09T12:00:00Z`.
-4. List endpoints return the envelope `{ items, page, pageSize, total }`. Three
+4. List endpoints return the envelope `{ items, page, pageSize, total }`. Four
    endpoints break this rule on purpose. See the endpoint table.
 5. The parameters `direction`, `level` and `status` repeat for multi-select, for
    example `?direction=FIRE_RISK&direction=WEAR_OUT`. In FastAPI declare them as
@@ -62,10 +62,17 @@ frontend side of the same contract.
 | 13 | GET | `/dashboard/summary` | `DashboardSummary` | Dashboard |
 | 14 | GET | `/dashboard/top-risks` | Bare array of `Prediction` | Dashboard |
 
-Endpoints 6, 11 and 14 do not use the list envelope.
+Endpoints 6, 6a, 11 and 14 do not use the list envelope: two return GeoJSON, two
+return a bare array.
 
-The frontend polls every endpoint except `/meta` once per minute. `/meta` loads
-once per session. `/metrics/models` becomes stale after five minutes.
+Polling, set in the frontend query client and listed in ADR 0005:
+
+| Endpoint | How often |
+|---|---|
+| `/meta` | once per session, never refetched |
+| `/facilities/lines` | once per session, never refetched |
+| `/metrics/models` | on the minute, but the answer counts as fresh for 5 minutes |
+| everything else | once per minute |
 
 ## 3. Endpoint detail
 
@@ -146,16 +153,16 @@ An unknown code must not fail. The mocks move the prediction to `IN_REVIEW`.
 | `bbox` | string | no | `minLon,minLat,maxLon,maxLat` |
 
 The map shows one point per facility. When a facility has several predictions,
-return the one with the highest `probability`. The mocks do exactly this and they
-ignore `status` and the date range here.
+return the one with the highest `probability`.
 
 The map sends `bbox` after every `moveend`, rounded outward to 0.05 degrees. Keep
 a facility when its point falls inside the box, edges included. A `bbox` that
 does not parse is not an error: ignore it and return everything. An empty result
 is a valid answer.
 
-The map does not filter by `status` or by a date range here. It shows risk, not
-the stage of work on it, so the filter bar hides both controls on that screen.
+This endpoint takes no `status` and no date range, and that is deliberate. The
+map shows risk, not the stage of work on it, so the filter bar hides both
+controls on that screen.
 
 Response is a GeoJSON `FeatureCollection`:
 
@@ -406,13 +413,17 @@ These are the values the mocks use. The backend owns them and serves them from
 
 Directions:
 
-| Code | Label | Share of mock data | Precision, Recall in mocks |
-|---|---|---|---|
-| `SENSOR_FAILURE` | Отказ датчика | 0.34 | 0.81, 0.63 |
-| `FIRE_RISK` | Пожарный риск | 0.24 | see plugin |
-| `WEAR_OUT` | Износ инфраструктуры | 0.24 | see plugin |
-| `UNAUTHORIZED_ACCESS` | Несанкционированный доступ | 0.18 | see plugin |
-| `FLOOD_RISK` | Подтопление | test only | The fifth direction for the flexibility test |
+| Code | Label | Share of mock data | Precision | Recall |
+|---|---|---|---|---|
+| `SENSOR_FAILURE` | Отказ датчика | 0.34 | 0.81 | 0.63 |
+| `FIRE_RISK` | Пожарный риск | 0.24 | 0.76 | 0.58 |
+| `WEAR_OUT` | Износ инфраструктуры | 0.24 | 0.72 | 0.54 |
+| `UNAUTHORIZED_ACCESS` | Несанкционированный доступ | 0.18 | 0.68 | 0.52 |
+| `FLOOD_RISK` | Риск подтопления | 0.12, off by default | 0.74 | 0.51 |
+
+`UNAUTHORIZED_ACCESS` sits below the target precision of 0.7 on purpose: the
+dashboard widget has to be seen in the red state too. `FLOOD_RISK` is the fifth
+direction for the flexibility test and is switched on from the dev panel.
 
 Risk levels and the probability bands the mocks use:
 
@@ -521,3 +532,6 @@ address).
 6. Adding a field to a response is safe. Renaming a field breaks the frontend.
    A rename needs a matching change in `schemas.ts` and in the mock handlers in
    the same pull request.
+7. Colours come from `/meta`, never from the frontend: `accent` on a direction,
+   `colorVar` on a risk level and on a status. The frontend holds no table of
+   codes to colours, so a colour changes without a release.
