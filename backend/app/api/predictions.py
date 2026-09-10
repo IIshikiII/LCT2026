@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import Select, func, select
 from sqlalchemy.engine import Connection
 
 from app.api import common, mappers
-from app.db import get_conn
-from app.domain import prediction_actions
+from app.db import get_conn, get_tx
+from app.domain import apply, prediction_actions, transitions
 from app.schemas import Page, Prediction, PredictionDetail, Series, SeriesPoint, TimeSeriesResponse
 from app.tables import facility, prediction, sensor_reading, work_order
 
@@ -160,3 +160,51 @@ def get_timeseries(
         series=list(series.values()),
         marker_at=common.iso(row.computed_at),
     )
+
+
+@router.post(
+    "/predictions/{prediction_id}/actions/{code}",
+    response_model=PredictionDetail,
+    response_model_by_alias=True,
+)
+def act_on_prediction(
+    prediction_id: str,
+    code: str,
+    conn: Annotated[Connection, Depends(get_tx)],
+    body: Annotated[dict[str, Any], Body(default_factory=dict)],
+) -> PredictionDetail:
+    """Единственный эндпоинт действий над прогнозом.
+
+    Тело — плоский объект значений формы. Ответ — обновлённый прогноз целиком,
+    чтобы фронт положил его в кэш без второго запроса.
+    """
+    row = _load(conn, prediction_id)
+    status = row.status
+
+    apply.check_body(list(prediction_actions(status)), code, body)
+    new_status = apply.next_status(transitions.PREDICTION, code, status)
+
+    apply.set_status(conn, prediction, prediction_id, status, new_status)
+    _cascade_to_order(conn, row.order_id, code)
+    apply.log(conn, transitions.PREDICTION, prediction_id, code, body)
+
+    updated = _load(conn, prediction_id)
+    return mappers.prediction_detail(
+        _row_to_prediction(updated),
+        updated.blocks,
+        list(prediction_actions(updated.status)),
+    )
+
+
+def _cascade_to_order(conn: Connection, order_id: str | None, code: str) -> None:
+    """Действие над прогнозом двигает его заявку. Поведение взято из моков."""
+    if order_id is None:
+        return
+    order = conn.execute(select(work_order).where(work_order.c.id == order_id)).first()
+    if order is None:
+        return
+
+    if code == "confirm_order" and order.status == "AUTO_CREATED":
+        apply.set_status(conn, work_order, order_id, order.status, "CONFIRMED")
+    elif code == "reject" and order.status not in ("DONE", "REJECTED"):
+        apply.set_status(conn, work_order, order_id, order.status, "REJECTED")

@@ -17,7 +17,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import migrate
 from app.db import engine
-from app.tables import collector, facility, prediction, work_order
+from app.tables import action_log, collector, facility, prediction, work_order
 
 NOW = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
 
@@ -155,12 +155,12 @@ def seeded() -> Iterator[None]:
 
     migrate.run()
     with engine().begin() as conn:
-        for table in (work_order, prediction, facility, collector):
+        for table in (action_log, work_order, prediction, facility, collector):
             conn.execute(delete(table))
         _insert(conn)
 
     yield
 
     with engine().begin() as conn:
-        for table in (work_order, prediction, facility, collector):
+        for table in (action_log, work_order, prediction, facility, collector):
             conn.execute(delete(table))

@@ -147,19 +147,19 @@ reader who only knows the mocks.
 
 ## Task 7. Actions and the domain layer
 
-- [ ] Write `app/domain/` with the action table: status to available actions, per
+- [x] Write `app/domain/` with the action table: status to available actions, per
       entity. Take the reference sets from section 7 of
       [04-api-required-by-frontend.md](04-api-required-by-frontend.md).
-- [ ] Serve `POST /predictions/{id}/actions/{code}` and
+- [x] Serve `POST /predictions/{id}/actions/{code}` and
       `POST /orders/{id}/actions/{code}`. Both take a flat body and return the
       whole updated entity.
-- [ ] An unknown code must not return 500. The mocks move a prediction to
+- [x] An unknown code must not return 500. The mocks move a prediction to
       `IN_REVIEW`.
-- [ ] `close` must write `outcome` with `predictionConfirmed`, and it must move
+- [x] `close` must write `outcome` with `predictionConfirmed`, and it must move
       the linked prediction to `CLOSED`. Accept a boolean only. A string does not
       count as a confirmation.
-- [ ] Write every action to `action_log`.
-- [ ] Keep the cross entity effects the mocks have: `confirm_order` moves an
+- [x] Write every action to `action_log`.
+- [x] Keep the cross entity effects the mocks have: `confirm_order` moves an
       `AUTO_CREATED` order to `CONFIRMED`, and `reject` on a prediction rejects
       its open order.
 

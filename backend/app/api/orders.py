@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Select, func, select
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.engine import Connection
 
 from app.api import common, mappers
-from app.db import get_conn
-from app.domain import order_actions
+from app.api.common import iso
+from app.db import get_conn, get_tx
+from app.domain import apply, order_actions, transitions
 from app.schemas import Page, WorkOrder
 from app.tables import facility, prediction, work_order
 
@@ -81,9 +83,57 @@ def list_orders(
     )
 
 
-@router.get("/orders/{order_id}", response_model=WorkOrder, response_model_by_alias=True)
-def get_order(order_id: str, conn: Annotated[Connection, Depends(get_conn)]) -> WorkOrder:
+def _load(conn: Connection, order_id: str) -> Any:
     row = conn.execute(BASE.where(work_order.c.id == order_id)).first()
     if row is None:
         raise HTTPException(status_code=404, detail=f"заявка {order_id} не найдена")
-    return _row_to_order(row)
+    return row
+
+
+@router.get("/orders/{order_id}", response_model=WorkOrder, response_model_by_alias=True)
+def get_order(order_id: str, conn: Annotated[Connection, Depends(get_conn)]) -> WorkOrder:
+    return _row_to_order(_load(conn, order_id))
+
+
+@router.post(
+    "/orders/{order_id}/actions/{code}",
+    response_model=WorkOrder,
+    response_model_by_alias=True,
+)
+def act_on_order(
+    order_id: str,
+    code: str,
+    conn: Annotated[Connection, Depends(get_tx)],
+    body: Annotated[dict[str, Any], Body(default_factory=dict)],
+) -> WorkOrder:
+    """Единственный эндпоинт действий над заявкой."""
+    row = _load(conn, order_id)
+    status = row.status
+
+    apply.check_body(list(order_actions(status, row.direction)), code, body)
+    new_status = apply.next_status(transitions.ORDER, code, status)
+
+    extra: dict[str, Any] = {}
+    if code == "close":
+        extra["outcome"] = _outcome(body)
+
+    apply.set_status(conn, work_order, order_id, status, new_status, **extra)
+
+    if code == "close":
+        # Терминальный статус заявки — DONE, связанного прогноза — CLOSED.
+        conn.execute(
+            update(prediction).where(prediction.c.id == row.prediction_id).values(status="CLOSED")
+        )
+
+    apply.log(conn, transitions.ORDER, order_id, code, body)
+    return _row_to_order(_load(conn, order_id))
+
+
+def _outcome(body: dict[str, Any]) -> dict[str, Any]:
+    """Итог работ. Отсюда берутся честные Precision и Recall."""
+    return {
+        "actualCause": str(body.get("actualCause", "")),
+        "predictionConfirmed": body["predictionConfirmed"],
+        "comment": str(body.get("comment", "")),
+        "closedAt": iso(datetime.now(UTC)),
+    }
