@@ -152,15 +152,15 @@ describe('прогнозы', () => {
 describe('заявки', () => {
   it('представлены во всех статусах', () => {
     const statuses = new Set(db().orders.map((o) => o.status))
-    for (const code of ['AUTO_CREATED', 'CONFIRMED', 'IN_PROGRESS', 'CLOSED', 'REJECTED']) {
+    for (const code of ['AUTO_CREATED', 'CONFIRMED', 'IN_PROGRESS', 'DONE', 'REJECTED']) {
       expect(statuses).toContain(code)
     }
   })
 
-  it('у закрытых всегда есть разметка «прогноз подтвердился»', () => {
-    const closed = db().orders.filter((o) => o.status === 'CLOSED')
-    expect(closed.length).toBeGreaterThan(0)
-    for (const order of closed) {
+  it('у выполненных всегда есть разметка «прогноз подтвердился»', () => {
+    const done = db().orders.filter((o) => o.status === 'DONE')
+    expect(done.length).toBeGreaterThan(0)
+    for (const order of done) {
       expect(order.outcome).toBeDefined()
       expect(typeof order.outcome?.predictionConfirmed).toBe('boolean')
       expect(order.outcome?.actualCause).toBeTruthy()

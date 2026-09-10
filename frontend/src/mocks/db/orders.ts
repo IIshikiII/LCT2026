@@ -3,9 +3,11 @@
  * заявок из описания итогового продукта по ТЗ.
  *
  * Заявка всегда порождена прогнозом: сначала система создаёт её сама
- * (`AUTO_CREATED`), дальше её ведёт диспетчер. Закрытие несёт разметку
- * `outcome.predictionConfirmed` — из неё считается качество модели на реальных
- * данных, поэтому у закрытых заявок она есть всегда.
+ * (`AUTO_CREATED`), дальше её ведёт диспетчер. Терминальный статус заявки —
+ * `DONE`, у прогноза — `CLOSED`: это разные сущности с разным жизненным циклом.
+ * Закрытие несёт разметку `outcome.predictionConfirmed` — из неё считается
+ * качество модели на реальных данных, поэтому у выполненных заявок она есть
+ * всегда.
  */
 import type { WorkOrder } from '@/shared/api/types'
 import { orderActions } from './actions'
@@ -20,7 +22,7 @@ const STATUS_WEIGHTS: [string, number][] = [
   ['AUTO_CREATED', 0.3],
   ['CONFIRMED', 0.2],
   ['IN_PROGRESS', 0.2],
-  ['CLOSED', 0.25],
+  ['DONE', 0.25],
   ['REJECTED', 0.05],
 ]
 
@@ -61,7 +63,7 @@ export function buildOrders(predictions: PredictionRecord[]): OrderRecord[] {
     const dueAt = hoursFrom(createdAt, rnd.int(-18, prediction.horizonHours))
 
     const outcome =
-      status === 'CLOSED'
+      status === 'DONE'
         ? {
             actualCause: rnd.pick(prediction.plugin.reasons).code,
             // Доля подтверждений согласована с Precision направления.

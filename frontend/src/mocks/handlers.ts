@@ -163,7 +163,7 @@ export const handlers = [
     if (code === 'reject') {
       record.status = 'REJECTED'
       const order = record.orderId ? db().orderById.get(record.orderId) : undefined
-      if (order && order.status !== 'CLOSED') {
+      if (order && order.status !== 'DONE') {
         order.status = 'REJECTED'
         order.actions = orderActions(order.status, order.causesRef)
       }
@@ -277,7 +277,8 @@ export const handlers = [
     } else if (code === 'reject') {
       order.status = 'REJECTED'
     } else if (code === 'close') {
-      order.status = 'CLOSED'
+      // Заявка выполнена. Терминальный статус заявки — DONE, прогноза — CLOSED.
+      order.status = 'DONE'
       order.outcome = {
         actualCause: String(body['actualCause'] ?? ''),
         // Разметка обязательна: из неё считаются Precision и Recall.

@@ -265,7 +265,7 @@ export interface WorkOrder {
   facility: FacilityRef;
   workType: string;
   dueAt: string;
-  status: string;            // AUTO_CREATED | CONFIRMED | REJECTED | IN_PROGRESS | CLOSED
+  status: string;            // AUTO_CREATED | CONFIRMED | REJECTED | IN_PROGRESS | DONE
   createdAt: string;
   actions: ActionDef[];
   outcome?: {

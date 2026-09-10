@@ -83,7 +83,11 @@ describe('уровни риска', () => {
 
 describe('статусы', () => {
   it('различают статусы прогнозов и заявок по scope', () => {
-    expect(findStatus('CLOSED', 'order', FALLBACK_META).label).toBe('Закрыта')
+    // REJECTED — единственный код, общий для обеих сущностей. Терминальные
+    // статусы различаются кодом: у заявки DONE, у прогноза CLOSED.
+    expect(findStatus('REJECTED', 'order', FALLBACK_META).label).toBe('Отклонена')
+    expect(findStatus('REJECTED', 'prediction', FALLBACK_META).label).toBe('Отклонён')
+    expect(findStatus('DONE', 'order', FALLBACK_META).label).toBe('Выполнена')
     expect(findStatus('CLOSED', 'prediction', FALLBACK_META).label).toBe('Закрыт')
   })
 

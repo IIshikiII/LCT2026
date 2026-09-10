@@ -130,16 +130,38 @@ feeds Precision and Recall gains a second accepted type for no reason.
 - [ ] Change the note in `backend/docs/04-api-required-by-frontend.md`, which
       currently records the string form as accepted behaviour.
 
+## Task 7. Rename the terminal order status to `DONE`. Done
+
+The backend specification §8 ends the order lifecycle at `DONE`. The frontend
+used `CLOSED` for both entities. The team chose `DONE`, so the frontend moved.
+
+An order now ends at `DONE` with the label "Выполнена". A prediction still ends
+at `CLOSED`. The two codes differ on purpose, because the two entities have
+separate lifecycles. `REJECTED` stays the only code that both share, and `scope`
+in `/meta` separates it.
+
+- [x] `src/mocks/db/meta.ts` and `src/shared/config/fallbacks.ts`: the order
+      status is `DONE`, labelled "Выполнена".
+- [x] `src/mocks/db/orders.ts`: the seed produces `DONE`, and an order at `DONE`
+      always carries `outcome`.
+- [x] `src/mocks/handlers.ts`: the `close` action sets `DONE`. The `reject`
+      action on a prediction skips an order that already reached `DONE`.
+- [x] `src/card/OrderCard.tsx`: an order at `DONE` is never overdue.
+- [x] Tests: `seed.test.ts`, `OrdersScreen.test.tsx`, `risk.test.ts`. The scope
+      test now uses `REJECTED`, which is the remaining shared code.
+- [x] Documents: `docs/08-glossary.md`, `ARM-ODS-frontend-spec.md`, and
+      `backend/docs/04-api-required-by-frontend.md`.
+
+The action code stays `close`. Only the resulting status changed.
+
 ## Not a frontend gap
 
 These came up in the same review and belong to the backend. They stay in
 `backend/docs/05-gap-tasks.md`.
 
-1. The backend specification uses the order status `DONE`, which no frontend code
-   knows. The frontend is right, the specification is wrong.
-2. The backend specification lists the action codes wrongly. It puts `confirm` on
+1. The backend specification lists the action codes wrongly. It puts `confirm` on
    the prediction and forgets `inspect`.
-3. The database schema has no table of sensor readings, so
+2. The database schema has no table of sensor readings, so
    `/predictions/{id}/timeseries` has no source.
-4. The database schema has no source for the `districts` and `reasons`
+3. The database schema has no source for the `districts` and `reasons`
    dictionaries of `/meta`.

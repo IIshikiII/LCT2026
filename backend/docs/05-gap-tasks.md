@@ -14,7 +14,7 @@ except `config`, `db`, `logging`, `main`, `migrate` and `cli` is an empty
 Work through the tasks in order. Task 1 comes first, because the specification
 is the input of every task after it.
 
-The same review found six gaps that the frontend must close, not the backend.
+The same review found seven gaps that the frontend must close, not the backend.
 They live in `frontend/docs/09-gap-tasks.md` and they are not repeated here. Read
 that list before you start task 6, because two of its decisions change what
 `/facilities` returns. See the section "Owned by the frontend" at the end.
@@ -22,13 +22,12 @@ that list before you start task 6, because two of its decisions change what
 ## Task 1. Fix the specification
 
 The specification is close to the frontend contract, but it disagrees with the
-mocks in six places. Fix `../../ARM-ODS-backend-spec.md` before you write code
+mocks in five places. Fix `../../ARM-ODS-backend-spec.md` before you write code
 against it.
 
-- [ ] **§8, order lifecycle uses `DONE`.** The line reads
-      `AUTO_CREATED → CONFIRMED → IN_PROGRESS → DONE`. The frontend has no `DONE`
-      status. `GET /meta` and the mock handlers use `CLOSED`, and the close action
-      sets `CLOSED`. Replace `DONE` with `CLOSED`.
+The order status `DONE` was the sixth item here. The team resolved it the other
+way: the frontend moved to `DONE`, and specification §8 was right. Nothing to fix.
+
 - [ ] **§5 rule 3, the list of action codes is wrong.** It reads
       "`confirm`, `reject`, `confirm_order` (прогноз), `start`, `close` (заявка)".
       In the mocks `confirm` belongs to the order, not to the prediction, and the
@@ -157,7 +156,7 @@ reader who only knows the mocks.
 - [ ] `GET /dashboard/summary` with the four counter dictionaries and the total.
 - [ ] `GET /dashboard/top-risks` sorted by probability, without `REJECTED` and
       `CLOSED`.
-- [ ] Compute Precision and Recall from closed orders, per specification §9.
+- [ ] Compute Precision and Recall from orders at status `DONE`, per §9.
       Write the method into `model_metric.method` and into `backend/docs/`.
 
 ## Task 10. Data and the pipeline
@@ -183,22 +182,25 @@ reader who only knows the mocks.
 
 ## Owned by the frontend
 
-These six gaps came out of the same review. The backend does not fix them, and
+These seven gaps came out of the same review. The backend does not fix them, and
 they carry no task here. They are open in `frontend/docs/09-gap-tasks.md`.
 
-1. `frontend/docs/02-api-contract.md` has drifted from `schemas.ts` in eight
+1. **The terminal order status. Closed already.** Specification §8 says `DONE`,
+   and the frontend used `CLOSED`. The frontend moved to `DONE`, so §8 stays as
+   it is. An order ends at `DONE`. A prediction ends at `CLOSED`.
+2. `frontend/docs/02-api-contract.md` has drifted from `schemas.ts` in eight
    places. That document is the human readable face of this contract, so a
    backend author who reads it gets a wrong `AppMeta`, a wrong
    `PipelineHealth` and a wrong `DashboardSummary`.
-2. `bbox` has no caller. The parameter exists in the frontend filter builder, but
+3. `bbox` has no caller. The parameter exists in the frontend filter builder, but
    no screen sends it and the mock ignores it.
-3. The map drops the `status` filter while the journal keeps it. The frontend
+4. The map drops the `status` filter while the journal keeps it. The frontend
    decides whether this stays.
-4. The collector routes travel inside `/facilities` on every poll, once per
+5. The collector routes travel inside `/facilities` on every poll, once per
    minute. The frontend decides where they move.
-5. `GET /predictions/{id}/timeseries` declares `from` and `to`, and the card
+6. `GET /predictions/{id}/timeseries` declares `from` and `to`, and the card
    sends neither. If the frontend drops them, remove them from specification §4.
-6. The mock accepts the string `"true"` for `predictionConfirmed`. Do not copy
+7. The mock accepts the string `"true"` for `predictionConfirmed`. Do not copy
    this into the backend.
 
 Task 1 of this document still fixes the backend specification, because the

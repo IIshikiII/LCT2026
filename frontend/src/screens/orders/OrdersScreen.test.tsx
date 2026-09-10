@@ -29,19 +29,19 @@ describe('экран заявок', () => {
   })
 
   it('фильтрует по статусу через URL', async () => {
-    renderWithProviders(<AppShell />, { route: '/orders?orderStatus=CLOSED' })
+    renderWithProviders(<AppShell />, { route: '/orders?orderStatus=DONE' })
 
     await screen.findByRole('table')
-    const expected = db().orders.filter((o) => o.status === 'CLOSED').length
+    const expected = db().orders.filter((o) => o.status === 'DONE').length
     await waitFor(() => {
       expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(expected + 1)
     })
   })
 
-  it('показывает разметку у закрытой заявки', async () => {
-    const closed = db().orders.find((o) => o.status === 'CLOSED')!
+  it('показывает разметку у выполненной заявки', async () => {
+    const done = db().orders.find((o) => o.status === 'DONE')!
 
-    renderWithProviders(<AppShell />, { route: `/orders?order=${closed.id}` })
+    renderWithProviders(<AppShell />, { route: `/orders?order=${done.id}` })
 
     const panel = await screen.findByRole('complementary', { name: 'Карточка заявки' })
     expect(await within(panel).findByText('Результат закрытия')).toBeInTheDocument()
@@ -88,7 +88,7 @@ describe('полный цикл: подтверждение, работа, за�
     await user.click(screen.getByRole('radio', { name: /событие подтвердилось/i }))
     await user.click(submitIn('Закрыть заявку'))
 
-    expect(await within(panel).findByText('Закрыта')).toBeInTheDocument()
+    expect(await within(panel).findByText('Выполнена')).toBeInTheDocument()
     expect(await within(panel).findByText('Результат закрытия')).toBeInTheDocument()
     expect(within(panel).getByText('да')).toBeInTheDocument()
   })

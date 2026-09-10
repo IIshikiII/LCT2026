@@ -258,7 +258,7 @@ mocks drop predictions with status `REJECTED` or `CLOSED`.
 `--risk-high`), `order` (number).
 
 `StatusMeta`: `code`, `label`, `scope`. `scope` is `prediction` or `order`. The
-same code may appear twice with a different scope. `REJECTED` and `CLOSED` do.
+same code may appear twice with a different scope. `REJECTED` does.
 
 A key of `reasons` matches the `optionsRef` of a form field. See section 7.
 
@@ -395,7 +395,11 @@ Risk levels and the probability bands the mocks use:
 
 Prediction statuses: `NEW`, `IN_REVIEW`, `ORDER_CONFIRMED`, `REJECTED`, `CLOSED`.
 
-Order statuses: `AUTO_CREATED`, `CONFIRMED`, `IN_PROGRESS`, `REJECTED`, `CLOSED`.
+Order statuses: `AUTO_CREATED`, `CONFIRMED`, `IN_PROGRESS`, `REJECTED`, `DONE`.
+
+The terminal status of an order is `DONE`. The terminal status of a prediction is
+`CLOSED`. The two codes differ on purpose, because the two entities have separate
+lifecycles. `REJECTED` is the only code that both share, and `scope` separates it.
 
 Journal columns: `risk`, `computedAt`, `direction`, `facility`, `summary`,
 `probability`, `horizon`, `status`, `order`.
@@ -451,14 +455,14 @@ buttons and the forms, and it knows nothing about what a code means.
 | `AUTO_CREATED` | `confirm`, `reject` |
 | `CONFIRMED` | `start` |
 | `IN_PROGRESS` | `close` |
-| `REJECTED`, `CLOSED` | none |
+| `REJECTED`, `DONE` | none |
 
 | Code | Kind | Fields | Effect in the mocks |
 |---|---|---|---|
 | `confirm` | primary | `assignee` (text, required, min 2), `comment` (textarea) | Status to `CONFIRMED` |
 | `reject` | danger | `reason` (select, required, `optionsRef: rejection`), `comment` (textarea, required, min 5) | Status to `REJECTED` |
 | `start` | primary | `crew` (text, required, min 2) | Status to `IN_PROGRESS` |
-| `close` | primary | `actualCause` (select, required, `optionsRef` of the direction), `predictionConfirmed` (boolean, required), `comment` (textarea, required, min 5) | Status to `CLOSED`. Writes `outcome`. The linked prediction moves to `CLOSED` |
+| `close` | primary | `actualCause` (select, required, `optionsRef` of the direction), `predictionConfirmed` (boolean, required), `comment` (textarea, required, min 5) | Order to `DONE`. Writes `outcome`. The linked prediction moves to `CLOSED` |
 
 The `optionsRef` of `actualCause` points at the reason list of the direction of
 the linked prediction. The frontend needs no extra request to resolve it, because

@@ -36,7 +36,7 @@ export const FALLBACK_META: AppMeta = {
     { code: 'CONFIRMED', label: 'Подтверждена', scope: 'order' },
     { code: 'REJECTED', label: 'Отклонена', scope: 'order' },
     { code: 'IN_PROGRESS', label: 'В работе', scope: 'order' },
-    { code: 'CLOSED', label: 'Закрыта', scope: 'order' },
+    { code: 'DONE', label: 'Выполнена', scope: 'order' },
   ],
 
   districts: [],

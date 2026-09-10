@@ -37,7 +37,7 @@ export function OrderCard({ id, meta }: OrderCardProps) {
   }
 
   const order = query.data
-  const overdue = isOverdue(order.dueAt) && order.status !== 'CLOSED'
+  const overdue = isOverdue(order.dueAt) && order.status !== 'DONE'
   const cause = (meta.reasons[order.outcome ? findCausesRef(meta, order.outcome.actualCause) : ''] ?? []).find(
     (r) => r.code === order.outcome?.actualCause,
   )
