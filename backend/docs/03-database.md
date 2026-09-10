@@ -73,3 +73,18 @@ PostgreSQL. Расширения СУБД не нужны. Сейчас есть
 | `pipeline_run` | Прогон конвейера: длительность, число прогнозов |
 | `model_metric` | Precision и Recall по направлению |
 | `schema_migration` | Применённые миграции |
+
+## DTO ответов
+
+Каталог `app/schemas/` держит pydantic-модели ответов. Они зеркалят
+`frontend/src/shared/api/schemas.ts` поле в поле.
+
+Поля пишутся в snake_case и уходят наружу в camelCase: база `Dto` ставит
+`alias_generator=to_camel` и `populate_by_name=True`. Отдавать ответ только
+через `model_dump(by_alias=True)`.
+
+Поля `direction`, `level` и `status` объявлены как `str`. Enum здесь означал бы
+миграцию и правку схем на каждое новое направление.
+
+Тест `tests/test_schemas.py` падает, когда ключ ответа перестал быть camelCase
+или когда одно из трёх полей выше стало перечислением.

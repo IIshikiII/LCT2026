@@ -96,15 +96,15 @@ reader who only knows the mocks.
 
 ## Task 3. Write the response DTOs
 
-- [ ] Write `app/schemas/` as pydantic models that mirror
+- [x] Write `app/schemas/` as pydantic models that mirror
       `frontend/src/shared/api/schemas.ts` field for field.
-- [ ] Set `alias_generator=to_camel` and `populate_by_name=True` on a shared base
+- [x] Set `alias_generator=to_camel` and `populate_by_name=True` on a shared base
       model. Dump every response with `by_alias=True`.
-- [ ] Keep `direction`, `level` and `status` as `str`. No enum, per specification
+- [x] Keep `direction`, `level` and `status` as `str`. No enum, per specification
       §5 rule 1.
-- [ ] Add the list envelope as a generic model with `items`, `page`, `pageSize`
+- [x] Add the list envelope as a generic model with `items`, `page`, `pageSize`
       and `total`.
-- [ ] Write a test that fails when a DTO field name is not camelCase.
+- [x] Write a test that fails when a DTO field name is not camelCase.
 
 ## Task 4. Build the meta registry and GET /meta
 
