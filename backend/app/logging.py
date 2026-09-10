@@ -6,6 +6,8 @@ import json
 import logging
 from datetime import UTC, datetime
 
+from app.request_context import get_request_id
+
 _SKIP = frozenset(logging.LogRecord("", 0, "", 0, "", None, None).__dict__) | {
     "asctime",
     "message",
@@ -20,6 +22,7 @@ class JsonFormatter(logging.Formatter):
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
+            "requestId": get_request_id(),
         }
         for key, value in record.__dict__.items():
             if key not in _SKIP:

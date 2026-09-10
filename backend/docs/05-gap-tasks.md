@@ -122,11 +122,11 @@ reader who only knows the mocks.
 
 ## Task 5. Mount the API
 
-- [ ] `app/main.py` serves only `/healthz` today. Add an `APIRouter` per area
+- [x] `app/main.py` serves only `/healthz` today. Add an `APIRouter` per area
       (`meta`, `predictions`, `facilities`, `orders`, `metrics`, `dashboard`) and
       mount them under `/api/v1`.
-- [ ] Return errors as `{"detail": ...}` with 400, 404, 409 or 422.
-- [ ] Add a `request_id` to every log line, per specification §10.
+- [x] Return errors as `{"detail": ...}` with 400, 404, 409 or 422.
+- [x] Add a `request_id` to every log line, per specification §10.
 
 ## Task 6. Read endpoints
 

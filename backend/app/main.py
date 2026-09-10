@@ -9,8 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from app import errors, middleware
 from app import logging as app_logging
-from app.api import meta as meta_api
+from app.api import ROUTERS
 from app.config import config
 from app.db import get_conn
 
@@ -21,8 +22,8 @@ app_logging.setup(config.log_level)
 app = FastAPI(
     title="АРМ диспетчера ОДС",
     version="0.1.0",
-    docs_url="/api/v1/docs",
-    openapi_url="/api/v1/openapi.json",
+    docs_url=f"{API_PREFIX}/docs",
+    openapi_url=f"{API_PREFIX}/openapi.json",
 )
 
 app.add_middleware(
@@ -32,8 +33,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+middleware.install(app)
+errors.install(app)
 
-app.include_router(meta_api.router, prefix=API_PREFIX)
+for router in ROUTERS:
+    app.include_router(router, prefix=API_PREFIX)
 
 
 @app.get("/healthz")

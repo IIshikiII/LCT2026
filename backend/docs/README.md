@@ -7,7 +7,10 @@
 |---|---|
 | [01-dependencies.md](01-dependencies.md) | Из чего собран сервис, почему взята каждая зависимость |
 | [02-local-run.md](02-local-run.md) | Как поднять сервис и прогнать проверки |
-| [03-database.md](03-database.md) | Как устроена схема и как добавить миграцию |
+| [03-database.md](03-database.md) | Как устроена схема, реестры и DTO |
+| [04-api-layer.md](04-api-layer.md) | Как устроены роутеры, логи запросов и ошибки |
+| [04-api-required-by-frontend.md](04-api-required-by-frontend.md) | Что обязан отдавать сервер, поле в поле |
+| [05-gap-tasks.md](05-gap-tasks.md) | Что ещё не сделано, по задачам |
 | [04-api-required-by-frontend.md](04-api-required-by-frontend.md) | Какие ручки и формы ответов нужны фронтенду |
 | [05-gap-tasks.md](05-gap-tasks.md) | Чего не хватает до рабочего контракта: список задач |
 
