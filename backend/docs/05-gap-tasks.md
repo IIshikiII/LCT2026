@@ -174,23 +174,52 @@ reader who only knows the mocks.
 
 ## Task 9. Metrics and dashboard
 
-- [ ] `GET /metrics/models` from `model_metric`, one row per direction, with
-      `targetPrecision` 0.7 and `targetRecall` 0.5 in every entry.
-- [ ] `GET /metrics/pipeline` from `pipeline_run`, with `targetComputeMs` 300000
-      and `targetHorizonHours` 24.
-- [ ] `GET /dashboard/summary` with the four counter dictionaries and the total.
-- [ ] `GET /dashboard/top-risks` sorted by probability, without `REJECTED` and
-      `CLOSED`.
-- [ ] Compute Precision and Recall from orders at status `DONE`, per §9.
-      Write the method into `model_metric.method` and into `backend/docs/`.
+- [x] `GET /metrics/models` from `model_metric`, one row per direction, with
+      `targetPrecision` 0.7 and `targetRecall` 0.5 in every entry. A direction
+      without an evaluation stays out of the answer, because zeroes read as
+      "the model is broken".
+- [x] `GET /metrics/pipeline` from `pipeline_run`, with `targetComputeMs` 300000
+      and `targetHorizonHours` 24. Only a run at status `DONE` counts.
+- [x] `GET /dashboard/summary` with the four counter dictionaries and the total.
+      The keys come from the registries, so a direction without predictions
+      still gets a zero.
+- [x] `GET /dashboard/top-risks` sorted by probability, without the statuses
+      marked `terminal` in the registry.
+
+The last item of this task was wrong, and the team dropped it. It read: compute
+Precision and Recall from the orders at status `DONE`. That contradicts
+specification §9 and [06-labels-and-metrics.md](06-labels-and-metrics.md).
+
+The dispatcher mark `predictionConfirmed` measures the usefulness of an order,
+not the accuracy of a prediction. It lives on a biased sample, because only the
+predictions that sent a crew ever get one. Recall from those marks cannot be
+computed at all: there are no missed events among closed orders.
+
+So the real Precision and Recall come from the events in the data, an offline
+evaluation on a holdout split by time writes them, and that belongs to task 10
+with the model. The plan for the dispatcher marks after the service goes live
+lies in `../../roadmap-post-deployment.md`.
+
+- [ ] Write the offline evaluation in task 10, and fill `model_metric.method`
+      with the honest name of the method. Never mix two methods in one number.
 
 ## Task 10. Data and the pipeline
 
+The ML side of the team owns the model itself: the exploratory analysis, the
+choice of model, the cross validation and the metrics. The backend gives them
+the frame and does not pick the model for them.
+
+- [x] Write `app/ml/` with the plugin protocol, the predictor registry and the
+      version registry. Done ahead of task 9, see [08-ml-plugin.md](08-ml-plugin.md).
+- [x] Add the `research` dependency group and the `research` service, so the
+      exploratory work runs against the same database and the same MLflow.
 - [ ] Write `app/synth/` to fill the raw tables, `sensor_reading` included.
+      Keep it small: the real exports arrive soon, and a rich generator would
+      be thrown away. It has to feed the frontend, not to prove a metric.
 - [ ] Implement `python -m app.cli seed`, so the frontend works against the real
       backend after `docker compose up`.
-- [ ] Write `app/features/`, `app/ml/` with the direction plugin protocol, and
-      `app/pipeline/` with the run.
+- [ ] Write `app/features/` and the predictors in `app/ml/plugins/`.
+- [ ] Write `app/pipeline/` with the run.
 - [ ] Guard the run with `pg_try_advisory_lock`, per specification §7.
 - [ ] Enforce the two hard numbers: `horizonHours` at least 24, `computeMs` below
       300000.

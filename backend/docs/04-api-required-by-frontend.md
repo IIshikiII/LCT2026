@@ -225,8 +225,9 @@ Same rules as the prediction action endpoint. The response is the whole updated
 `WorkOrder`.
 
 The code `close` must accept `predictionConfirmed` and store it in
-`outcome.predictionConfirmed`. This flag is the source of honest Precision and
-Recall on real data. Accept a boolean only. The mock rejects the string `"true"`,
+`outcome.predictionConfirmed`. The flag measures the usefulness of the order, it
+is not the source of Precision and Recall, and it is not a training target. See
+[06-labels-and-metrics.md](06-labels-and-metrics.md). Accept a boolean only. The mock rejects the string `"true"`,
 and a test holds that line. A value of any other type does not count as a
 confirmation.
 

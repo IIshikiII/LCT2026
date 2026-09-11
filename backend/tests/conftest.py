@@ -17,7 +17,15 @@ from sqlalchemy.exc import OperationalError
 
 from app import migrate
 from app.db import engine
-from app.tables import action_log, collector, facility, prediction, work_order
+from app.tables import (
+    action_log,
+    collector,
+    facility,
+    model_metric,
+    pipeline_run,
+    prediction,
+    work_order,
+)
 
 NOW = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
 
@@ -51,6 +59,23 @@ BROKEN_BLOCKS = [
     {"type": "experimental_heatmap", "title": "Неизвестный тип", "data": {"cells": []}},
 ]
 
+# Прогон конвейера. Второй идёт позже первого и не закончился: здоровье
+# считается по последнему успешному, а не по последнему начатому.
+RUNS = [
+    # id, статус, сдвиг начала в часах, длительность
+    (1, "DONE", -1, 42_000),
+    (2, "RUNNING", 0, None),
+]
+
+# Оценки моделей. Два направления из четырёх оценки не имеют, и это норма:
+# «Износ» ещё не обучали, «Несанкционированный доступ» отдаёт правило.
+METRICS = [
+    # направление, precision, recall, сдвиг оценки в часах
+    ("SENSOR_FAILURE", 0.62, 0.44, -48),
+    ("SENSOR_FAILURE", 0.81, 0.63, -2),
+    ("FIRE_RISK", 0.76, 0.58, -2),
+]
+
 ORDERS = [
     # id, номер, прогноз, объект, статус, сдвиг срока в часах, итог
     ("O-1", "2026-0001", "P-1", "F-1", "AUTO_CREATED", 12, None),
@@ -71,6 +96,10 @@ ORDERS = [
         },
     ),
 ]
+
+
+# Порядок чистки: сначала ссылающиеся таблицы.
+TABLES = (action_log, work_order, prediction, model_metric, pipeline_run, facility, collector)
 
 
 def _insert(conn: object) -> None:
@@ -121,8 +150,38 @@ def _insert(conn: object) -> None:
                 "summary": f"прогноз {code}",
                 "blocks": (BROKEN_BLOCKS if direction == "UNAUTHORIZED_ACCESS" else GOOD_BLOCKS),
                 "model_version": "test",
+                "run_id": RUNS[0][0],
             }
             for code, direction, facility_id, probability, level, status, shift in PREDICTIONS
+        ],
+    )
+    conn.execute(  # type: ignore[attr-defined]
+        pipeline_run.insert(),
+        [
+            {
+                "id": run_id,
+                "started_at": NOW + timedelta(hours=shift),
+                "finished_at": (
+                    NOW + timedelta(hours=shift, milliseconds=duration) if duration else None
+                ),
+                "duration_ms": duration,
+                "prediction_count": len(PREDICTIONS),
+                "status": status,
+            }
+            for run_id, status, shift, duration in RUNS
+        ],
+    )
+    conn.execute(  # type: ignore[attr-defined]
+        model_metric.insert(),
+        [
+            {
+                "direction": direction,
+                "precision_value": precision,
+                "recall_value": recall,
+                "evaluated_at": NOW + timedelta(hours=shift),
+                "method": "offline_holdout",
+            }
+            for direction, precision, recall, shift in METRICS
         ],
     )
     conn.execute(  # type: ignore[attr-defined]
@@ -155,12 +214,12 @@ def seeded() -> Iterator[None]:
 
     migrate.run()
     with engine().begin() as conn:
-        for table in (action_log, work_order, prediction, facility, collector):
+        for table in TABLES:
             conn.execute(delete(table))
         _insert(conn)
 
     yield
 
     with engine().begin() as conn:
-        for table in (action_log, work_order, prediction, facility, collector):
+        for table in TABLES:
             conn.execute(delete(table))

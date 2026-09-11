@@ -67,7 +67,7 @@ def _filtered(
     return statement
 
 
-def _row_to_prediction(row: Any) -> Prediction:
+def row_to_prediction(row: Any) -> Prediction:
     return mappers.prediction(row, mappers.facility_ref(row), row.order_id)
 
 
@@ -97,7 +97,7 @@ def list_predictions(
     ).all()
 
     return Page(
-        items=[_row_to_prediction(row) for row in rows],
+        items=[row_to_prediction(row) for row in rows],
         page=page,
         page_size=page_size,
         total=total,
@@ -121,7 +121,7 @@ def get_prediction(
 ) -> PredictionDetail:
     row = _load(conn, prediction_id)
     return mappers.prediction_detail(
-        _row_to_prediction(row),
+        row_to_prediction(row),
         row.blocks,
         list(prediction_actions(row.status)),
     )
@@ -195,7 +195,7 @@ def act_on_prediction(
 
     updated = _load(conn, prediction_id)
     return mappers.prediction_detail(
-        _row_to_prediction(updated),
+        row_to_prediction(updated),
         updated.blocks,
         list(prediction_actions(updated.status)),
     )

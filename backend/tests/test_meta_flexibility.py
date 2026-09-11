@@ -1,8 +1,8 @@
 """Тест на гибкость, зеркальный фронтовому.
 
-Пятое направление обязано появиться в `/meta` от одной записи в реестре и
-одной переменной окружения. Ни один роутер, ни одна схема и ни одна миграция
-при этом не меняются.
+Пятое направление обязано появиться в `/meta`, в фильтрах, на карте и на
+дашборде от одной записи в реестре и одной переменной окружения. Ни один
+роутер, ни одна схема и ни одна миграция при этом не меняются.
 """
 
 from __future__ import annotations
@@ -79,3 +79,27 @@ def test_the_fifth_direction_appears_with_its_reason_list(
     entry = next(item for item in body["directions"] if item["code"] == "FLOOD_RISK")
     assert entry["shortLabel"] and entry["accent"]
     assert entry["minHorizonHours"] >= 24
+
+
+@pytest.mark.usefixtures("seeded")
+def test_the_dashboard_shows_the_fifth_direction_without_data(
+    five_directions: TestClient,
+) -> None:
+    """Ключ счётчика приходит из реестра, а не из строк базы.
+
+    Прогнозов по направлению нет. Ноль на дашборде — верный ответ, пропажа
+    направления — дефект.
+    """
+    summary = five_directions.get("/api/v1/dashboard/summary")
+    assert summary.status_code == 200
+    assert summary.json()["byDirection"]["FLOOD_RISK"] == 0
+
+
+@pytest.mark.usefixtures("seeded")
+def test_the_fifth_direction_without_an_evaluation_does_not_break_the_metrics(
+    five_directions: TestClient,
+) -> None:
+    """Оценки у нового направления нет, и список моделей от этого не падает."""
+    models = five_directions.get("/api/v1/metrics/models")
+    assert models.status_code == 200
+    assert "FLOOD_RISK" not in [item["direction"] for item in models.json()]
