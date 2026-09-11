@@ -16,6 +16,7 @@ class Config:
     cors_origins: tuple[str, ...]
     log_level: str
     mlflow_tracking_uri: str
+    artifacts_dir: str
     enabled_directions: tuple[str, ...]
 
     @staticmethod
@@ -28,6 +29,7 @@ class Config:
             cors_origins=_split(os.environ.get("CORS_ORIGINS", "http://localhost:5173")),
             log_level=os.environ.get("LOG_LEVEL", "INFO"),
             mlflow_tracking_uri=os.environ.get("MLFLOW_TRACKING_URI", ""),
+            artifacts_dir=os.environ.get("ARTIFACTS_DIR", "artifacts"),
             enabled_directions=_split(os.environ.get("ENABLED_DIRECTIONS", "")),
         )
 
