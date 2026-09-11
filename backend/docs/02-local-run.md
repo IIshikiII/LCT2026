@@ -24,6 +24,19 @@
 Адреса: API — `http://localhost:8000`, OpenAPI — `http://localhost:8000/api/v1/docs`,
 MLflow — `http://localhost:5000`.
 
+## Разведочный анализ
+
+Набор `research` ни в один образ сервиса не входит. JupyterLab поднимается
+отдельным сервисом:
+
+```
+docker compose --profile tools up research
+```
+
+Адрес — `http://localhost:8888`, токена нет, порт открыт только на петлевом
+интерфейсе. Тетради лежат в `notebooks/`, выгрузки в `data/`, модели в
+`artifacts/`. Правила работы описывает [08-ml-plugin.md](08-ml-plugin.md).
+
 ## Проверки перед коммитом
 
 Все четыре команды обязаны пройти:

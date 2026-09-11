@@ -10,3 +10,6 @@ artifacts/*
 data/*
 !data/README.md
 mlruns/
+notebooks/*
+!notebooks/README.md
+.ipynb_checkpoints/

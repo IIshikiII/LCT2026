@@ -1,0 +1,23 @@
+# Набор research. Разведочный анализ и подбор модели. В прод не идёт.
+# Образы api и pipeline из этого файла ничего не наследуют.
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /srv
+# Окружение лежит вне /srv: каталог /srv закрывает монтирование репозитория.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONPATH=/srv UV_PROJECT_ENVIRONMENT=/opt/venv
+
+# LightGBM, XGBoost и CatBoost несут скомпилированные бинарники и требуют
+# OpenMP-рантайма. Это та самая цена, из-за которой набор `ml` держит один
+# scikit-learn. Спецификация §2.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project --group research
+
+EXPOSE 8888
+# Токен пустой: порт открыт только на 127.0.0.1, см. docker-compose.yml.
+CMD ["uv", "run", "--no-sync", "jupyter", "lab", \
+     "--ip", "0.0.0.0", "--port", "8888", "--no-browser", \
+     "--IdentityProvider.token=", "--ServerApp.root_dir=/srv/notebooks"]

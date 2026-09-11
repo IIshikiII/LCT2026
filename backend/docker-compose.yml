@@ -79,6 +79,26 @@ services:
       db:
         condition: service_healthy
 
+  # Разведочный анализ. Запуск: docker compose --profile tools up research
+  # Затем откройте http://localhost:8888. В прод этот сервис не идёт.
+  research:
+    build:
+      context: .
+      dockerfile: Dockerfile.research
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arm}:${POSTGRES_PASSWORD:-arm}@db:5432/${POSTGRES_DB:-arm}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    # Только петлевой интерфейс: JupyterLab поднят без токена.
+    ports:
+      - "127.0.0.1:8888:8888"
+    volumes:
+      - .:/srv
+    depends_on:
+      db:
+        condition: service_healthy
+
   # Тесты и линт. Запуск: docker compose run --rm dev <команда>
   dev:
     build:
