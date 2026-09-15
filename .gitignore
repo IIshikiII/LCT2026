@@ -24,3 +24,7 @@ node_modules/
 
 # Claude Code — personal machine-local settings
 .claude/settings.local.json
+/raw_task
+# EDA — локальное окружение анализа данных
+.venv/
+eda/
