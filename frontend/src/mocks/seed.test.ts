@@ -114,7 +114,7 @@ describe('прогнозы', () => {
     }
   })
 
-  it('покрывают все четыре направления из ТЗ', () => {
+  it('покрывают все базовые направления', () => {
     const present = new Set(db().predictions.map((p) => p.direction))
     for (const plugin of BASE_DIRECTIONS) {
       expect(present).toContain(plugin.meta.code)
@@ -194,7 +194,7 @@ describe('метрики моделей', () => {
   })
 })
 
-describe('пятое направление', () => {
+describe('новое направление', () => {
   it('добавляется в мету и в данные одним флагом, без правок кода', () => {
     expect(db().meta.directions.map((d) => d.code)).not.toContain('FLOOD_RISK')
 

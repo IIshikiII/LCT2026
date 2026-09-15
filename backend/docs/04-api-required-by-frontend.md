@@ -28,7 +28,7 @@ frontend side of the same contract.
 4. List endpoints return the envelope `{ items, page, pageSize, total }`. Four
    endpoints break this rule on purpose. See the endpoint table.
 5. The parameters `direction`, `level` and `status` repeat for multi-select, for
-   example `?direction=FIRE_RISK&direction=WEAR_OUT`. In FastAPI declare them as
+   example `?direction=FIRE_RISK&direction=FLOOD_RISK`. In FastAPI declare them as
    `Query(default=[])`.
 6. The frontend sorts repeated values and drops empty values before it sends a
    request. Treat parameter order as meaningless.
@@ -416,14 +416,13 @@ Directions:
 
 | Code | Label | Share of mock data | Precision | Recall |
 |---|---|---|---|---|
-| `SENSOR_FAILURE` | Отказ датчика | 0.34 | 0.81 | 0.63 |
-| `FIRE_RISK` | Пожарный риск | 0.24 | 0.76 | 0.58 |
-| `WEAR_OUT` | Износ инфраструктуры | 0.24 | 0.72 | 0.54 |
-| `UNAUTHORIZED_ACCESS` | Несанкционированный доступ | 0.18 | 0.68 | 0.52 |
+| `SENSOR_FAILURE` | Отказ датчика | 0.45 | 0.81 | 0.63 |
+| `FIRE_RISK` | Пожарный риск | 0.32 | 0.76 | 0.58 |
+| `UNAUTHORIZED_ACCESS` | Несанкционированный доступ | 0.23 | 0.68 | 0.52 |
 | `FLOOD_RISK` | Риск подтопления | 0.12, off by default | 0.74 | 0.51 |
 
 `UNAUTHORIZED_ACCESS` sits below the target precision of 0.7 on purpose: the
-dashboard widget has to be seen in the red state too. `FLOOD_RISK` is the fifth
+dashboard widget has to be seen in the red state too. `FLOOD_RISK` is the extra
 direction for the flexibility test and is switched on from the dev panel.
 
 Risk levels and the probability bands the mocks use:

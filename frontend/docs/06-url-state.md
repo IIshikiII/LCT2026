@@ -18,7 +18,7 @@
 
 | Параметр | Тип | Где действует | Пример |
 |---|---|---|---|
-| `direction` | повторяемый | `/journal`, `/map` | `?direction=FIRE_RISK&direction=WEAR_OUT` |
+| `direction` | повторяемый | `/journal`, `/map` | `?direction=FIRE_RISK&direction=FLOOD_RISK` |
 | `level` | повторяемый | `/journal`, `/map` | `?level=HIGH&level=CRITICAL` |
 | `status` | повторяемый | `/journal` | `?status=NEW` |
 | `district` | одиночный | `/journal`, `/map` | `?district=CAO` |

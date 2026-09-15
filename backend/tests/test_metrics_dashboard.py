@@ -61,7 +61,7 @@ def test_only_the_newest_evaluation_of_a_direction_is_returned() -> None:
 def test_a_direction_without_an_evaluation_is_absent() -> None:
     """Ноль читался бы как «модель не работает». Верное чтение — «оценки нет»."""
     codes = [item["direction"] for item in get("/metrics/models")]
-    assert "WEAR_OUT" not in codes
+    assert "UNAUTHORIZED_ACCESS" not in codes
 
 
 def test_the_order_follows_the_direction_registry() -> None:
@@ -148,9 +148,19 @@ def test_summary_counts_orders_separately_from_predictions() -> None:
     assert sum(body["byStatus"].values()) == body["total"]
 
 
-def test_a_direction_without_predictions_still_gets_a_key() -> None:
-    """Иначе направление пропало бы с дашборда до первого прогноза."""
-    assert get("/dashboard/summary")["byDirection"]["WEAR_OUT"] == 0
+def test_a_direction_without_predictions_still_gets_a_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Иначе направление пропало бы с дашборда до первого прогноза.
+
+    FLOOD_RISK выключен по умолчанию и прогнозов в наборе не имеет. Включаем
+    его только здесь, чтобы проверить именно пустое направление.
+    """
+    import app.api.dashboard as dash
+    from app.meta.directions import REGISTRY
+
+    monkeypatch.setattr(dash, "active", lambda: REGISTRY)
+    assert get("/dashboard/summary")["byDirection"]["FLOOD_RISK"] == 0
 
 
 # --- верх списка риска ---

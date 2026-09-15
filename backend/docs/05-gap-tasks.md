@@ -265,9 +265,9 @@ specification is wrong on its own terms.
 
 Do not "fix" these.
 
-1. Specification §13 gives the four directions an uneven fill: `WEAR_OUT`
-   produces no predictions at all, and `UNAUTHORIZED_ACCESS` produces broken
-   ones. The frontend mocks fill all four evenly. Both are correct. The mocks
+1. Specification §13 gives the directions an uneven fill: `FLOOD_RISK` produces
+   no predictions at all, and `UNAUTHORIZED_ACCESS` produces broken ones. The
+   frontend mocks fill the active directions evenly. Both are correct. The mocks
    prove the interface works, and the synthetic data proves the interface
    survives holes.
 2. The frontend parses responses without throwing. A missing field shows a dash

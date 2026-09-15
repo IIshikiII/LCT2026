@@ -35,7 +35,7 @@ def test_log_run_saves_the_model_to_a_file(offline: Path) -> None:
 
 
 def test_load_model_returns_none_when_nothing_is_trained(offline: Path) -> None:
-    assert tracking.load_model("WEAR_OUT") is None
+    assert tracking.load_model("FLOOD_RISK") is None
 
 
 def test_the_model_survives_a_round_trip_through_the_file(offline: Path) -> None:

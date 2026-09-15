@@ -10,18 +10,19 @@ import { fireRisk } from './fireRisk'
 import { floodRisk } from './floodRisk'
 import { sensorFailure } from './sensorFailure'
 import { unauthorizedAccess } from './unauthorizedAccess'
-import { wearOut } from './wearOut'
 import type { DirectionPlugin } from './types'
 
-/** Четыре направления из ТЗ. */
+/**
+ * Направления, по которым есть данные. Износ инфраструктуры убран: признаков
+ * для него выгрузка не даёт, а бриф разрешает взять подмножество направлений.
+ */
 export const BASE_DIRECTIONS: DirectionPlugin[] = [
   sensorFailure,
   fireRisk,
   unauthorizedAccess,
-  wearOut,
 ]
 
-/** Пятое — только когда включён соответствующий флаг дев-панели. */
+/** Ещё одно — только когда включён соответствующий флаг дев-панели. */
 export function activeDirections(): DirectionPlugin[] {
   return devFlags.get('extraDirection') ? [...BASE_DIRECTIONS, floodRisk] : BASE_DIRECTIONS
 }
@@ -30,5 +31,5 @@ export function directionByCode(code: string): DirectionPlugin | undefined {
   return activeDirections().find((d) => d.meta.code === code)
 }
 
-export { fireRisk, floodRisk, sensorFailure, unauthorizedAccess, wearOut }
+export { fireRisk, floodRisk, sensorFailure, unauthorizedAccess }
 export type { DirectionPlugin, PredictionSeed } from './types'

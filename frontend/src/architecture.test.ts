@@ -72,7 +72,6 @@ describe('ADR 0007: предметная область живёт только 
   const DOMAIN_WORDS = [
     'пожарн',
     'датчик',
-    'износ',
     'несанкционир',
     'задымлен',
     'сварочн',
@@ -93,7 +92,7 @@ describe('ADR 0007: предметная область живёт только 
 
   it('не содержит захардкоженных кодов направлений вне src/mocks/', () => {
     const bad = appFiles.filter((f) =>
-      /['"](FIRE_RISK|SENSOR_FAILURE|UNAUTHORIZED_ACCESS|WEAR_OUT|FLOOD_RISK)['"]/.test(f.code),
+      /['"](FIRE_RISK|SENSOR_FAILURE|UNAUTHORIZED_ACCESS|FLOOD_RISK)['"]/.test(f.code),
     )
     expect(bad.map((f) => f.rel)).toEqual([])
   })

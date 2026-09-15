@@ -24,7 +24,7 @@ export interface Facility extends FacilityRef {
   /** только для kind = SENSOR */
   sensorType?: string
   commissionedAt: string
-  /** наработка, часы — признак для износа */
+  /** наработка, часы — признак для отказа датчика */
   operatingHours: number
   lastRepairAt?: string
   repairCount: number

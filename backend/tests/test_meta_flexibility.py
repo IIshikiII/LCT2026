@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def five_directions(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     """Поднимает приложение с включённым пятым направлением."""
-    codes = "SENSOR_FAILURE,FIRE_RISK,WEAR_OUT,UNAUTHORIZED_ACCESS,FLOOD_RISK"
+    codes = "SENSOR_FAILURE,FIRE_RISK,UNAUTHORIZED_ACCESS,FLOOD_RISK"
     monkeypatch.setenv("ENABLED_DIRECTIONS", codes)
 
     import app.config
@@ -40,14 +40,13 @@ def codes_of(body: dict[str, Any]) -> list[str]:
     return [item["code"] for item in body["directions"]]
 
 
-def test_four_directions_by_default() -> None:
+def test_three_directions_by_default() -> None:
     import app.main
 
     body = TestClient(app.main.app).get("/api/v1/meta").json()
     assert codes_of(body) == [
         "SENSOR_FAILURE",
         "FIRE_RISK",
-        "WEAR_OUT",
         "UNAUTHORIZED_ACCESS",
     ]
     assert "FLOOD_RISK" not in body["reasons"]

@@ -86,28 +86,6 @@ FIRE_RISK = Direction(
     ),
 )
 
-WEAR_OUT = Direction(
-    code="WEAR_OUT",
-    label="Износ инфраструктуры",
-    short_label="ИИ",
-    accent="#7f9a72",
-    min_horizon_hours=24,
-    reasons=(
-        Reason("STRUCTURE_DEFECT", "Дефект строительной конструкции"),
-        Reason("CORROSION", "Коррозия несущих элементов"),
-        Reason("PUMP_WORN", "Износ насосного оборудования"),
-        Reason("WATER_INGRESS", "Протечка, поступление грунтовых вод"),
-        Reason("PLANNED_WEAR", "Плановый износ, ремонт по регламенту"),
-        Reason("NO_DEFECT", "Дефект не подтверждён"),
-    ),
-    work_types=(
-        "Визуальное обследование ОЭ",
-        "Ремонт строительных конструкций",
-        "Замена насосного оборудования",
-        "Гидроизоляция участка",
-    ),
-)
-
 UNAUTHORIZED_ACCESS = Direction(
     code="UNAUTHORIZED_ACCESS",
     label="Несанкционированный доступ",
@@ -151,7 +129,6 @@ FLOOD_RISK = Direction(
 REGISTRY: tuple[Direction, ...] = (
     SENSOR_FAILURE,
     FIRE_RISK,
-    WEAR_OUT,
     UNAUTHORIZED_ACCESS,
     FLOOD_RISK,
 )

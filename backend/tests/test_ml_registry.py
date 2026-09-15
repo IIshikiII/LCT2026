@@ -98,16 +98,16 @@ def test_active_keeps_the_order_of_the_direction_registry(
 def test_a_direction_without_a_predictor_is_skipped_and_reported(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Спецификация §13: у направления «Износ» предиктора нет, и это норма."""
+    """Спецификация §13: направление без предиктора это норма, а не поломка."""
     monkeypatch.setattr(
         registry,
         "active_directions",
-        lambda: (direction("SENSOR_FAILURE"), direction("WEAR_OUT")),
+        lambda: (direction("SENSOR_FAILURE"), direction("FLOOD_RISK")),
     )
     registry.register(FakePredictor("SENSOR_FAILURE"))
 
     assert [item.code for item in registry.active()] == ["SENSOR_FAILURE"]
-    assert registry.missing() == ("WEAR_OUT",)
+    assert registry.missing() == ("FLOOD_RISK",)
 
 
 def test_a_new_plugin_file_registers_itself(
