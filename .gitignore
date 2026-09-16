@@ -27,7 +27,7 @@ node_modules/
 /raw_task
 # Разбор ТЗ и ответы заказчика нужны в репозитории, сами данные нет
 !/raw_task/
-/raw_task/*
+/raw_task/dataset
 !/raw_task/qa-session-answers.md
 # EDA — локальное окружение анализа данных
 .venv/
