@@ -24,11 +24,8 @@ node_modules/
 
 # Claude Code — personal machine-local settings
 .claude/settings.local.json
-/raw_task
-# Разбор ТЗ и ответы заказчика нужны в репозитории, сами данные нет
-!/raw_task/
+# Выгрузка на 15,9 ГБ. Разбор, расшифровки и ТЗ остаются в репозитории.
 /raw_task/dataset
-!/raw_task/qa-session-answers.md
 # EDA — локальное окружение анализа данных
 .venv/
 eda/
