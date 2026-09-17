@@ -7,8 +7,8 @@
 равно активность на месте, и выбрасывать её значит терять сигнал о частоте
 событий на пикете.
 
-Разбор двенадцати признаков и решения по неоднозначным формулировкам
-backlog-строки T05/T06 (`loop/BACKLOG.md`):
+Разбор четырнадцати признаков и решения по неоднозначным формулировкам
+backlog-строк T05/T06 (`loop/BACKLOG.md`):
 
 - `alarm_hour_share_720h` считает долю тревожных часов за 30 суток, а не долю
   тревожных записей среди всех: `access_hourly` держит только строки с
@@ -31,6 +31,37 @@ backlog-строки T05/T06 (`loop/BACKLOG.md`):
 
 Каждый фильтр обязан читать `hour < at`, никогда `hour <= at`: признак не
 имеет права видеть час расчёта и позже, иначе прогноз смотрит в будущее.
+
+Признаки T06 берут дело QA-сессии §2.8: «проникновением считается
+последовательность сработок: дверь открыли, потом сработал объёмный датчик,
+потом движение туда и обратно».
+
+- `is_disarmed` берёт окна из `out/disarm_windows.parquet` (T04, `03_disarm.py`)
+  готовыми, второй раз их не строит. Значение 1, когда `at` попадает в окно
+  «Снято с охраны» того же объекта: `t_from <= at < t_to`. Момент открытия окна
+  входит в «снято», момент закрытия — уже нет, тем же правилом, что окна
+  вычитает метка в версии Б.
+- `has_access_sequence` смотрит на исходные события `eda/out/events.parquet`, а
+  не на часовой свод: последовательность живёт внутри одного часа и меньше, и
+  свод её теряет. Тип датчика берётся из `stype`
+  (`notebooks/out/channel_features.parquet`). Соответствие проверено запросом
+  по частоте пар «тип, значение» на алармах доступа:
+    - «дверь» — каналы `КД Дверь`, `КД Люк`, `КД АВ` со значением
+      «Не замкнут»: имя `КД` (контроль двери) и единственное осмысленное
+      значение указывают на дверной или люковый контакт;
+    - «объёмный датчик» — канал `Состояние УИР-Р`: «Р» в имени и то, что канал
+      не встречается больше нигде в списке доступа, соответствуют
+      радиоволновому охранному извещателю, то есть объёмному датчику;
+    - «движение» — канал `Датчик движения` со значением «Обнаружено
+      движение»: имя совпадает с описанием заказчика буквально.
+  Признак равен 1, когда на объекте и галерее нашлась завершённая цепочка
+  «дверь → объёмный датчик → движение» в строгом порядке отметок времени,
+  каждый шаг на пикете не дальше `NEAR_PICKETS` от пикета точки `p` (близкий
+  пикет), вся цепочка уместилась в окно `SEQUENCE_WINDOW_MINUTES` минут и
+  закончилась раньше `at`. Пикет и окно — оценка: пикет держит 10 метров
+  (`smvu-insights.md` §1), пять пикетов это 50 метров прохода, пятнадцать минут
+  — короткий визит, а не рабочая смена. Оба числа документированы как решение,
+  не как измерение: данных, размечающих настоящие проникновения, нет.
 """
 import json
 import pathlib
@@ -39,10 +70,13 @@ import time
 import duckdb
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+EVENTS = ROOT / "eda" / "out" / "events.parquet"
+CHANNELS = ROOT / "notebooks" / "out" / "channel_features.parquet"
 OUT = pathlib.Path(__file__).resolve().parent / "out"
 HOURLY = OUT / "access_hourly.parquet"
 UNITS = OUT / "access_units.parquet"
 ARMED = OUT / "access_hourly_armed.parquet"
+DISARM = OUT / "disarm_windows.parquet"
 OUT_FEATURES = OUT / "access_features.parquet"
 STATS = OUT / "features_stats.json"
 
@@ -52,6 +86,14 @@ HORIZON_HOURS = 24
 # «единица и час» держит 62,6 млн клеток (ADR 0001), и обучать модель на всех
 # них дорого без выигрыша в качестве.
 NEGATIVE_KEEP_RATE = 0.02
+# Дальность «близкого пикета» и длина «короткого окна» для последовательности
+# доступа. Обоснование — в docstring модуля, раздел про T06.
+NEAR_PICKETS = 5
+SEQUENCE_WINDOW_MINUTES = 15
+
+DOOR_STYPES = ("КД Дверь", "КД Люк", "КД АВ")
+VOLUMETRIC_STYPE = "Состояние УИР-Р"
+MOTION_STYPE = "Датчик движения"
 
 FEATURE_COLUMNS = [
     "n_alarms_1h",
@@ -66,6 +108,8 @@ FEATURE_COLUMNS = [
     "month",
     "is_weekend",
     "neighbor_channels_1h",
+    "is_disarmed",
+    "has_access_sequence",
 ]
 
 
@@ -73,9 +117,10 @@ def attach_sources(
     con: duckdb.DuckDBPyConnection,
     hourly: pathlib.Path = HOURLY,
     units: pathlib.Path = UNITS,
+    disarm: pathlib.Path = DISARM,
 ) -> None:
-    """Подключает часовой свод и границы жизни единиц как представления
-    `alarm` и `unit`."""
+    """Подключает часовой свод, границы жизни единиц и окна «Снято с охраны»
+    как представления `alarm`, `unit` и `disarm_window`."""
     con.execute(
         f"CREATE OR REPLACE VIEW alarm AS "
         f"SELECT * FROM read_parquet('{hourly.as_posix()}')"
@@ -83,6 +128,74 @@ def attach_sources(
     con.execute(
         f"CREATE OR REPLACE VIEW unit AS "
         f"SELECT * FROM read_parquet('{units.as_posix()}')"
+    )
+    con.execute(
+        f"CREATE OR REPLACE VIEW disarm_window AS "
+        f"SELECT * FROM read_parquet('{disarm.as_posix()}')"
+    )
+
+
+def build_sequence_chain(
+    con: duckdb.DuckDBPyConnection,
+    events: pathlib.Path = EVENTS,
+    channels: pathlib.Path = CHANNELS,
+) -> None:
+    """Строит представление `access_chain`: завершённые цепочки «дверь →
+    объёмный датчик → движение» на близких пикетах внутри короткого окна.
+    Разбор типов датчиков и констант окна — в docstring модуля."""
+    door_list = ", ".join(f"'{s}'" for s in DOOR_STYPES)
+    con.execute(
+        f"""
+        CREATE OR REPLACE VIEW access_moment AS
+        SELECT
+            ch.oid AS object_id,
+            ch.gal_key AS gallery,
+            ch.picket AS picket,
+            ev.d + ev.t AS ts,
+            CASE
+                WHEN ch.stype IN ({door_list}) AND ev.value = 'Не замкнут'
+                    THEN 'door'
+                WHEN ch.stype = '{VOLUMETRIC_STYPE}' THEN 'volumetric'
+                WHEN ch.stype = '{MOTION_STYPE}' AND ev.value = 'Обнаружено движение'
+                    THEN 'motion'
+            END AS category
+        FROM read_parquet('{events.as_posix()}') ev
+        JOIN read_parquet('{channels.as_posix()}') ch ON ch.cid = ev.channel_id
+        WHERE ev.alarm AND ch.picket IS NOT NULL
+          AND (
+                (ch.stype IN ({door_list}) AND ev.value = 'Не замкнут')
+             OR ch.stype = '{VOLUMETRIC_STYPE}'
+             OR (ch.stype = '{MOTION_STYPE}' AND ev.value = 'Обнаружено движение')
+          )
+        """
+    )
+    con.execute(
+        f"""
+        CREATE OR REPLACE VIEW access_door_vol AS
+        SELECT d.object_id, d.gallery, d.picket AS door_picket, d.ts AS door_ts,
+               min(v.ts) AS vol_ts
+        FROM access_moment d
+        JOIN access_moment v
+          ON v.object_id = d.object_id AND v.gallery = d.gallery
+          AND d.category = 'door' AND v.category = 'volumetric'
+          AND abs(v.picket - d.picket) <= {NEAR_PICKETS}
+          AND v.ts > d.ts AND v.ts <= d.ts + INTERVAL {SEQUENCE_WINDOW_MINUTES} MINUTE
+        GROUP BY 1, 2, 3, 4
+        """
+    )
+    con.execute(
+        f"""
+        CREATE OR REPLACE VIEW access_chain AS
+        SELECT dv.object_id, dv.gallery, dv.door_picket AS picket,
+               min(m.ts) AS completed_ts
+        FROM access_door_vol dv
+        JOIN access_moment m
+          ON m.object_id = dv.object_id AND m.gallery = dv.gallery
+          AND m.category = 'motion'
+          AND abs(m.picket - dv.door_picket) <= {NEAR_PICKETS}
+          AND m.ts > dv.vol_ts AND m.ts <= dv.door_ts + INTERVAL {SEQUENCE_WINDOW_MINUTES} MINUTE
+        GROUP BY 1, 2, 3
+        """
     )
 
 
@@ -132,7 +245,19 @@ def build_features(
                AND a.hour < p.at) AS past_moments,
             (SELECT max(a.n_channels) FROM {alarm} a
              WHERE (a.object_id, a.gallery, a.picket) = (p.object_id, p.gallery, p.picket)
-               AND a.hour > p.at - INTERVAL 1 HOUR AND a.hour < p.at) AS neighbor_channels_1h
+               AND a.hour > p.at - INTERVAL 1 HOUR AND a.hour < p.at) AS neighbor_channels_1h,
+            CASE WHEN EXISTS (
+                SELECT 1 FROM disarm_window w
+                WHERE w.object_id = p.object_id
+                  AND p.at >= w.t_from AND p.at < w.t_to
+            ) THEN 1 ELSE 0 END AS is_disarmed,
+            CASE WHEN EXISTS (
+                SELECT 1 FROM access_chain c
+                WHERE c.object_id = p.object_id AND c.gallery = p.gallery
+                  AND abs(c.picket - p.picket) <= {NEAR_PICKETS}
+                  AND c.completed_ts < p.at
+                  AND c.completed_ts >= p.at - INTERVAL {SEQUENCE_WINDOW_MINUTES} MINUTE
+            ) THEN 1 ELSE 0 END AS has_access_sequence
         FROM {points} p
         """
     )
@@ -159,7 +284,9 @@ def build_features(
             dayofweek("at") AS day_of_week,
             month("at") AS month,
             CAST(dayofweek("at") IN (0, 6) AS INTEGER) AS is_weekend,
-            coalesce(neighbor_channels_1h, 0) AS neighbor_channels_1h
+            coalesce(neighbor_channels_1h, 0) AS neighbor_channels_1h,
+            is_disarmed,
+            has_access_sequence
         FROM features_raw
         """
     )
@@ -177,6 +304,11 @@ if __name__ == "__main__":
         f"CREATE OR REPLACE VIEW armed AS "
         f"SELECT * FROM read_parquet('{ARMED.as_posix()}')"
     )
+
+    t = time.time()
+    build_sequence_chain(con)
+    n_chains = con.execute("SELECT count(*) FROM access_chain").fetchone()[0]
+    print(f"цепочек «дверь → объёмный датчик → движение»: {n_chains}, посчитано за {time.time() - t:.0f} c")
 
     # Положительные точки: те же 24 часа перед каждым часом с тревогой в
     # версии Б метки, что и в `target_stats.hourly_stats`, обрезанные по жизни
@@ -262,7 +394,11 @@ if __name__ == "__main__":
             max(night_share),
             min(alarm_hour_share_720h),
             max(alarm_hour_share_720h),
-            min(hours_since_last_alarm)
+            min(hours_since_last_alarm),
+            avg(is_disarmed) FILTER (label = 1),
+            avg(is_disarmed) FILTER (label = 0),
+            avg(has_access_sequence) FILTER (label = 1),
+            avg(has_access_sequence) FILTER (label = 0)
         FROM (
             SELECT f.*, pt.label
             FROM read_parquet('{OUT_FEATURES.as_posix()}') f
@@ -279,10 +415,22 @@ if __name__ == "__main__":
         "night_share_range": [float(stats[4]), float(stats[5])],
         "alarm_hour_share_720h_range": [float(stats[6]), float(stats[7])],
         "hours_since_last_alarm_min": int(stats[8]),
+        "is_disarmed_share_label1": float(stats[9]),
+        "is_disarmed_share_label0": float(stats[10]),
+        "has_access_sequence_share_label1": float(stats[11]),
+        "has_access_sequence_share_label0": float(stats[12]),
     }
     STATS.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(
         f"строк: {result['rows']}, положительных: {result['positive_rows']}, "
         f"отрицательных: {result['negative_rows']}, единиц: {result['units']}"
+    )
+    print(
+        f"is_disarmed: {result['is_disarmed_share_label1']:.4f} на положительных, "
+        f"{result['is_disarmed_share_label0']:.4f} на отрицательных"
+    )
+    print(
+        f"has_access_sequence: {result['has_access_sequence_share_label1']:.4f} на положительных, "
+        f"{result['has_access_sequence_share_label0']:.4f} на отрицательных"
     )
     print(f"замер записан в {STATS}")
