@@ -1,0 +1,16 @@
+{
+  "rows": 1581480,
+  "positive_rows": 348869,
+  "negative_rows": 1232611,
+  "negative_keep_rate": 0.02,
+  "units": 1281,
+  "night_share_range": [
+    0.0,
+    1.0
+  ],
+  "alarm_hour_share_720h_range": [
+    0.0,
+    0.36666666666666664
+  ],
+  "hours_since_last_alarm_min": 0
+}
