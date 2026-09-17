@@ -12,7 +12,9 @@
 | Файл | Что делает |
 |---|---|
 | `01_dataset.py` | Отбирает из `eda/out/events.parquet` каналы доступа и сводит их к единице «объект, галерея, пикет» по часам. Результат: `out/access_hourly.parquet` и `out/access_units.parquet`. |
-| `02_target.py` | Меряет базу и наивную планку метки на трёх сетках. Результат: `out/target_stats.json`. |
+| `02_target.py` | Меряет базу и наивную планку на витрине со всеми тревогами. Результат: `out/target_stats.json`. |
+| `03_disarm.py` | Строит окна «Снято с охраны» и меряет две версии метки рядом. Результат: `out/disarm_windows.parquet`, `out/access_hourly_armed.parquet`, `out/disarm_stats.json`. |
+| `target_stats.py` | Общий расчёт базы и наивной планки. Модуль, а не скрипт. Его зовут `02_target.py` и `03_disarm.py`. |
 | `features.py` | Строит признаки для модели на момент расчёта: частоту сработок, ночную долю, признаки времени и соседних каналов. |
 | `train.py` | Обучает LightGBM с разбиением по времени, считает Precision, Recall, PR-AUC и SHAP. Результат: `out/model.txt`, `out/metrics.json`. |
 | `out/` | Промежуточные и итоговые данные скриптов. В git не попадают, кроме `.gitkeep`. |
@@ -24,6 +26,7 @@
 ```
 .venv/Scripts/python.exe ml/access/01_dataset.py
 .venv/Scripts/python.exe ml/access/02_target.py
+.venv/Scripts/python.exe ml/access/03_disarm.py
 .venv/Scripts/python.exe ml/access/features.py
 .venv/Scripts/python.exe ml/access/train.py
 ```
@@ -37,10 +40,15 @@
 |---|---|
 | Единиц «объект, галерея, пикет» | 1 281 из 3 947 |
 | Каналов доступа | 3 139 |
-| Часов с тревогой | 119 289 |
 | Клеток «единица и час» | 62 570 016 |
-| База метки, окно 24 ч | 2,693 % |
-| Наивная планка точности | 26,464 % |
+| Часов с тревогой, все тревоги | 119 289 |
+| Часов с тревогой, метка | 22 391 |
+| База метки, окно 24 ч | 0,558 % |
+| Наивная планка точности | 19,982 % |
 
-Разбор чисел и расхождение с `hackathon-gap-analysis.md` §A4 лежат в
-`backend/docs/adr/0001-access-target.md`.
+Метка не берёт тревоги внутри окон «Снято с охраны»: их 54,6 %, и это работа
+подрядчика, а не проникновение. Со всеми тревогами база равна 2,693 %, а планка
+26,464 %.
+
+Разбор чисел, решение по режиму охраны и расхождение с
+`hackathon-gap-analysis.md` §A4 лежат в `backend/docs/adr/0001-access-target.md`.

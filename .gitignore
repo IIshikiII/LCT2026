@@ -46,5 +46,5 @@ ml/*/out/*.parquet
 ml/*/out/*.npy
 ml/*/out/*.csv
 
-# Байт-код ловушки
-loop/__pycache__/
+# Байт-код Python
+**/__pycache__/

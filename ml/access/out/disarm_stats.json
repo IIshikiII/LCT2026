@@ -1,0 +1,59 @@
+{
+  "horizon_hours": 24,
+  "units": 1281,
+  "windows": {
+    "windows": 78096,
+    "open_end": 3,
+    "median_minutes": 465.0,
+    "max_hours": 1302,
+    "time_off_pct": 19.381,
+    "objects_covered": 47
+  },
+  "coverage": {
+    "moments": 348997,
+    "moments_covered": 346199,
+    "moments_off_guard": 190641,
+    "channels": 3139,
+    "channels_covered": 2754,
+    "off_guard_pct": 54.625,
+    "off_guard_covered_pct": 55.067,
+    "channels_covered_pct": 87.735,
+    "night_pct_off_guard": 3.226,
+    "night_pct_armed": 32.071
+  },
+  "version_a": {
+    "name": "версия А, все тревоги",
+    "alarm_hours": 119289,
+    "alarm_moments": 348997,
+    "units_with_event": 1281,
+    "hourly": {
+      "grid": "единица и час, окно 24 ч",
+      "cells": 62570016,
+      "positive": 1684758,
+      "base_pct": 2.693,
+      "naive_precision_pct": 26.464,
+      "naive_recall_pct": 26.437
+    }
+  },
+  "version_b": {
+    "name": "версия Б, тревоги вне окон",
+    "alarm_hours": 22391,
+    "alarm_moments": 158356,
+    "units_with_event": 1138,
+    "hourly": {
+      "grid": "единица и час, окно 24 ч",
+      "cells": 62570016,
+      "positive": 348869,
+      "base_pct": 0.558,
+      "naive_precision_pct": 19.982,
+      "naive_recall_pct": 20.017
+    }
+  },
+  "delta": {
+    "base_pct": -2.135,
+    "base_ratio": 0.207,
+    "naive_precision_pct": -6.482,
+    "naive_recall_pct": -6.42,
+    "units_with_event": -143
+  }
+}
