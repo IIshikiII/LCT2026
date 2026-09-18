@@ -100,7 +100,7 @@
       `build_features`, `predict`, `explain`, `suggest_work_type`,
       `label_rule`. Зарегистрировать через `app.ml.registry.register`.
 
-- [ ] **T14** `opus` — Реализовать `explain()` на SHAP. Блок `factors` берёт
+- [x] **T14** `opus` — Реализовать `explain()` на SHAP. Блок `factors` берёт
       веса из вкладов SHAP и приводит их к диапазону от минус 1 до 1 с
       сохранением знака и порядка. Блоки `timeseries` и `timeline` обязательны.
       Правило приведения записать в docstring: оно объясняет диспетчеру, почему
