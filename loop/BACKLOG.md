@@ -173,7 +173,7 @@
       Из-за этого расхождения ADR 0002 не назначает границу уровня `CRITICAL`:
       после калибровки её надо назначить и дописать в тот же ADR.
 
-- [ ] **T29** `sonnet` — Перенести `lightgbm` и `shap` из набора `research` в
+- [x] **T29** `sonnet` — Перенести `lightgbm` и `shap` из набора `research` в
       набор `ml` (`pyproject.toml`, `uv.lock`), по процедуре
       `01-dependencies.md` «Как библиотека переезжает из research в ml».
       Замер выигрыша уже есть в `ml/access/out/metrics.json`

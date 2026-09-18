@@ -6,10 +6,10 @@
 | Набор | Где стоит | Прямые зависимости |
 |---|---|---|
 | `api` | `Dockerfile.api`, `Dockerfile.pipeline` | fastapi, uvicorn, pydantic, sqlalchemy, psycopg |
-| `ml` | `Dockerfile.pipeline` | scikit-learn |
+| `ml` | `Dockerfile.pipeline` | scikit-learn, lightgbm, shap |
 | `ingest` | не стоит в проде | openpyxl |
 | `mlflow` | `Dockerfile.mlflow`, `Dockerfile.pipeline` | mlflow, psycopg |
-| `research` | `Dockerfile.research`, в прод не идёт | pandas, matplotlib, seaborn, jupyterlab, catboost, lightgbm, xgboost |
+| `research` | `Dockerfile.research`, в прод не идёт | pandas, matplotlib, seaborn, jupyterlab, catboost, xgboost |
 | `dev` | `Dockerfile.dev` | ruff, pytest, mypy, httpx2 |
 
 ## Дерево набора api
@@ -64,9 +64,8 @@ arm-ods-backend v0.1.0
 одном конвейере дают три разных ответа и ни одного объяснения. В разведке всё
 наоборот: их для того и сравнивают.
 
-Отсюда решение. Набор `research` держит все инструменты сравнения и не входит
-ни в один образ сервиса. Набор `ml`, который стоит в `Dockerfile.pipeline`,
-остаётся на одном scikit-learn.
+Отсюда решение. Набор `research` держит инструменты сравнения, кроме
+победителя, и не входит ни в один образ сервиса.
 
 Как библиотека переезжает из `research` в `ml`:
 
@@ -82,8 +81,23 @@ XGBoost Apache-2.0. Каждый тянет свой скомпилирован�
 Цена бинарников видна сразу. Образу `research` пришлось поставить `libgomp1`
 системным пакетом: без OpenMP-рантайма ни один из трёх бустингов не
 импортируется. Образ вырос до 3.4 ГБ, тогда как образ `api` остался 286 МБ и
-не содержит ни одной из этих библиотек. Ту же строку с `apt-get` придётся
-добавить в `Dockerfile.pipeline`, когда победитель туда переедет.
+не содержит ни одной из этих библиотек.
+
+### LightGBM и SHAP переехали в `ml`
+
+Направление «несанкционированный доступ» (`ml/access/`) сравнило три бустинга
+на отложенной по времени выборке и выбрало LightGBM: при том же полноте, что
+у наивной планки (0,1082), точность модели 0,2105 против планки 0,1132 —
+почти вдвое выше. Замер и полный протокол сравнения лежат в
+`ml/access/out/metrics.json` (`test.beats_naive`, `test.operating_points`).
+
+SHAP переехал вместе с LightGBM: плагин `unauthorized_access.py` считает
+вклады признаков в `explain()` тем же процессом конвейера, который строит
+прогноз, поэтому раздельного набора для него нет. Оба добавлены в набор `ml`
+(`pyproject.toml`, `uv.lock`), `Dockerfile.pipeline` получил ту же строку
+`apt-get install libgomp1`, что и `Dockerfile.research`. Дерево набора `api`
+проверено командой `uv tree --no-dev --frozen` из раздела выше и не
+изменилось: строку с `lightgbm` или `shap` оно не приобрело.
 
 ## Отклонения от спецификации
 

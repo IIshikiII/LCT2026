@@ -4,6 +4,12 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 WORKDIR /srv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONPATH=/srv
 
+# LightGBM несёт скомпилированный бинарник и требует OpenMP-рантайма.
+# Тот же пакет ставит Dockerfile.research. Спецификация §2.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project --group ml --group mlflow
 
