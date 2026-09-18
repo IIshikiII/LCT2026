@@ -22,6 +22,17 @@ def main(argv: list[str] | None = None) -> int:
         run_migrations()
         return 0
 
+    if args.command == "run-pipeline":
+        from app.db import engine
+        from app.pipeline.run import run as run_pipeline
+
+        result = run_pipeline(engine())
+        print(
+            f"прогон {result.run_id}: {result.prediction_count} прогнозов, "
+            f"{result.order_count} заявок, {result.duration_ms} мс"
+        )
+        return 0
+
     print(f"команда {args.command} ещё не реализована", file=sys.stderr)
     return 1
 
