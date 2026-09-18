@@ -95,7 +95,7 @@
       `FeatureContext`. Имена признаков обязаны совпадать с именами из
       `ml/access/features.py` буква в букву.
 
-- [ ] **T13** `sonnet` — Написать плагин
+- [x] **T13** `sonnet` — Написать плагин
       `backend/app/ml/plugins/unauthorized_access.py`. Реализовать
       `build_features`, `predict`, `explain`, `suggest_work_type`,
       `label_rule`. Зарегистрировать через `app.ml.registry.register`.
@@ -172,6 +172,15 @@
       калибровку рядом с моделью. Замерить кривую надёжности до и после.
       Из-за этого расхождения ADR 0002 не назначает границу уровня `CRITICAL`:
       после калибровки её надо назначить и дописать в тот же ADR.
+
+- [ ] **T29** `sonnet` — Перенести `lightgbm` и `shap` из набора `research` в
+      набор `ml` (`pyproject.toml`, `uv.lock`), по процедуре
+      `01-dependencies.md` «Как библиотека переезжает из research в ml».
+      Замер выигрыша уже есть в `ml/access/out/metrics.json`
+      (`test.beats_naive`). Без переноса `Dockerfile.pipeline` не может
+      выполнить `predict`/`explain` плагина `unauthorized_access.py`: набор
+      `ml` сейчас держит только scikit-learn. Записать перенос в
+      `01-dependencies.md`.
 
 ---
 
