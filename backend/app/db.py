@@ -15,7 +15,15 @@ _engine: Engine | None = None
 def engine() -> Engine:
     global _engine
     if _engine is None:
-        _engine = create_engine(config.database_url, pool_pre_ping=True, future=True)
+        # `connect_timeout` держит отказ быстрым. Без него недоступная база
+        # заставляет клиента ждать таймаута операционной системы, и запуск
+        # тестов висит минутами вместо того, чтобы сразу сказать о причине.
+        _engine = create_engine(
+            config.database_url,
+            pool_pre_ping=True,
+            future=True,
+            connect_args={"connect_timeout": 10},
+        )
     return _engine
 
 

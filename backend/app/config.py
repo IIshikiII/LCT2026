@@ -22,9 +22,14 @@ class Config:
     @staticmethod
     def from_environ() -> Config:
         return Config(
+            # Адрес 127.0.0.1, а не `localhost`. На Windows имя разрешается
+            # сначала в IPv6, Docker публикует порт на `::`, но соединение туда
+            # не устанавливается. Клиент ждёт таймаута операционной системы и
+            # только потом идёт на IPv4. Это стоило 130 секунд каждому запуску
+            # тестов. В образах адрес приходит из переменной и равен `db:5432`.
             database_url=os.environ.get(
                 "DATABASE_URL",
-                "postgresql+psycopg://arm:arm@localhost:5432/arm",
+                "postgresql+psycopg://arm:arm@127.0.0.1:5432/arm",
             ),
             cors_origins=_split(os.environ.get("CORS_ORIGINS", "http://localhost:5173")),
             log_level=os.environ.get("LOG_LEVEL", "INFO"),

@@ -24,5 +24,14 @@ curl http://localhost:8000/healthz
 тесты и линт. Образ `api` не содержит ни scikit-learn, ни openpyxl, ни mlflow,
 ни одного бустинга.
 
+Работает на Ubuntu, macOS и Windows. Два умолчания это обеспечивают, и оба
+описаны в [`docs/02-local-run.md`](docs/02-local-run.md).
+
+- Адрес базы `127.0.0.1`, а не `localhost`: на Windows имя разрешается сначала
+  в IPv6, и запуск тестов стоил 130 лишних секунд.
+- Порты публикуются только на петлевом интерфейсе. Наружу их открывает
+  `BIND_HOST=0.0.0.0`, и делать это надо осознанно: на Ubuntu опубликованный
+  Docker порт обходит `ufw`.
+
 Разведочный анализ: `docker compose --profile tools up research`, затем
 `http://localhost:8888`.

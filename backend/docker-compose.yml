@@ -1,5 +1,17 @@
 name: arm-ods
 
+# Адрес публикации портов. Умолчание это петлевой интерфейс, и менять его надо
+# осознанно: `BIND_HOST=0.0.0.0 docker compose up -d`.
+#
+# На Ubuntu опубликованный порт обходит ufw. Docker пишет свои правила DNAT в
+# таблицу nat раньше, чем ufw ставит свои в filter, поэтому `ufw deny 5432` не
+# закрывает базу. Строка "5432:5432" на сервере с внешним адресом означает
+# Postgres с паролем `arm` в открытом интернете.
+#
+# Контейнеры между собой ходят по именам служб внутри сети compose, поэтому
+# публикация им не нужна вовсе. Она нужна только процессам на хосте: тестам,
+# дев-серверу фронтенда, nginx в проде. Все они ходят через петлю.
+
 services:
   db:
     image: postgres:16-alpine
@@ -8,7 +20,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arm}
       POSTGRES_DB: ${POSTGRES_DB:-arm}
     ports:
-      - "5432:5432"
+      - "${BIND_HOST:-127.0.0.1}:5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
       - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
@@ -27,7 +39,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
-      - "8000:8000"
+      - "${BIND_HOST:-127.0.0.1}:8000:8000"
     volumes:
       - ./app:/srv/app:ro
       - ./migrations:/srv/migrations:ro
@@ -54,7 +66,7 @@ services:
       - --artifacts-destination
       - /srv/artifacts
     ports:
-      - "5000:5000"
+      - "${BIND_HOST:-127.0.0.1}:5000:5000"
     volumes:
       - ./artifacts:/srv/artifacts
     depends_on:
@@ -75,6 +87,7 @@ services:
       - ./app:/srv/app:ro
       - ./migrations:/srv/migrations:ro
       - ./data:/srv/data:ro
+      - ./artifacts:/srv/artifacts
     depends_on:
       db:
         condition: service_healthy
