@@ -1,0 +1,113 @@
+{
+  "direction": "UNAUTHORIZED_ACCESS",
+  "horizon_hours": 24,
+  "seed": 4217,
+  "trees": 12,
+  "seconds_train": 1.1,
+  "features": [
+    "n_alarms_1h",
+    "n_alarms_24h",
+    "n_alarms_168h",
+    "n_alarms_720h",
+    "alarm_hour_share_720h",
+    "hours_since_last_alarm",
+    "night_share",
+    "hour_of_day",
+    "day_of_week",
+    "month",
+    "is_weekend",
+    "neighbor_channels_1h",
+    "is_disarmed",
+    "has_access_sequence"
+  ],
+  "splits": {
+    "train": {
+      "from": "2019-01-01 00:00:00",
+      "to": "2025-06-29 23:00:00",
+      "rows": 1271227,
+      "positive_rows": 238003,
+      "negative_rows": 1033224,
+      "cells": 52410384,
+      "weight_negative": 50.4947,
+      "base_pct": 0.4541
+    },
+    "valid": {
+      "from": "2025-07-01 00:00:00",
+      "to": "2025-12-30 23:00:00",
+      "rows": 169071,
+      "positive_rows": 65079,
+      "negative_rows": 103992,
+      "cells": 5297688,
+      "weight_negative": 50.3174,
+      "base_pct": 1.2284
+    },
+    "test": {
+      "from": "2026-01-01 00:00:00",
+      "to": "2026-06-29 23:00:00",
+      "rows": 139329,
+      "positive_rows": 45268,
+      "negative_rows": 94061,
+      "cells": 4796328,
+      "weight_negative": 50.5104,
+      "base_pct": 0.9438
+    }
+  },
+  "test": {
+    "pr_auc": 0.043323,
+    "base": 0.009438,
+    "days": 180.0,
+    "naive": {
+      "precision": 0.113155,
+      "recall": 0.1082,
+      "alerts": 43285.9,
+      "alerts_per_day": 240.48
+    },
+    "beats_naive": false,
+    "operating_points": {
+      "naive_recall": {
+        "threshold": 0.020614,
+        "precision": 0.104423,
+        "recall": 0.108244,
+        "alerts": 46924.7,
+        "alerts_per_day": 260.69
+      },
+      "max_f1": {
+        "threshold": 0.016649,
+        "precision": 0.090339,
+        "recall": 0.143611,
+        "alerts": 71962.5,
+        "alerts_per_day": 399.79
+      },
+      "precision_70": {
+        "threshold": 0.92247,
+        "precision": 1.0,
+        "recall": 0.000287,
+        "alerts": 13.0,
+        "alerts_per_day": 0.07
+      },
+      "recall_50": {
+        "threshold": 0.006131,
+        "precision": 0.025947,
+        "recall": 0.503844,
+        "alerts": 879010.0,
+        "alerts_per_day": 4883.39
+      }
+    }
+  },
+  "gain": {
+    "hours_since_last_alarm": 2082273.4,
+    "n_alarms_168h": 574464.0,
+    "month": 377482.4,
+    "day_of_week": 269796.0,
+    "night_share": 267922.1,
+    "alarm_hour_share_720h": 223807.1,
+    "n_alarms_720h": 206932.4,
+    "n_alarms_24h": 145686.0,
+    "is_disarmed": 56542.4,
+    "hour_of_day": 52772.6,
+    "is_weekend": 10002.2,
+    "n_alarms_1h": 0.0,
+    "neighbor_channels_1h": 0.0,
+    "has_access_sequence": 0.0
+  }
+}

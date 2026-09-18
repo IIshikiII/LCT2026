@@ -17,6 +17,7 @@
 меряются одним кодом, и разница в числах идёт только от витрины.
 """
 import pathlib
+
 import duckdb
 
 KEY = "object_id, gallery, picket"

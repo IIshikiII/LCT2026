@@ -21,7 +21,6 @@ import pathlib
 import time
 
 import duckdb
-
 import target_stats
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -89,7 +88,7 @@ print(f"режим охраны отобран за {time.time() - t:.0f} c")
 # «на охране». Повторы одного значения подряд ничего не меняют, поэтому сначала
 # они схлопываются, а уже потом берётся следующая запись.
 con.execute(
-    f"""
+    """
     CREATE TABLE step AS
     SELECT object_id, ts, value FROM (
         SELECT object_id, ts, value,

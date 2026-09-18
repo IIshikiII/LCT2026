@@ -9,8 +9,9 @@
 жизни единицы.
 
 Определение метки лежит в `backend/docs/adr/0001-access-target.md`."""
-import time
 import pathlib
+import time
+
 import duckdb
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]

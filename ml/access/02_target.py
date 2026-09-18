@@ -9,7 +9,6 @@ import json
 import pathlib
 
 import duckdb
-
 import target_stats
 
 OUT = pathlib.Path(__file__).resolve().parent / "out"
