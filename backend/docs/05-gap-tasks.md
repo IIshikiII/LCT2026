@@ -213,10 +213,12 @@ the frame and does not pick the model for them.
       version registry. Done ahead of task 9, see [08-ml-plugin.md](08-ml-plugin.md).
 - [x] Add the `research` dependency group and the `research` service, so the
       exploratory work runs against the same database and the same MLflow.
-- [ ] Write `app/synth/` to fill the raw tables, `sensor_reading` included.
-      Keep it small: the real exports arrive soon, and a rich generator would
-      be thrown away. It has to feed the frontend, not to prove a metric.
-- [ ] Implement `python -m app.cli seed`, so the frontend works against the real
+- [x] Write `app/synth/generate.py` to fill `collector`, `facility` and
+      `alarm_event` with deterministic access events, seed fixed. `sensor_reading`
+      and the other direction tables stay empty: only `UNAUTHORIZED_ACCESS`
+      reads from `alarm_event` today, and a generator for tables no plugin
+      reads yet would be thrown away once the real exports land.
+- [x] Implement `python -m app.cli seed`, so the frontend works against the real
       backend after `docker compose up`.
 - [ ] Write `app/features/` and the predictors in `app/ml/plugins/`.
 - [ ] Write `app/pipeline/` with the run.

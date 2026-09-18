@@ -33,6 +33,19 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "seed":
+        from app.db import engine
+        from app.synth.generate import generate
+
+        with engine().begin() as conn:
+            seeded = generate(conn)
+        print(
+            f"посев: {seeded.collector_count} коллекторов, "
+            f"{seeded.facility_count} объектов, "
+            f"{seeded.alarm_event_count} событий доступа"
+        )
+        return 0
+
     print(f"команда {args.command} ещё не реализована", file=sys.stderr)
     return 1
 

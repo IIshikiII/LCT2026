@@ -24,6 +24,19 @@
 Адреса: API — `http://localhost:8000`, OpenAPI — `http://localhost:8000/api/v1/docs`,
 MLflow — `http://localhost:5000`.
 
+## Синтетика на чистой базе
+
+Настоящей выгрузки СМВУ в схеме `backend` нет. Чтобы конвейер и API работали
+сразу после миграций, посейте объекты и события доступа:
+
+```
+docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
+```
+
+Семя фиксировано (`app/synth/generate.py`), поэтому повтор команды не плодит
+дублей: объекты и события те же. Наполняются только `collector`, `facility` и
+`alarm_event` — этого достаточно для направления «несанкционированный доступ».
+
 ## Разведочный анализ
 
 Набор `research` ни в один образ сервиса не входит. JupyterLab поднимается
