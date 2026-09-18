@@ -61,6 +61,27 @@ RULES: list[tuple[str, str]] = [
         r"(curl|wget|iwr|Invoke-WebRequest)[^\n]*\|\s*(sh|bash|pwsh|powershell|python)",
         "Do not pipe downloaded content into a shell.",
     ),
+    # --- sending files out ---------------------------------------------------
+    # Matters once the web tools are on: a page can carry instructions, and an
+    # unattended agent might follow them. These rules stop the plain ways of
+    # posting a file to a remote host. They reduce an accident, they do not
+    # stop a determined attack.
+    (
+        r"\bcurl\b[^\n]*(-T\s|--upload-file|-F\s+\S*@|(--data-binary|--data|-d)\s+@)",
+        "Do not upload files to a remote host.",
+    ),
+    (
+        r"(Invoke-WebRequest|Invoke-RestMethod|iwr|irm)[^\n]*-InFile\b",
+        "Do not upload files to a remote host.",
+    ),
+    (
+        r"(scp|rsync|sftp)\s+[^\n]*@[^\n]*:",
+        "Do not copy files to another machine.",
+    ),
+    (
+        r"\bnc\b[^\n]*<\s*\S|\bncat\b[^\n]*<\s*\S",
+        "Do not send file contents over a raw socket.",
+    ),
     # --- credentials ---------------------------------------------------------
     (
         r"\.env\b[^\n]*\|\s*(curl|wget|nc)|\b(cat|type)\b[^\n]*\.ssh[/\\]id_",
