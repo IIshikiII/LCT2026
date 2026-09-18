@@ -2,8 +2,8 @@
   "direction": "UNAUTHORIZED_ACCESS",
   "horizon_hours": 24,
   "seed": 4217,
-  "trees": 12,
-  "seconds_train": 1.1,
+  "trees": 5,
+  "seconds_train": 0.9,
   "features": [
     "n_alarms_1h",
     "n_alarms_24h",
@@ -18,7 +18,10 @@
     "is_weekend",
     "neighbor_channels_1h",
     "is_disarmed",
-    "has_access_sequence"
+    "has_access_sequence",
+    "n_armed_alarms_24h",
+    "n_armed_alarms_168h",
+    "hours_since_last_armed_alarm"
   ],
   "splits": {
     "train": {
@@ -53,7 +56,7 @@
     }
   },
   "test": {
-    "pr_auc": 0.043323,
+    "pr_auc": 0.074514,
     "base": 0.009438,
     "days": 180.0,
     "naive": {
@@ -62,50 +65,53 @@
       "alerts": 43285.9,
       "alerts_per_day": 240.48
     },
-    "beats_naive": false,
+    "beats_naive": true,
     "operating_points": {
       "naive_recall": {
-        "threshold": 0.020614,
-        "precision": 0.104423,
-        "recall": 0.108244,
-        "alerts": 46924.7,
-        "alerts_per_day": 260.69
+        "threshold": 0.041561,
+        "precision": 0.210515,
+        "recall": 0.108598,
+        "alerts": 23352.3,
+        "alerts_per_day": 129.73
       },
       "max_f1": {
-        "threshold": 0.016649,
-        "precision": 0.090339,
-        "recall": 0.143611,
-        "alerts": 71962.5,
-        "alerts_per_day": 399.79
+        "threshold": 0.014317,
+        "precision": 0.119516,
+        "recall": 0.295043,
+        "alerts": 111750.3,
+        "alerts_per_day": 620.84
       },
       "precision_70": {
-        "threshold": 0.92247,
+        "threshold": 0.830191,
         "precision": 1.0,
-        "recall": 0.000287,
-        "alerts": 13.0,
-        "alerts_per_day": 0.07
+        "recall": 0.00042,
+        "alerts": 19.0,
+        "alerts_per_day": 0.11
       },
       "recall_50": {
-        "threshold": 0.006131,
-        "precision": 0.025947,
-        "recall": 0.503844,
-        "alerts": 879010.0,
-        "alerts_per_day": 4883.39
+        "threshold": 0.005818,
+        "precision": 0.035487,
+        "recall": 0.501679,
+        "alerts": 639947.3,
+        "alerts_per_day": 3555.26
       }
     }
   },
   "gain": {
-    "hours_since_last_alarm": 2082273.4,
-    "n_alarms_168h": 574464.0,
-    "month": 377482.4,
-    "day_of_week": 269796.0,
-    "night_share": 267922.1,
-    "alarm_hour_share_720h": 223807.1,
-    "n_alarms_720h": 206932.4,
-    "n_alarms_24h": 145686.0,
-    "is_disarmed": 56542.4,
-    "hour_of_day": 52772.6,
-    "is_weekend": 10002.2,
+    "hours_since_last_armed_alarm": 1909590.8,
+    "n_armed_alarms_168h": 1504464.6,
+    "alarm_hour_share_720h": 874425.2,
+    "hours_since_last_alarm": 352232.9,
+    "month": 237099.2,
+    "day_of_week": 204653.5,
+    "night_share": 133782.1,
+    "n_alarms_168h": 95913.5,
+    "n_alarms_24h": 43792.3,
+    "n_alarms_720h": 41480.0,
+    "hour_of_day": 18204.1,
+    "n_armed_alarms_24h": 11528.0,
+    "is_weekend": 9891.6,
+    "is_disarmed": 5208.6,
     "n_alarms_1h": 0.0,
     "neighbor_channels_1h": 0.0,
     "has_access_sequence": 0.0

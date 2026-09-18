@@ -66,7 +66,7 @@
       PR-AUC и наивной планки на той же отложенной выборке. Сохранить модель в
       `ml/access/out/model.txt` и замер в `ml/access/out/metrics.json`.
 
-- [ ] **T08b** `sonnet` — Добавить в `ml/access/features.py` признаки по тревогам
+- [x] **T08b** `sonnet` — Добавить в `ml/access/features.py` признаки по тревогам
       вне окон «Снято с охраны»: `n_armed_alarms_24h`, `n_armed_alarms_168h`,
       `hours_since_last_armed_alarm`. Источник тот же, что у метки, то есть
       `out/access_hourly_armed.parquet`, фильтр строго `hour < at`. Пересобрать

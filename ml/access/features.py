@@ -62,6 +62,19 @@ backlog-строк T05/T06 (`loop/BACKLOG.md`):
   (`smvu-insights.md` §1), пять пикетов это 50 метров прохода, пятнадцать минут
   — короткий визит, а не рабочая смена. Оба числа документированы как решение,
   не как измерение: данных, размечающих настоящие проникновения, нет.
+
+Признаки T08b (`loop/BACKLOG.md`) читают `out/access_hourly_armed.parquet` —
+тот же источник, что и метка, а не `access_hourly.parquet`. T08 нашёл, что без
+такого признака модель проигрывает наивной планке «тревога была вчера»: планка
+считает по тревогам вне окон «Снято с охраны», а признаки до T08b — по всем
+тревогам, и модель не видела того, на чём построена планка.
+
+- `n_armed_alarms_24h`, `n_armed_alarms_168h` считают число сработавших
+  моментов (`sum(n_moments)`) в часовом своде `armed` за 24 и 168 часов до
+  `at`, тем же правилом `hour < at`, что и `n_alarms_*`.
+- `hours_since_last_armed_alarm` берёт часы с последней тревоги на охране тем
+  же способом, что `hours_since_last_alarm`: единица без такой тревоги в
+  истории получает `hour_from` вместо 0 или бесконечности.
 """
 import json
 import pathlib
@@ -110,6 +123,9 @@ FEATURE_COLUMNS = [
     "neighbor_channels_1h",
     "is_disarmed",
     "has_access_sequence",
+    "n_armed_alarms_24h",
+    "n_armed_alarms_168h",
+    "hours_since_last_armed_alarm",
 ]
 
 
@@ -118,9 +134,11 @@ def attach_sources(
     hourly: pathlib.Path = HOURLY,
     units: pathlib.Path = UNITS,
     disarm: pathlib.Path = DISARM,
+    armed: pathlib.Path = ARMED,
 ) -> None:
-    """Подключает часовой свод, границы жизни единиц и окна «Снято с охраны»
-    как представления `alarm`, `unit` и `disarm_window`."""
+    """Подключает часовой свод, границы жизни единиц, окна «Снято с охраны» и
+    часовой свод тревог на охране как представления `alarm`, `unit`,
+    `disarm_window` и `armed`."""
     con.execute(
         f"CREATE OR REPLACE VIEW alarm AS "
         f"SELECT * FROM read_parquet('{hourly.as_posix()}')"
@@ -132,6 +150,10 @@ def attach_sources(
     con.execute(
         f"CREATE OR REPLACE VIEW disarm_window AS "
         f"SELECT * FROM read_parquet('{disarm.as_posix()}')"
+    )
+    con.execute(
+        f"CREATE OR REPLACE VIEW armed AS "
+        f"SELECT * FROM read_parquet('{armed.as_posix()}')"
     )
 
 
@@ -257,7 +279,16 @@ def build_features(
                   AND abs(c.picket - p.picket) <= {NEAR_PICKETS}
                   AND c.completed_ts < p.at
                   AND c.completed_ts >= p.at - INTERVAL {SEQUENCE_WINDOW_MINUTES} MINUTE
-            ) THEN 1 ELSE 0 END AS has_access_sequence
+            ) THEN 1 ELSE 0 END AS has_access_sequence,
+            (SELECT sum(a.n_moments) FROM armed a
+             WHERE (a.object_id, a.gallery, a.picket) = (p.object_id, p.gallery, p.picket)
+               AND a.hour > p.at - INTERVAL 24 HOUR AND a.hour < p.at) AS n_armed_alarms_24h,
+            (SELECT sum(a.n_moments) FROM armed a
+             WHERE (a.object_id, a.gallery, a.picket) = (p.object_id, p.gallery, p.picket)
+               AND a.hour > p.at - INTERVAL 168 HOUR AND a.hour < p.at) AS n_armed_alarms_168h,
+            (SELECT max(a.hour) FROM armed a
+             WHERE (a.object_id, a.gallery, a.picket) = (p.object_id, p.gallery, p.picket)
+               AND a.hour < p.at) AS last_armed_alarm_hour
         FROM {points} p
         """
     )
@@ -286,7 +317,14 @@ def build_features(
             CAST(dayofweek("at") IN (0, 6) AS INTEGER) AS is_weekend,
             coalesce(neighbor_channels_1h, 0) AS neighbor_channels_1h,
             is_disarmed,
-            has_access_sequence
+            has_access_sequence,
+            coalesce(n_armed_alarms_24h, 0) AS n_armed_alarms_24h,
+            coalesce(n_armed_alarms_168h, 0) AS n_armed_alarms_168h,
+            date_diff(
+                'hour',
+                coalesce(last_armed_alarm_hour, hour_from),
+                "at"
+            ) AS hours_since_last_armed_alarm
         FROM features_raw
         """
     )
@@ -300,10 +338,6 @@ if __name__ == "__main__":
     con.execute("SELECT setseed(0.4217)")
 
     attach_sources(con)
-    con.execute(
-        f"CREATE OR REPLACE VIEW armed AS "
-        f"SELECT * FROM read_parquet('{ARMED.as_posix()}')"
-    )
 
     t = time.time()
     build_sequence_chain(con)

@@ -1,8 +1,9 @@
 """Тест утечки по времени для `build_features`. Строит признаки один раз на
 синтетических данных, обрезанных по моменту расчёта `at`, затем добавляет
 строки из будущего (позже `at`, включая сам час `at`) в каждый источник —
-`alarm`, `unit`, `disarm_window`, `access_chain` — и считает признаки снова.
-Ни один признак не имеет права измениться: иначе прогноз смотрит в будущее.
+`alarm`, `unit`, `disarm_window`, `access_chain`, `armed` — и считает признаки
+снова. Ни один признак не имеет права измениться: иначе прогноз смотрит в
+будущее.
 
 Данные синтетические и не читают `out/*.parquet`, чтобы тест не зависел от
 выгрузки и шёл быстро в `pytest ml -q`.
@@ -78,6 +79,23 @@ def _setup(con: duckdb.DuckDBPyConnection, include_future: bool) -> None:
         f"AS t(object_id, gallery, picket, completed_ts)"
     )
 
+    armed_rows = [
+        (OBJECT_ID, GALLERY, PICKET, "TIMESTAMP '2024-01-10 09:00:00'", 2, 2),
+    ]
+    if include_future:
+        armed_rows += [
+            (OBJECT_ID, GALLERY, PICKET, AT, 9, 9),
+            (OBJECT_ID, GALLERY, PICKET, "TIMESTAMP '2024-01-10 13:00:00'", 9, 9),
+        ]
+    armed_values = ", ".join(
+        f"({o}, '{g}', {p}, {h}, {m}, {c})" for o, g, p, h, m, c in armed_rows
+    )
+    con.execute(
+        f"CREATE OR REPLACE VIEW armed AS "
+        f"SELECT * FROM (VALUES {armed_values}) "
+        f"AS t(object_id, gallery, picket, hour, n_moments, n_channels)"
+    )
+
     con.execute(
         f"CREATE OR REPLACE TABLE points AS "
         f"SELECT {OBJECT_ID} AS object_id, '{GALLERY}' AS gallery, "
@@ -110,3 +128,6 @@ def test_features_see_past_rows() -> None:
     assert baseline["n_alarms_720h"] == 6
     assert baseline["is_disarmed"] == 0
     assert baseline["has_access_sequence"] == 1
+    assert baseline["n_armed_alarms_24h"] == 2
+    assert baseline["n_armed_alarms_168h"] == 2
+    assert baseline["hours_since_last_armed_alarm"] == 3
