@@ -68,6 +68,28 @@
 диспетчер напишет без модели. Замер `test.beats_naive` отвечает на этот вопрос
 одним значением. Сравнение идёт на равной полноте: модель ставят на порог, где
 её полнота догоняет планку, и смотрят на точность.
+
+## SHAP
+
+`shap.TreeExplainer` считает вклад каждого признака на отложенной выборке в
+шкале логита, той же шкале, где живёт `raw_score` LightGBM: вероятность после
+сигмоиды вклады не сохраняет. Аддитивность проверяется на всей отложенной
+выборке, а не на выборке из неё: подсчёт занимает доли секунды при пяти —
+двенадцати деревьях модели, экономить не на чем, а проверка на подмножестве
+может пропустить строку, где числа не сошлись.
+
+Фоновое значение — это `explainer.expected_value`, логит, который дало бы
+дерево без единого признака. Диспетчерский слой прибавляет к нему вклады
+SHAP, поэтому значение сохраняется рядом с моделью, в `out/shap_background.json`,
+вместе с порядком признаков: вклады без порядка бессмысленны.
+
+## Артефакт для бэкенда
+
+`backend/app/ml/tracking.py` хранит модель направления как `joblib.dump` в
+`ARTIFACTS_DIR/<направление>/<версия>.joblib` и читает её тем же `joblib.load`
+безотносительно библиотеки. `out/model.joblib` — бустер `out/model.txt`,
+сохранённый тем же способом, тот же файл, что ляжет в реестр в T13. Круговой
+путь проверяет `test_export.py`.
 """
 import datetime
 import json
@@ -76,8 +98,10 @@ import time
 
 import duckdb
 import features
+import joblib
 import lightgbm as lgb
 import numpy as np
+import shap
 from sklearn.metrics import average_precision_score
 
 OUT = pathlib.Path(__file__).resolve().parent / "out"
@@ -85,7 +109,13 @@ PANEL = OUT / "access_features.parquet"
 UNITS = OUT / "access_units.parquet"
 ARMED = OUT / "access_hourly_armed.parquet"
 MODEL = OUT / "model.txt"
+MODEL_JOBLIB = OUT / "model.joblib"
 METRICS = OUT / "metrics.json"
+SHAP_BACKGROUND = OUT / "shap_background.json"
+
+# Допуск проверки аддитивности SHAP: сумма вкладов плюс фоновое значение
+# обязана совпасть с логитом модели с этой точностью.
+SHAP_TOLERANCE = 1e-6
 
 # Границы отрезков. Разбор выбора — в docstring модуля.
 TRAIN_END = "2025-07-01"
@@ -281,6 +311,29 @@ def rule_point(y: np.ndarray, w: np.ndarray, flag: np.ndarray) -> dict[str, floa
     return result
 
 
+def explain_test(booster: lgb.Booster, x: np.ndarray) -> dict[str, object]:
+    """Считает SHAP-вклады на отложенной выборке и проверяет аддитивность:
+    сумма вкладов плюс фоновое значение обязана совпасть с логитом модели
+    (`raw_score`) с точностью `SHAP_TOLERANCE`. Нарушение останавливает
+    обучение: сохранять модель с неверными вкладами нет смысла.
+
+    Возвращает фоновое значение и наибольшее расхождение аддитивности —
+    оба идут в `out/shap_background.json` и в `metrics.json`.
+    """
+    explainer = shap.TreeExplainer(booster)
+    contributions = explainer.shap_values(x)
+    background = float(explainer.expected_value)
+    raw_score = booster.predict(x, raw_score=True)
+    reconstructed = contributions.sum(axis=1) + background
+    max_gap = float(np.max(np.abs(reconstructed - raw_score)))
+    if max_gap > SHAP_TOLERANCE:
+        raise AssertionError(
+            f"аддитивность SHAP нарушена: расхождение {max_gap:.3e} "
+            f"больше допуска {SHAP_TOLERANCE:.0e}"
+        )
+    return {"background": background, "max_additivity_gap": max_gap}
+
+
 def main() -> None:
     con = duckdb.connect()
     con.execute("PRAGMA threads=8")
@@ -324,10 +377,25 @@ def main() -> None:
         ],
     )
     seconds_train = time.time() - t
-    print(f"обучение заняло {seconds_train:.0f} c, деревьев {booster.best_iteration}")
+    trees = int(booster.best_iteration)
+    print(f"обучение заняло {seconds_train:.0f} c, деревьев {trees}")
+
+    # Модель сохраняется до замера и объяснения: `save_model` обрезает
+    # бустер до `best_iteration`, и предсказание, метрики и SHAP обязаны
+    # идти по тому же артефакту, который получит бэкенд, а не по бустеру
+    # с полным числом раундов, ещё живущим в памяти. `best_iteration` не
+    # переживает перезагрузку из файла, поэтому число деревьев уже взято
+    # в `trees` выше.
+    booster.save_model(str(MODEL), num_iteration=trees)
+    booster = lgb.Booster(model_file=str(MODEL))
+    # Формат бэкенда: `tracking._save_local` кладёт модель через
+    # `joblib.dump` и читает её `joblib.load` без разбора по библиотеке.
+    # Дамп идёт с обрезанного бустера, а не с исходного: это тот же
+    # артефакт, что получит прогноз.
+    joblib.dump(booster, MODEL_JOBLIB)
 
     y, w = test["y"], test["w"]
-    prediction = booster.predict(test["x"], num_iteration=booster.best_iteration)
+    prediction = booster.predict(test["x"])
     pr_auc = float(average_precision_score(y, prediction, sample_weight=w))
     naive = rule_point(y, w, test["naive"] == 1)
     threshold, precision, recall, _alerts = weighted_scores(y, w, prediction)
@@ -361,12 +429,33 @@ def main() -> None:
             item["alerts_per_day"] = round(item["alerts"] / days, 2)
     naive["alerts_per_day"] = round(naive["alerts"] / days, 2)
 
+    t = time.time()
+    shap_result = explain_test(booster, test["x"])
+    seconds_shap = time.time() - t
+    print(
+        f"SHAP посчитан за {seconds_shap:.1f} c на {len(y)} строках, "
+        f"фон {shap_result['background']:.4f}, "
+        f"расхождение аддитивности {shap_result['max_additivity_gap']:.2e}"
+    )
+    SHAP_BACKGROUND.write_text(
+        json.dumps(
+            {
+                "background": shap_result["background"],
+                "features": features.FEATURE_COLUMNS,
+                "output": "raw",
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
     gain = booster.feature_importance("gain")
     result = {
         "direction": "UNAUTHORIZED_ACCESS",
         "horizon_hours": features.HORIZON_HOURS,
         "seed": SEED,
-        "trees": int(booster.best_iteration),
+        "trees": trees,
         "seconds_train": round(seconds_train, 1),
         "features": features.FEATURE_COLUMNS,
         "splits": {
@@ -403,9 +492,14 @@ def main() -> None:
                 zip(features.FEATURE_COLUMNS, gain), key=lambda kv: -kv[1]
             )
         },
+        "shap": {
+            "background": round(shap_result["background"], 6),
+            "max_additivity_gap": shap_result["max_additivity_gap"],
+            "tolerance": SHAP_TOLERANCE,
+            "rows_checked": len(y),
+        },
     }
 
-    booster.save_model(str(MODEL), num_iteration=booster.best_iteration)
     METRICS.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"PR-AUC {pr_auc:.4f}, база {test['base_pct'] / 100:.5f}")
@@ -418,7 +512,10 @@ def main() -> None:
                 f"точность {item['precision']:.4f}, полнота {item['recall']:.4f}, "
                 f"тревог в сутки {item['alerts_per_day']}"
             )
-    print(f"модель в {MODEL}, замер в {METRICS}")
+    print(
+        f"модель в {MODEL} и {MODEL_JOBLIB}, "
+        f"замер в {METRICS}, фон SHAP в {SHAP_BACKGROUND}"
+    )
 
 
 if __name__ == "__main__":

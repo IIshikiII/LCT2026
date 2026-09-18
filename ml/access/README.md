@@ -16,8 +16,9 @@
 | `03_disarm.py` | Строит окна «Снято с охраны» и меряет две версии метки рядом. Результат: `out/disarm_windows.parquet`, `out/access_hourly_armed.parquet`, `out/disarm_stats.json`. |
 | `target_stats.py` | Общий расчёт базы и наивной планки. Модуль, а не скрипт. Его зовут `02_target.py` и `03_disarm.py`. |
 | `features.py` | Строит двенадцать признаков на момент расчёта `at` и обучающую панель с прореженными отрицательными клетками. Результат: `out/access_features.parquet`, `out/features_stats.json`. |
-| `train.py` | Обучает LightGBM с разбиением по времени, считает Precision, Recall, PR-AUC и SHAP. Результат: `out/model.txt`, `out/metrics.json`. |
+| `train.py` | Обучает LightGBM с разбиением по времени, считает Precision, Recall, PR-AUC и SHAP-вклады отложенной выборки с проверкой аддитивности. Сохраняет модель дважды: `out/model.txt` (нативный формат LightGBM) и `out/model.joblib` (тот же бустер через `joblib.dump`, формат `backend/app/ml/tracking.py`). Результат: `out/model.txt`, `out/model.joblib`, `out/metrics.json`, `out/shap_background.json`. |
 | `04_threshold.py` | Назначает порог по цене ошибки для диспетчера. Считает наряды, оправданные наряды и предупреждённые проникновения на полной сетке отложенной выборки. Результат: раздел `decision` в `out/metrics.json`. |
+| `test_export.py` | Круговой тест `out/model.joblib`: `joblib.dump` и `joblib.load` обязаны давать ту же вероятность, что исходный бустер. |
 | `out/` | Промежуточные и итоговые данные скриптов. В git не попадают, кроме `.gitkeep`. |
 
 ## Запуск
