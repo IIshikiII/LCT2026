@@ -90,7 +90,7 @@
 
 ## Этап 4. Бэкенд
 
-- [ ] **T12** `sonnet` — Написать `backend/app/features/access.py`: те же
+- [x] **T12** `sonnet` — Написать `backend/app/features/access.py`: те же
       признаки, но поверх таблиц `alarm_event` и `sensor_reading` через
       `FeatureContext`. Имена признаков обязаны совпадать с именами из
       `ml/access/features.py` буква в букву.
