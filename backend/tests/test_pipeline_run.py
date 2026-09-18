@@ -11,14 +11,15 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import delete, select, text
+from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError
 
 from app import migrate
 from app.db import engine
 from app.ml.protocol import Block, FeatureContext, FeatureVector, Window
 from app.pipeline import run as pipeline_run_module
-from app.tables import facility, pipeline_run, prediction, work_order
+from app.tables import facility, pipeline_run, prediction
+from tests.conftest import reset_database
 
 NOW = datetime(2026, 9, 18, 12, 0, tzinfo=UTC)
 
@@ -66,8 +67,7 @@ def db() -> Iterator[None]:
 
     migrate.run()
     with engine().begin() as conn:
-        for table in (work_order, prediction, pipeline_run, facility):
-            conn.execute(delete(table))
+        reset_database(conn)
         conn.execute(
             facility.insert(),
             [
@@ -88,8 +88,7 @@ def db() -> Iterator[None]:
     yield
 
     with engine().begin() as conn:
-        for table in (work_order, prediction, pipeline_run, facility):
-            conn.execute(delete(table))
+        reset_database(conn)
 
 
 def _predictors(monkeypatch: pytest.MonkeyPatch, table: dict[str, object]) -> None:
@@ -104,7 +103,8 @@ def test_a_run_writes_a_prediction_per_facility_and_direction(
     result = pipeline_run_module.run(engine(), at=NOW)
 
     assert result.prediction_count == 2
-    rows = list(engine().connect().execute(select(prediction)))
+    with engine().connect() as conn:
+        rows = list(conn.execute(select(prediction)))
     assert {row.facility_id for row in rows} == {"F-1", "F-2"}
     assert all(row.direction == "SENSOR_FAILURE" for row in rows)
     assert all(row.level == "CRITICAL" for row in rows)
@@ -118,9 +118,8 @@ def test_the_feature_snapshot_lands_in_the_prediction_row(
 
     pipeline_run_module.run(engine(), at=NOW)
 
-    row = engine().connect().execute(
-        select(prediction).where(prediction.c.facility_id == "F-1")
-    ).one()
+    with engine().connect() as conn:
+        row = conn.execute(select(prediction).where(prediction.c.facility_id == "F-1")).one()
     assert row.features == {"facility_marker": 3.0}
 
 
@@ -134,7 +133,8 @@ def test_a_repeated_run_on_the_same_bucket_creates_nothing_new(
 
     assert first.prediction_count == 2
     assert second.prediction_count == 0
-    rows = list(engine().connect().execute(select(prediction)))
+    with engine().connect() as conn:
+        rows = list(conn.execute(select(prediction)))
     assert len(rows) == 2
 
 
@@ -151,10 +151,8 @@ def test_a_direction_without_a_model_is_skipped_not_fatal(
 
     result = pipeline_run_module.run(engine(), at=NOW)
 
-    directions = {
-        row.direction
-        for row in engine().connect().execute(select(prediction))
-    }
+    with engine().connect() as conn:
+        directions = {row.direction for row in conn.execute(select(prediction))}
     assert directions == {"FIRE_RISK"}
     assert result.prediction_count == 2
 
@@ -167,9 +165,8 @@ def test_a_run_creates_orders_and_finishes_the_pipeline_run_row(
     result = pipeline_run_module.run(engine(), at=NOW)
 
     assert result.order_count == 2
-    row = engine().connect().execute(
-        select(pipeline_run).where(pipeline_run.c.id == result.run_id)
-    ).one()
+    with engine().connect() as conn:
+        row = conn.execute(select(pipeline_run).where(pipeline_run.c.id == result.run_id)).one()
     assert row.status == "DONE"
     assert row.prediction_count == 2
     assert row.finished_at is not None

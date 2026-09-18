@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import delete, select, text
+from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError
 
 from app import migrate
@@ -14,6 +14,7 @@ from app.db import engine
 from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
 from app.synth.generate import generate
 from app.tables import alarm_event, collector, facility
+from tests.conftest import reset_database
 
 NOW = datetime(2026, 9, 18, 12, 0, tzinfo=UTC)
 VALID_ALARM_TYPES = set(ACCESS_ALARM_TYPES) | {SECURITY_ARMED, SECURITY_DISARMED}
@@ -29,14 +30,12 @@ def db() -> Iterator[None]:
 
     migrate.run()
     with engine().begin() as conn:
-        for table in (alarm_event, facility, collector):
-            conn.execute(delete(table))
+        reset_database(conn)
 
     yield
 
     with engine().begin() as conn:
-        for table in (alarm_event, facility, collector):
-            conn.execute(delete(table))
+        reset_database(conn)
 
 
 def test_generate_fills_the_three_tables(db: None) -> None:
@@ -63,8 +62,7 @@ def test_the_same_seed_gives_the_same_shape(db: None) -> None:
     with engine().begin() as conn:
         first = generate(conn, seed=7, facility_count=10, now=NOW)
     with engine().begin() as conn:
-        for table in (alarm_event, facility, collector):
-            conn.execute(delete(table))
+        reset_database(conn)
         second = generate(conn, seed=7, facility_count=10, now=NOW)
 
     assert first == second

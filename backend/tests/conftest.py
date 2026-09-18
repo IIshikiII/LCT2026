@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import delete, text
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app import migrate
@@ -100,6 +100,61 @@ ORDERS = [
 
 # Порядок чистки: сначала ссылающиеся таблицы.
 TABLES = (action_log, work_order, prediction, model_metric, pipeline_run, facility, collector)
+
+# Список таблиц для чистки читается из базы, а не пишется руками. Рукописный
+# список уже разошёлся со схемой: в нём не было `alarm_event`, и строки
+# конвейера оставались в базе. Дальше `DELETE FROM facility` проверял внешние
+# ключи по секционированной таблице, и чистка занимала 130 секунд на тест.
+_MUTABLE_TABLES_SQL = text("""
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind IN ('r', 'p')
+      AND NOT c.relispartition
+      AND c.relname <> 'schema_migration'
+    ORDER BY c.relname
+""")
+
+
+# Хосты, на которых тестам разрешено опустошать базу. Петля это машина
+# разработчика, `db` это служба compose. Всё остальное может оказаться чужой
+# или рабочей базой, а `TRUNCATE ... CASCADE` снимает вообще все таблицы.
+LOCAL_HOSTS = frozenset({None, "", "localhost", "127.0.0.1", "::1", "db"})
+
+
+def _require_local_database() -> None:
+    """Запрещает чистку, если база не локальная.
+
+    Раньше чистка перечисляла семь таблиц руками и могла испортить меньше.
+    Теперь она снимает всё, поэтому ошибка в `DATABASE_URL` стоила бы рабочих
+    данных. Проверка стоит наносекунды и закрывает этот случай навсегда.
+    """
+    host = engine().url.host
+    if host not in LOCAL_HOSTS:
+        pytest.exit(
+            f"Тесты чистят базу целиком и работают только с локальной базой. "
+            f"DATABASE_URL указывает на хост {host!r}. Проверьте переменную.",
+            returncode=2,
+        )
+
+
+def reset_database(conn: object) -> None:
+    """Опустошает все таблицы данных, кроме журнала миграций.
+
+    `TRUNCATE` не проверяет внешние ключи построчно и снимает сразу все
+    секции, поэтому его время не зависит от числа строк. `CASCADE` снимает
+    ссылающиеся таблицы, поэтому порядок перечисления не важен.
+
+    Схему это не трогает: `schema_migration` остаётся на месте, и повторный
+    `migrate.run()` ничего не переприменяет.
+    """
+    _require_local_database()
+    names = conn.execute(_MUTABLE_TABLES_SQL).scalars().all()  # type: ignore[attr-defined]
+    if not names:
+        return
+    joined = ", ".join(f'"{name}"' for name in names)
+    conn.execute(text(f"TRUNCATE {joined} RESTART IDENTITY CASCADE"))  # type: ignore[attr-defined]
 
 
 def _insert(conn: object) -> None:
@@ -214,12 +269,10 @@ def seeded() -> Iterator[None]:
 
     migrate.run()
     with engine().begin() as conn:
-        for table in TABLES:
-            conn.execute(delete(table))
+        reset_database(conn)
         _insert(conn)
 
     yield
 
     with engine().begin() as conn:
-        for table in TABLES:
-            conn.execute(delete(table))
+        reset_database(conn)
