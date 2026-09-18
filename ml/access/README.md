@@ -17,6 +17,7 @@
 | `target_stats.py` | Общий расчёт базы и наивной планки. Модуль, а не скрипт. Его зовут `02_target.py` и `03_disarm.py`. |
 | `features.py` | Строит двенадцать признаков на момент расчёта `at` и обучающую панель с прореженными отрицательными клетками. Результат: `out/access_features.parquet`, `out/features_stats.json`. |
 | `train.py` | Обучает LightGBM с разбиением по времени, считает Precision, Recall, PR-AUC и SHAP. Результат: `out/model.txt`, `out/metrics.json`. |
+| `04_threshold.py` | Назначает порог по цене ошибки для диспетчера. Считает наряды, оправданные наряды и предупреждённые проникновения на полной сетке отложенной выборки. Результат: раздел `decision` в `out/metrics.json`. |
 | `out/` | Промежуточные и итоговые данные скриптов. В git не попадают, кроме `.gitkeep`. |
 
 ## Запуск
@@ -29,6 +30,7 @@
 .venv/Scripts/python.exe ml/access/03_disarm.py
 .venv/Scripts/python.exe ml/access/features.py
 .venv/Scripts/python.exe ml/access/train.py
+.venv/Scripts/python.exe ml/access/04_threshold.py
 ```
 
 Порядок запуска фиксирован. Каждый следующий скрипт читает результат
