@@ -15,7 +15,13 @@ param(
     # all | frontend | backend | ml | fast
     [string] $Scope = 'all',
     [int]    $TimeoutSec = 900,
-    [string] $ReportPath
+    [string] $ReportPath,
+
+    # Run the tests marked slow as well. They talk to Postgres and to the
+    # pipeline, and they grew the backend gate from 136 s to 848 s. Keeping
+    # them out of every run is the difference between a gate that costs two
+    # minutes and one that costs fourteen.
+    [switch] $IncludeSlow
 )
 
 $ErrorActionPreference = 'Stop'
@@ -30,6 +36,17 @@ $tmp = Join-Path $env:TEMP ('loop-gates-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 
 $results = New-Object System.Collections.ArrayList
+
+function Get-QuotedArg {
+    <#  Start-Process joins ArgumentList with spaces and quotes nothing, so an
+        argument holding a space arrives as two. That turned the marker filter
+        -m "not slow" into -m not plus a path called slow, and pytest answered
+        "file or directory not found". Quote here, once. #>
+    param([string] $Value)
+    if ([string]::IsNullOrEmpty($Value)) { return '""' }
+    if ($Value -notmatch '[\s"]') { return $Value }
+    return '"' + ($Value -replace '"', '\"') + '"'
+}
 
 function Invoke-Gate {
     param(
@@ -46,7 +63,8 @@ function Invoke-Gate {
 
     Write-Host ("  " + $Name.PadRight(28) + " ... ") -NoNewline
 
-    $proc = Start-Process -FilePath $Exe -ArgumentList $GateArgs `
+    $quoted = @($GateArgs | ForEach-Object { Get-QuotedArg $_ })
+    $proc = Start-Process -FilePath $Exe -ArgumentList $quoted `
         -WorkingDirectory $WorkDir -NoNewWindow -PassThru `
         -RedirectStandardOutput $outFile -RedirectStandardError $errFile
 
@@ -113,17 +131,28 @@ if ($wantFrontend -and (Test-Path (Join-Path $frontend 'node_modules'))) {
     }
 }
 
+# -x stops at the first failure. A gate only answers pass or fail, and a red
+# run that stops early gives the repair iteration one clear thing to fix
+# instead of fourteen minutes of output.
+$pytestCommon = @('-m', 'pytest', '-q', '-x', '--durations=10')
+$slowFilter = @()
+$testsLabel = 'backend tests'
+if (-not $IncludeSlow) {
+    $slowFilter = @('-m', 'not slow')
+    $testsLabel = 'backend tests (fast)'
+}
+
 if ($wantBackend -and (Test-Path $backPy)) {
-    Invoke-Gate -Name 'backend ruff'  -Exe $backPy -GateArgs @('-m', 'ruff', 'check', '.') -WorkDir $backend -Timeout 180
-    Invoke-Gate -Name 'backend mypy'  -Exe $backPy -GateArgs @('-m', 'mypy', 'app')        -WorkDir $backend -Timeout 420
-    Invoke-Gate -Name 'backend tests' -Exe $backPy -GateArgs @('-m', 'pytest', '-q')       -WorkDir $backend -Timeout 900
+    Invoke-Gate -Name 'backend ruff' -Exe $backPy -GateArgs @('-m', 'ruff', 'check', '.') -WorkDir $backend -Timeout 180
+    Invoke-Gate -Name 'backend mypy' -Exe $backPy -GateArgs @('-m', 'mypy', 'app')        -WorkDir $backend -Timeout 420
+    Invoke-Gate -Name $testsLabel    -Exe $backPy -GateArgs ($pytestCommon + $slowFilter) -WorkDir $backend -Timeout 1800
 }
 
 if ($wantMl -and (Test-Path $mlDir) -and (Test-Path $rootPy)) {
     $mlTests = @(Get-ChildItem -Path $mlDir -Recurse -Filter 'test_*.py' -ErrorAction SilentlyContinue)
     if ($mlTests.Count -gt 0) {
-        Invoke-Gate -Name 'ml ruff'  -Exe $rootPy -GateArgs @('-m', 'ruff', 'check', 'ml') -WorkDir $root -Timeout 180
-        Invoke-Gate -Name 'ml tests' -Exe $rootPy -GateArgs @('-m', 'pytest', 'ml', '-q')  -WorkDir $root -Timeout 900
+        Invoke-Gate -Name 'ml ruff'  -Exe $rootPy -GateArgs @('-m', 'ruff', 'check', 'ml')       -WorkDir $root -Timeout 180
+        Invoke-Gate -Name 'ml tests' -Exe $rootPy -GateArgs ($pytestCommon + @('ml') + $slowFilter) -WorkDir $root -Timeout 1800
     }
 }
 
@@ -133,7 +162,9 @@ $green = ($failed.Count -eq 0)
 $report = New-Object System.Collections.ArrayList
 if ($green) { [void]$report.Add('# Gates: PASS') } else { [void]$report.Add('# Gates: FAIL') }
 [void]$report.Add('')
-[void]$report.Add('Generated ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' scope=' + $Scope)
+$slowNote = 'slow tests skipped'
+if ($IncludeSlow) { $slowNote = 'slow tests included' }
+[void]$report.Add('Generated ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' scope=' + $Scope + ', ' + $slowNote)
 [void]$report.Add('')
 [void]$report.Add('| Gate | Result | Seconds |')
 [void]$report.Add('|---|---|---|')

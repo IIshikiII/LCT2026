@@ -47,6 +47,14 @@ param(
     # Stop when the spend passes this. 0 disables it.
     [double] $MaxBudgetUsd = 0,
 
+    # Spend cap for a single iteration. One runaway iteration once burned
+    # 5.44 dollars over 127 turns and still committed nothing. 0 disables it.
+    [double] $BudgetPerIterationUsd = 4,
+
+    # Kill an iteration that runs longer than this. Without a cap a single
+    # hung command stalls the whole night.
+    [int] $IterationTimeoutMin = 30,
+
     # Model for tasks with no tag in the backlog.
     [string] $DefaultModel = 'opus',
 
@@ -74,6 +82,7 @@ $backlogPath = Join-Path $loop 'BACKLOG.md'
 $gatesPath   = Join-Path $loop 'GATES.md'
 $statusPath  = Join-Path $loop 'STATUS.md'
 $stopPath    = Join-Path $loop 'STOP'
+$handoffPath = Join-Path $loop 'HANDOFF.md'
 $blockedPath = Join-Path $loop 'BLOCKED.txt'
 $runsCsv     = Join-Path $logs 'runs.csv'
 
@@ -276,11 +285,16 @@ function Invoke-Claude {
         [void]$claudeArgs.Add('WebSearch')
     }
 
-    if ($MaxBudgetUsd -gt 0) {
-        $left = [math]::Round($MaxBudgetUsd - $script:spentUsd, 2)
-        if ($left -gt 0.5) {
-            [void]$claudeArgs.Add('--max-budget-usd'); [void]$claudeArgs.Add($left)
-        }
+    # The tighter of the two caps wins: what is left of the run budget, and
+    # what a single iteration may spend.
+    $cap = [double]::MaxValue
+    if ($MaxBudgetUsd -gt 0) { $cap = $MaxBudgetUsd - $script:spentUsd }
+    if ($BudgetPerIterationUsd -gt 0 -and $BudgetPerIterationUsd -lt $cap) {
+        $cap = $BudgetPerIterationUsd
+    }
+    if ($cap -ne [double]::MaxValue -and $cap -gt 0.5) {
+        $capText = ([math]::Round($cap, 2)).ToString([System.Globalization.CultureInfo]::InvariantCulture)
+        [void]$claudeArgs.Add('--max-budget-usd'); [void]$claudeArgs.Add($capText)
     }
 
     $started = Get-Date
@@ -288,7 +302,20 @@ function Invoke-Claude {
         -WorkingDirectory $root -NoNewWindow -PassThru `
         -RedirectStandardOutput $OutPath -RedirectStandardError $ErrPath
     $null = $proc.Handle
-    $proc.WaitForExit()
+
+    $killed = $false
+    if ($IterationTimeoutMin -gt 0) {
+        if (-not $proc.WaitForExit($IterationTimeoutMin * 60 * 1000)) {
+            $killed = $true
+            Write-Line ('Iteration passed ' + $IterationTimeoutMin + ' min. Killing it.') 'Yellow'
+            # taskkill /T reaches the children too: claude spawns shells, and
+            # a surviving pytest would hold the database for the next one.
+            try { & taskkill /T /F /PID $proc.Id 2>$null | Out-Null } catch { }
+            try { [void]$proc.WaitForExit(15000) } catch { }
+        }
+    } else {
+        $proc.WaitForExit()
+    }
     $elapsed = ((Get-Date) - $started).TotalSeconds
 
     $stdout = ''
@@ -326,8 +353,94 @@ function Invoke-Claude {
         Summary        = $summary
         ApiErrorStatus = $apiStatus
         TerminalReason = $terminal
+        Killed         = $killed
         Raw            = ($stdout + "`n" + $stderr)
     }
+}
+
+function Write-Handoff {
+    <#  Leaves the next iteration a note about what this one left behind.
+
+        Iterations share no memory, so anything the next one must know has to
+        be a file. Without this note an iteration that ran out of time looked
+        exactly like one that did nothing, and its work sat uncommitted in the
+        tree until someone happened to notice.
+
+        The note is written by the driver, so it is in English. Everything the
+        agent writes for itself stays in Russian. #>
+    param(
+        [string] $Task,
+        [bool]   $Done,
+        [int]    $NewCommits,
+        [string[]] $DirtyPaths,
+        [bool]   $Killed
+    )
+
+    if ($Done -and $NewCommits -gt 0 -and $DirtyPaths.Count -eq 0) {
+        Remove-Item -LiteralPath $handoffPath -Force -ErrorAction SilentlyContinue
+        return
+    }
+
+    $lines = New-Object System.Collections.ArrayList
+    [void]$lines.Add('# Handoff from the previous iteration')
+    [void]$lines.Add('')
+    [void]$lines.Add('Written by the driver at ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '.')
+    [void]$lines.Add('')
+    [void]$lines.Add('| Fact | Value |')
+    [void]$lines.Add('|---|---|')
+    [void]$lines.Add('| task | ' + $Task + ' |')
+    [void]$lines.Add('| marked done | ' + $(if ($Done) { 'yes' } else { 'no' }) + ' |')
+    [void]$lines.Add('| commits made | ' + $NewCommits + ' |')
+    [void]$lines.Add('| uncommitted paths | ' + $DirtyPaths.Count + ' |')
+    [void]$lines.Add('| killed on timeout | ' + $(if ($Killed) { 'yes' } else { 'no' }) + ' |')
+    [void]$lines.Add('')
+
+    if ($DirtyPaths.Count -gt 0) {
+        [void]$lines.Add('## Uncommitted work is waiting')
+        [void]$lines.Add('')
+        [void]$lines.Add('These paths changed but were never committed:')
+        [void]$lines.Add('')
+        foreach ($p in ($DirtyPaths | Select-Object -First 40)) {
+            [void]$lines.Add('- ' + $p)
+        }
+        if ($DirtyPaths.Count -gt 40) {
+            [void]$lines.Add('- ... and ' + ($DirtyPaths.Count - 40) + ' more')
+        }
+        [void]$lines.Add('')
+        [void]$lines.Add('Read them with git diff, finish them, commit them in their own')
+        [void]$lines.Add('commit. Then start your own task. This work is already paid for.')
+        [void]$lines.Add('')
+    }
+
+    if ($Killed) {
+        [void]$lines.Add('## The previous iteration was killed')
+        [void]$lines.Add('')
+        [void]$lines.Add('It passed the time limit. It most likely waited on a long command.')
+        [void]$lines.Add('Do not repeat that command at full size. Measure on a sample and')
+        [void]$lines.Add('scale the number, or split the task in two.')
+        [void]$lines.Add('')
+    } elseif (-not $Done -and $NewCommits -eq 0 -and $DirtyPaths.Count -eq 0) {
+        [void]$lines.Add('## The previous iteration produced nothing')
+        [void]$lines.Add('')
+        [void]$lines.Add('No commit, no change in the tree, no tick in the backlog. Work out')
+        [void]$lines.Add('why before repeating it. The task may be too large for one turn, or')
+        [void]$lines.Add('it may rest on something that does not exist yet.')
+        [void]$lines.Add('')
+    } elseif (-not $Done -and $NewCommits -gt 0) {
+        [void]$lines.Add('## Committed but not ticked')
+        [void]$lines.Add('')
+        [void]$lines.Add('The work landed in git but the backlog line still shows [ ]. Check')
+        [void]$lines.Add('whether the task is in fact finished. If it is, tick it and move on.')
+        [void]$lines.Add('')
+    } elseif ($Done -and $NewCommits -eq 0) {
+        [void]$lines.Add('## Ticked without a commit')
+        [void]$lines.Add('')
+        [void]$lines.Add('The backlog says done but git has nothing new. Either the work was')
+        [void]$lines.Add('pure documentation already in place, or the tick is wrong. Verify.')
+        [void]$lines.Add('')
+    }
+
+    $lines -join "`r`n" | Out-File -FilePath $handoffPath -Encoding utf8
 }
 
 function Test-LimitHit {
@@ -514,6 +627,8 @@ $limitAttempt = 0
 $infraFails = 0
 $maxInfraFails = 8
 $taskAttempts = @{}
+$taskEmpty = @{}
+$maxTaskAttempts = 4
 $iteration = 0
 
 # Iteration numbers restart with every run, so a second run overwrote the logs
@@ -667,29 +782,86 @@ while ($true) {
 
     # Gates. Pick the narrow scope unless asked for everything, and run the
     # full set every fifth iteration so a slow drift cannot hide.
-    # A repair iteration always gets the full set. A narrow scope could call
-    # the tree green while the gate that actually failed never ran.
-    $scope = 'all'
-    if (-not $FullGates -and $phase -ne 'repair' -and ($iteration % 5 -ne 0)) {
-        $scope = Get-ChangedScope -BaseSha $baseSha
-    }
-    & powershell -ExecutionPolicy Bypass -NoProfile -File (Join-Path $loop 'gates.ps1') -Scope $scope | Out-Host
-    $gatesOk = Test-GatesGreen
+    # What did the iteration actually change? Everything below hangs on this.
+    $newCommits = 0
+    $countText = (Invoke-Git @('rev-list', '--count', ($baseSha + '..HEAD'))).Trim()
+    if ($countText -match '^\d+$') { $newCommits = [int]$countText }
+    $dirtyPaths = @(Get-GitLines @('status', '--porcelain') |
+        Where-Object { $_.Length -gt 3 } |
+        ForEach-Object { $_.Substring(3).Trim() })
 
-    # Count attempts per task and park a task that keeps failing.
-    if ($phase -eq 'task') {
-        $done = $false
-        foreach ($line in (Get-BacklogLines)) {
-            if ($line -match ('^\s*-\s*\[[x\-]\]\s*\*\*' + [regex]::Escape($taskId) + '\*\*')) { $done = $true }
+    $done = $false
+    foreach ($line in (Get-BacklogLines)) {
+        if ($line -match ('^\s*-\s*\[[x\-]\]\s*\*\*' + [regex]::Escape($taskId) + '\*\*')) { $done = $true }
+    }
+
+    Write-Line ('commits ' + $newCommits + ', uncommitted paths ' + $dirtyPaths.Count + ', task ' + $(if ($done) { 'done' } else { 'open' }))
+
+    # Nothing changed means nothing to check. A full gate run costs minutes,
+    # and running it over an unchanged tree only proves the last run again.
+    if ($newCommits -eq 0 -and $dirtyPaths.Count -eq 0) {
+        Write-Line 'Tree unchanged. Skipping the gates.' 'Yellow'
+        $gatesOk = Test-GatesGreen
+    } else {
+        # A repair iteration always gets the full set. A narrow scope could
+        # call the tree green while the gate that actually failed never ran.
+        $scope = 'all'
+        $full = $true
+        if (-not $FullGates -and $phase -ne 'repair' -and ($iteration % 5 -ne 0)) {
+            $scope = Get-ChangedScope -BaseSha $baseSha
+            $full = $false
         }
+        $gateArgs = @('-ExecutionPolicy', 'Bypass', '-NoProfile', '-File',
+            (Join-Path $loop 'gates.ps1'), '-Scope', $scope)
+        # The slow tests ride along only on a full run. Every other iteration
+        # gets the fast subset, which is the whole point of the split.
+        if ($full) { $gateArgs += '-IncludeSlow' }
+        & powershell @gateArgs | Out-Host
+        $gatesOk = Test-GatesGreen
+    }
+
+    Write-Handoff -Task $taskId -Done $done -NewCommits $newCommits `
+        -DirtyPaths $dirtyPaths -Killed ([bool]$run.Killed)
+
+    # Count attempts per task and park a task that keeps failing. An attempt
+    # that moved the work forward is not a failed attempt: a task split across
+    # two iterations must not be parked for making progress twice.
+    # Two counters, because two things go wrong in different ways. A task that
+    # produces nothing is stuck. A task that produces something every time but
+    # never ticks is too large, and counting only the first kind would let it
+    # run forever: T19 committed on every attempt and still never finished.
+    if ($phase -eq 'task') {
         if ($done) {
             $taskAttempts.Remove($taskId)
+            $taskEmpty.Remove($taskId)
         } else {
             if (-not $taskAttempts.ContainsKey($taskId)) { $taskAttempts[$taskId] = 0 }
+            if (-not $taskEmpty.ContainsKey($taskId)) { $taskEmpty[$taskId] = 0 }
             $taskAttempts[$taskId] = $taskAttempts[$taskId] + 1
-            if ($taskAttempts[$taskId] -ge 3) {
+
+            $progress = ($newCommits -gt 0) -or ($dirtyPaths.Count -gt 0)
+            if ($progress) {
+                $taskEmpty[$taskId] = 0
+                Write-Line ('Task ' + $taskId + ' moved but is not ticked. Attempt ' + $taskAttempts[$taskId] + ' of ' + $maxTaskAttempts + '.') 'Yellow'
+            } else {
+                $taskEmpty[$taskId] = $taskEmpty[$taskId] + 1
+            }
+
+            $park = ''
+            if ($taskEmpty[$taskId] -ge 3) {
+                $park = 'produced nothing three times'
+            } elseif ($taskAttempts[$taskId] -ge $maxTaskAttempts) {
+                $park = 'ran ' + $maxTaskAttempts + ' times without finishing, so it is too large for one iteration'
+            }
+            if ($park) {
                 Add-Content -LiteralPath $blockedPath -Value $taskId -Encoding ASCII
-                Write-Line ('Task ' + $taskId + ' failed three times. Parked in loop/BLOCKED.txt.') 'Yellow'
+                Write-Line ('Task ' + $taskId + ' ' + $park + '. Parked in loop/BLOCKED.txt.') 'Yellow'
+                Add-Content -LiteralPath $handoffPath -Value (
+                    "`r`n## Task " + $taskId + ' was parked' + "`r`n`r`n" +
+                    'It ' + $park + '. It is now in loop/BLOCKED.txt and will be' + "`r`n" +
+                    'skipped. If it still matters, split it into smaller tasks at the end' + "`r`n" +
+                    'of loop/BACKLOG.md and remove its id from loop/BLOCKED.txt.' + "`r`n"
+                ) -Encoding utf8
             }
         }
     }
