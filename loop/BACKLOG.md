@@ -153,7 +153,7 @@
 - [x] **T23** `sonnet` — Написать тест компонента: положительный и
       отрицательный вклад, пустой список, вклад вне диапазона.
 
-- [ ] **T24** `sonnet` — Обновить мок `frontend/src/mocks/directions/unauthorizedAccess.ts`
+- [x] **T24** `sonnet` — Обновить мок `frontend/src/mocks/directions/unauthorizedAccess.ts`
       под новую форму блока. Моки и бэкенд обязаны давать одинаковую форму.
 
 ## Этап 6. Сквозная проверка
