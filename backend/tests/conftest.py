@@ -258,6 +258,21 @@ def _insert(conn: object) -> None:
     )
 
 
+@pytest.fixture(autouse=True)
+def forget_access_model() -> Iterator[None]:
+    """Чистит кэш модели направления доступа до и после каждого теста.
+
+    Плагин держит модель и объяснитель в кэше на весь процесс: чтение модели
+    стоит 47 мс, а конвейер зовёт его 7 894 раза за прогон. Внутри одного
+    процесса pytest кэш переживает тест и отдаёт следующему чужую заглушку.
+    """
+    from app.ml.plugins import unauthorized_access
+
+    unauthorized_access.reset_cache()
+    yield
+    unauthorized_access.reset_cache()
+
+
 @pytest.fixture
 def seeded() -> Iterator[None]:
     """Наполняет тестовую базу и чистит её после теста."""

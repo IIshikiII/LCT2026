@@ -101,8 +101,46 @@ _MODEL_MISSING = (
 )
 
 
+_CACHE: dict[str, Any] = {}
+
+
 def _model() -> Any | None:
-    return load_model(DIRECTION)
+    """Отдаёт модель направления, читая её с диска один раз на процесс.
+
+    `load_model` ходит в реестр MLflow по сети и разбирает файл модели. Это
+    стоит 47 мс, а конвейер зовёт `predict` и `explain` на каждом из 3 947
+    объектов, то есть 7 894 раза за прогон. Замер T19a: на чтение модели
+    уходило 46 % времени прогона.
+
+    Пустой результат не кладётся в кэш. Модели нет значит она может появиться
+    позже, и следующий вызов обязан её увидеть.
+    """
+    model = _CACHE.get("model")
+    if model is None:
+        model = load_model(DIRECTION)
+        if model is not None:
+            _CACHE["model"] = model
+    return model
+
+
+def _explainer(model: Any) -> Any:
+    """Отдаёт `shap.TreeExplainer` модели, строя его один раз на процесс.
+
+    Построение обходит все деревья ансамбля и стоит 20 мс. Сам расчёт вкладов
+    на одной строке стоит доли миллисекунды.
+    """
+    explainer = _CACHE.get("explainer")
+    if explainer is None:
+        import shap
+
+        explainer = shap.TreeExplainer(model)
+        _CACHE["explainer"] = explainer
+    return explainer
+
+
+def reset_cache() -> None:
+    """Забывает модель и объяснитель. Нужен тесту, который подменяет модель."""
+    _CACHE.clear()
 
 
 def _row(model: Any, features: FeatureVector) -> list[list[float]]:
@@ -325,10 +363,9 @@ class UnauthorizedAccess:
             raise RuntimeError(_MODEL_MISSING)
 
         import numpy as np
-        import shap
 
         moment = at if at is not None else datetime.now(UTC).replace(microsecond=0)
-        explainer = shap.TreeExplainer(model)
+        explainer = _explainer(model)
         # `shap_values` требует массив со свойством `shape`. Список списков он
         # не принимает: разбор входа читает `X.shape[1]` напрямую.
         raw = explainer.shap_values(np.asarray(_row(model, features), dtype=float))
