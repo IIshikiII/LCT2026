@@ -55,6 +55,9 @@ param(
     # hung command stalls the whole night.
     [int] $IterationTimeoutMin = 30,
 
+    # How often to print a line saying what the iteration is doing.
+    [int] $HeartbeatSec = 60,
+
     # Model for tasks with no tag in the backlog.
     [string] $DefaultModel = 'opus',
 
@@ -251,6 +254,47 @@ function Get-ChangedScope {
     return 'fast'
 }
 
+function Get-SessionTail {
+    <#  What the iteration is doing right now, read from its session log.
+
+        Claude Code writes the turn to JSONL under ~/.claude/projects. The
+        driver knows the file name because it sets the session id itself.
+        Without this the console stays silent for up to half an hour, and live
+        work looks exactly like a hang. #>
+    param([string] $SessionId)
+
+    if (-not $SessionId) { return '' }
+    $pattern = Join-Path $env:USERPROFILE ('.claude\projects\*\' + $SessionId + '.jsonl')
+    $file = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $file) { return '' }
+
+    try {
+        # Read several lines: the very last record is often bookkeeping.
+        $lines = Get-Content -LiteralPath $file.FullName -Tail 8 -Encoding UTF8 -ErrorAction Stop
+        [array]::Reverse($lines)
+        foreach ($line in $lines) {
+            if (-not $line.Trim()) { continue }
+            $row = $line | ConvertFrom-Json -ErrorAction Stop
+            $content = $row.message.content
+            if (-not $content) { continue }
+            foreach ($block in @($content)) {
+                if ($block.type -eq 'tool_use') {
+                    $name = [string]$block.name
+                    $hint = ''
+                    if ($block.input.command) { $hint = [string]$block.input.command }
+                    elseif ($block.input.file_path) { $hint = [string]$block.input.file_path }
+                    elseif ($block.input.description) { $hint = [string]$block.input.description }
+                    $hint = ($hint -replace '\s+', ' ')
+                    if ($hint.Length -gt 60) { $hint = $hint.Substring(0, 60) + '...' }
+                    if ($hint) { return $name + ': ' + $hint }
+                    return $name
+                }
+            }
+        }
+    } catch { }
+    return ''
+}
+
 function Invoke-Claude {
     <#  Runs one iteration. Returns a record with the outcome.
         Start-Process with redirected files is the only reliable way to get an
@@ -271,6 +315,10 @@ function Invoke-Claude {
     [void]$claudeArgs.Add('--output-format');   [void]$claudeArgs.Add('json')
     [void]$claudeArgs.Add('--settings');        [void]$claudeArgs.Add('"' + $settingsPath + '"')
     [void]$claudeArgs.Add('--name');            [void]$claudeArgs.Add($Name)
+    # A known session id is what makes progress reporting possible: the driver
+    # finds the session log by this name and shows what the iteration is doing.
+    $sessionId = [guid]::NewGuid().ToString()
+    [void]$claudeArgs.Add('--session-id');      [void]$claudeArgs.Add($sessionId)
 
     if ($Model -eq 'opus') {
         [void]$claudeArgs.Add('--effort'); [void]$claudeArgs.Add('high')
@@ -303,18 +351,31 @@ function Invoke-Claude {
         -RedirectStandardOutput $OutPath -RedirectStandardError $ErrPath
     $null = $proc.Handle
 
+    # Wait in slices instead of one WaitForExit: once a minute the console has
+    # to show that the iteration is alive and what it is busy with. Half an
+    # hour of silence is indistinguishable from a hang.
     $killed = $false
-    if ($IterationTimeoutMin -gt 0) {
-        if (-not $proc.WaitForExit($IterationTimeoutMin * 60 * 1000)) {
+    $deadline = $null
+    if ($IterationTimeoutMin -gt 0) { $deadline = $started.AddMinutes($IterationTimeoutMin) }
+    $lastBeat = Get-Date
+
+    while (-not $proc.WaitForExit($HeartbeatSec * 1000)) {
+        if ($deadline -and (Get-Date) -ge $deadline) {
             $killed = $true
             Write-Line ('Iteration passed ' + $IterationTimeoutMin + ' min. Killing it.') 'Yellow'
             # taskkill /T reaches the children too: claude spawns shells, and
             # a surviving pytest would hold the database for the next one.
             try { & taskkill /T /F /PID $proc.Id 2>$null | Out-Null } catch { }
             try { [void]$proc.WaitForExit(15000) } catch { }
+            break
         }
-    } else {
-        $proc.WaitForExit()
+        if (((Get-Date) - $lastBeat).TotalSeconds -ge $HeartbeatSec) {
+            $lastBeat = Get-Date
+            $mins = [int]((Get-Date) - $started).TotalMinutes
+            $doing = Get-SessionTail -SessionId $sessionId
+            if ($doing) { Write-Line ('   ' + $mins + ' min | ' + $doing) 'DarkGray' }
+            else { Write-Line ('   ' + $mins + ' min | working') 'DarkGray' }
+        }
     }
     $elapsed = ((Get-Date) - $started).TotalSeconds
 

@@ -16,6 +16,12 @@ def main(argv: list[str] | None = None) -> int:
     app_logging.setup(config.log_level)
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     parser.add_argument("command", choices=COMMANDS)
+    parser.add_argument(
+        "--facilities",
+        type=int,
+        default=None,
+        help="число объектов для команды seed, по умолчанию число из app.synth.generate",
+    )
     args = parser.parse_args(argv)
 
     if args.command == "migrate":
@@ -35,10 +41,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "seed":
         from app.db import engine
-        from app.synth.generate import generate
+        from app.synth.generate import DEFAULT_FACILITY_COUNT, generate
 
+        count = args.facilities if args.facilities is not None else DEFAULT_FACILITY_COUNT
         with engine().begin() as conn:
-            seeded = generate(conn)
+            seeded = generate(conn, facility_count=count)
         print(
             f"посев: {seeded.collector_count} коллекторов, "
             f"{seeded.facility_count} объектов, "
