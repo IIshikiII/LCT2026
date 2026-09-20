@@ -14,6 +14,20 @@ import { z } from 'zod'
 /** Мягкий объект. Псевдоним нужен, чтобы правило читалось в каждой схеме. */
 const dto = z.looseObject
 
+/**
+ * Необязательное поле: отсутствие ключа и `null` значат одно и то же.
+ *
+ * Бэкенд на FastAPI отдаёт пустое значение как `null`, а не пропускает ключ:
+ * `"orderId": null`, `"device": null`, `"terminal": null`. Голый `.optional()`
+ * такой ответ отвергает, и разбор всей карточки уходит в запасной путь
+ * `parseTolerant`. Схема тогда перестаёт быть точкой наблюдения: она ругается
+ * на каждый ответ. Поэтому `null` принимается и приводится к `undefined` —
+ * типы в ./types.ts обещают именно `undefined`.
+ */
+function opt<T extends z.ZodType>(schema: T) {
+  return schema.nullish().transform((value) => value ?? undefined)
+}
+
 export const DirectionMetaSchema = dto({
   code: z.string(),
   label: z.string(),
@@ -33,8 +47,8 @@ export const StatusMetaSchema = dto({
   code: z.string(),
   label: z.string(),
   scope: z.string(),
-  colorVar: z.string().optional(),
-  terminal: z.boolean().optional(),
+  colorVar: opt(z.string()),
+  terminal: opt(z.boolean()),
 })
 
 export const ReasonOptionSchema = dto({
@@ -61,9 +75,9 @@ export const AppMetaSchema = dto({
 export const FacilityRefSchema = dto({
   id: z.string(),
   collector: z.string(),
-  section: z.string().optional(),
-  chamber: z.string().optional(),
-  device: z.string().optional(),
+  section: opt(z.string()),
+  chamber: opt(z.string()),
+  device: opt(z.string()),
   district: z.string(),
   address: z.string(),
   lat: z.number(),
@@ -81,18 +95,18 @@ export const FieldDefSchema = dto({
   name: z.string(),
   label: z.string(),
   type: z.string(),
-  required: z.boolean().optional(),
-  minLength: z.number().optional(),
-  optionsRef: z.string().optional(),
-  placeholder: z.string().optional(),
-  help: z.string().optional(),
+  required: opt(z.boolean()),
+  minLength: opt(z.number()),
+  optionsRef: opt(z.string()),
+  placeholder: opt(z.string()),
+  help: opt(z.string()),
 })
 
 export const ActionDefSchema = dto({
   code: z.string(),
   label: z.string(),
   kind: z.string(),
-  confirm: z.string().optional(),
+  confirm: opt(z.string()),
   fields: z.array(FieldDefSchema),
 })
 
@@ -107,7 +121,7 @@ export const PredictionSchema = dto({
   status: z.string(),
   facility: FacilityRefSchema,
   summary: z.string(),
-  orderId: z.string().optional(),
+  orderId: opt(z.string()),
 })
 
 export const PredictionDetailSchema = dto({
@@ -133,7 +147,7 @@ export const WorkOrderSchema = dto({
   status: z.string(),
   createdAt: z.string(),
   actions: z.array(ActionDefSchema),
-  outcome: WorkOrderOutcomeSchema.optional(),
+  outcome: opt(WorkOrderOutcomeSchema),
 })
 
 export const ModelMetricSchema = dto({
@@ -167,13 +181,13 @@ export const DashboardSummarySchema = dto({
 
 export const SeriesSchema = dto({
   name: z.string(),
-  unit: z.string().optional(),
+  unit: opt(z.string()),
   points: z.array(dto({ t: z.string(), v: z.number() })),
 })
 
 export const TimeSeriesResponseSchema = dto({
   series: z.array(SeriesSchema),
-  markerAt: z.string().optional(),
+  markerAt: opt(z.string()),
 })
 
 /** GeoJSON не валидируем построчно: карта сама переживёт битую геометрию. */

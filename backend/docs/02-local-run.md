@@ -37,6 +37,63 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
 дублей: объекты и события те же. Наполняются только `collector`, `facility` и
 `alarm_event` — этого достаточно для направления «несанкционированный доступ».
 
+## Сквозная проверка
+
+Проверка ведёт данные от пустой базы до карточки прогноза в браузере. Выполните
+шаги по порядку из каталога `backend`.
+
+1. Поднимите базу и API:
+   ```
+   docker compose up -d db api
+   ```
+2. Примените миграции:
+   ```
+   docker compose run --rm pipeline uv run --no-sync python -m app.cli migrate
+   ```
+3. Посейте синтетику. Сорок объектов хватает для проверки и считаются за
+   секунды:
+   ```
+   docker compose run --rm pipeline uv run --no-sync python -m app.cli seed --facilities 40
+   ```
+4. Прогоните конвейер:
+   ```
+   docker compose run --rm pipeline uv run --no-sync python -m app.cli run-pipeline
+   ```
+   Команда печатает итог вида `прогон 1: 40 прогнозов, 3 заявок, 3250 мс`.
+5. Возьмите список прогнозов и выберите из него идентификатор с уровнем `HIGH`
+   или `CRITICAL`:
+   ```
+   curl -s "http://127.0.0.1:8000/api/v1/predictions?limit=5"
+   ```
+6. Возьмите карточку этого прогноза:
+   ```
+   curl -s "http://127.0.0.1:8000/api/v1/predictions/<id>"
+   ```
+
+Карточка обязана содержать три блока: `factors`, `timeseries` и `timeline`.
+Блок `factors` держит массив `items`, у каждой строки есть `label` и `weight`,
+и вес лежит в диапазоне от минус 1 до 1.
+
+### Чем проверить форму ответа
+
+Схемы фронтенда лежат в `frontend/src/shared/api/schemas.ts`. Сохраните ответы
+шагов 5 и 6 в файлы и разберите их схемами `PredictionSchema` и
+`PredictionDetailSchema`. Разбор обязан пройти без замечаний.
+
+Замечание `Invalid input: expected string, received null` значит, что бэкенд
+отдал пустое поле как `null`, а схема ждала пропуска ключа. Такое поле надо
+обернуть хелпером `opt()`. Правило записано в
+`frontend/docs/02-api-contract.md`, раздел «Пустое поле».
+
+### Две ловушки этой проверки
+
+1. **MLflow отвечает 403 на запрос версии модели.** Текст ошибки —
+   `Invalid Host header - possible DNS rebinding attack detected`. Конвейер это
+   переживает: он читает модель из файла `artifacts/unauthorized_access/latest.joblib`
+   и пишет в журнал `модель прочитана из файла`. Прогнозы при этом настоящие.
+2. **Консоль Windows портит кириллицу в выводе `curl`.** Ответ в файле целый,
+   ломается только показ. Читайте файл, а не поток.
+
 ## Разведочный анализ
 
 Набор `research` ни в один образ сервиса не входит. JupyterLab поднимается
