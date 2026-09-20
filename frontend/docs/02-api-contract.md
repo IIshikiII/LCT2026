@@ -95,6 +95,23 @@ POST /predictions/{id}/actions/{code} → PredictionDetail
 
 `PredictionDetail` = `Prediction` + `blocks: CardBlock[]` + `actions: ActionDef[]`.
 
+`CardBlock` = `{ type, title, data }`. Форма `data` блока `factors`:
+
+```ts
+interface FactorsBlockData {
+  items: { label: string; weight: number; value?: string }[] // weight: -1..1
+  note?: string
+}
+```
+
+`items` приходит отсортированным по модулю `weight`, сильнейший первым. Ось
+полосы фиксирована на ±1 и не считается от максимума списка: значение вне
+диапазона прижимается к границе. Список длиннее шести строк сворачивает фронт,
+а не сервер. `note` — необязательная строка под полосами: она объясняет, почему
+веса не складываются в вероятность из шапки карточки (актуально для направлений
+с объяснением через SHAP). Решение и его причины — в
+[adr/0011-shap-block.md](adr/0011-shap-block.md).
+
 ### Единый эндпоинт действий
 
 ```

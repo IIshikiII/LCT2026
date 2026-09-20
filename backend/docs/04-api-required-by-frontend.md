@@ -461,7 +461,7 @@ generic renderer, so the backend may send an experimental block without asking.
 
 | `type` | Shape of `data` |
 |---|---|
-| `factors` | `{ items: [{ label, weight, value? }] }`. `weight` is -1 to 1 |
+| `factors` | `{ items: [{ label, weight, value? }], note? }`. `weight` is -1 to 1 |
 | `timeseries` | `{ series: Series[], markerAt: string }` |
 | `timeline` | `{ events: [{ at, title, kind, note? }] }` |
 | `table` | `{ columns: [{ key, header, align? }], rows: [{}] }` |
@@ -469,6 +469,26 @@ generic renderer, so the backend may send an experimental block without asking.
 
 A prediction must carry at least one `factors` block and one `timeseries` block.
 Without them the dispatcher cannot judge the prediction.
+
+### `factors` block
+
+`items` is sorted by `weight` descending by absolute value, strongest first. Drop
+an item whose `weight` has an absolute value below 0.02: such a factor moves the
+predicted probability by less than 4 percent and only adds noise. Keep the three
+strongest items regardless of their weight, even when every weight in the
+prediction is weak.
+
+`note` is optional, one line of text. It tells the dispatcher why the bars do not
+sum to the probability shown at the top of the card. Send it for every direction
+whose weights come from SHAP, because the additive property holds in log-odds
+space, not in probability space. A direction without an explanation model may
+omit `note`.
+
+The frontend does not scale the bar axis to the strongest item in the list: the
+axis is fixed at -1 to 1 for every card. A `weight` outside that range is clamped
+to the border, not dropped. See
+[../../frontend/docs/adr/0011-shap-block.md](../../frontend/docs/adr/0011-shap-block.md)
+for why this block carries SHAP output instead of a new block type.
 
 ## 7. Actions
 
