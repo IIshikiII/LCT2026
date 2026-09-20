@@ -143,7 +143,7 @@
       `frontend/docs/adr/0011-shap-block.md` с доводами. Архитектурное правило
       2 нарушать нельзя.
 
-- [ ] **T21** `sonnet` — Обновить `frontend/docs/02-api-contract.md` и
+- [x] **T21** `sonnet` — Обновить `frontend/docs/02-api-contract.md` и
       `backend/docs/04-api-required-by-frontend.md` под принятое решение.
       Только документация, без кода.
 
