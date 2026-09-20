@@ -166,7 +166,7 @@
       минуты: заложи это в итерацию. Записать команды в
       `backend/docs/02-local-run.md`.
 
-- [ ] **T26** `sonnet` — Написать `ml/access/README.md` целиком: что считает
+- [x] **T26** `sonnet` — Написать `ml/access/README.md` целиком: что считает
       каждый скрипт, какие числа получены, как повторить.
 
 - [ ] **T27** `opus` — Обновить `TODO.md`, `hackathon-gap-analysis.md` и
