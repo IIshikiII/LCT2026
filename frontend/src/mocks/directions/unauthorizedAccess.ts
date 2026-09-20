@@ -88,34 +88,38 @@ export const unauthorizedAccess: DirectionPlugin = {
     })
 
     return [
-      factorsBlock('Почему модель так решила', [
-        {
-          label: 'Ночные срабатывания за 30 суток',
-          weight: Math.min(0.9, nightAlarms * 0.11),
-          value: `${nightAlarms}`,
-        },
-        {
-          label: 'Срабатывания без действующего допуска',
-          weight: 0.44 + seed.probability * 0.35,
-          value: `${rnd.int(1, 6)}`,
-        },
-        {
-          label: 'Серия событий на соседних объектах',
-          weight: rnd.bool(0.5) ? 0.37 : 0.12,
-          value: `${rnd.int(0, 4)} объекта`,
-        },
-        {
-          label: 'Наличие СКУД',
-          weight: f.hasAccessControl ? -0.45 : 0.3,
-          value: f.hasAccessControl ? 'установлен' : 'отсутствует',
-        },
-        {
-          label: 'Состояние запорного механизма',
-          weight: f.inspectionScore >= 4 ? -0.3 : 0.35,
-          value: `${f.inspectionScore} из 5`,
-        },
-        { label: 'Удалённость от поста охраны', weight: 0.19, value: `${rnd.int(1, 9)} км` },
-      ]),
+      factorsBlock(
+        'Почему модель так решила',
+        [
+          {
+            label: 'Ночные срабатывания за 30 суток',
+            weight: Math.min(0.9, nightAlarms * 0.11),
+            value: `${nightAlarms}`,
+          },
+          {
+            label: 'Срабатывания без действующего допуска',
+            weight: 0.44 + seed.probability * 0.35,
+            value: `${rnd.int(1, 6)}`,
+          },
+          {
+            label: 'Серия событий на соседних объектах',
+            weight: rnd.bool(0.5) ? 0.37 : 0.12,
+            value: `${rnd.int(0, 4)} объекта`,
+          },
+          {
+            label: 'Наличие СКУД',
+            weight: f.hasAccessControl ? -0.45 : 0.3,
+            value: f.hasAccessControl ? 'установлен' : 'отсутствует',
+          },
+          {
+            label: 'Состояние запорного механизма',
+            weight: f.inspectionScore >= 4 ? -0.3 : 0.35,
+            value: `${f.inspectionScore} из 5`,
+          },
+          { label: 'Удалённость от поста охраны', weight: 0.19, value: `${rnd.int(1, 9)} км` },
+        ],
+        'Полосы показывают силу и направление фактора, а не слагаемые вероятности.',
+      ),
 
       timelineBlock('Журнал доступов за 30 суток', journal),
 

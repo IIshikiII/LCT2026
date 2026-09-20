@@ -18,9 +18,9 @@ export interface FactorItem {
 }
 
 /** Вклад признаков — горизонтальные полосы в обе стороны от нуля. */
-export function factorsBlock(title: string, items: FactorItem[]): CardBlock {
+export function factorsBlock(title: string, items: FactorItem[], note?: string): CardBlock {
   const sorted = [...items].sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))
-  return { type: 'factors', title, data: { items: sorted } }
+  return { type: 'factors', title, data: note ? { items: sorted, note } : { items: sorted } }
 }
 
 /** График показаний с вертикальной отметкой момента прогноза. */
