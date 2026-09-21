@@ -1,0 +1,23 @@
+{
+  "direction": "SENSOR_FAILURE",
+  "horizon_hours": 24,
+  "units": 2550,
+  "channels": 5211,
+  "alarm_hours": 70970,
+  "alarm_moments": 392818,
+  "hourly": {
+    "grid": "единица и час, окно 24 ч",
+    "cells": 105862704,
+    "positive": 1198176,
+    "base_pct": 1.132,
+    "naive_precision_pct": 17.899,
+    "naive_recall_pct": 17.878
+  },
+  "daily": {
+    "grid": "единица и сутки",
+    "cells": 4410946,
+    "positive": 49626,
+    "base_pct": 1.125,
+    "naive_precision_pct": 16.83
+  }
+}
