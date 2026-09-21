@@ -122,19 +122,43 @@ _MUTABLE_TABLES_SQL = text("""
 # или рабочей базой, а `TRUNCATE ... CASCADE` снимает вообще все таблицы.
 LOCAL_HOSTS = frozenset({None, "", "localhost", "127.0.0.1", "::1", "db"})
 
+# Суффикс имени тестовой базы. Адрес выводит корневой `conftest.py`, см. ADR 0005.
+TEST_SUFFIX = "_test"
 
-def _require_local_database() -> None:
-    """Запрещает чистку, если база не локальная.
+
+def check_database(host: str | None, name: str | None) -> str | None:
+    """Отдаёт причину отказа или `None`, если чистить базу разрешено.
+
+    Два условия. Хост обязан быть локальным, иначе база может оказаться чужой.
+    Имя обязано кончаться на `_test`, иначе база может оказаться рабочей.
+
+    Одного хоста мало. Рабочая база `arm` лежит на том же `127.0.0.1`, что и
+    тестовая `arm_test`, поэтому хост её не отличает. Ворота снимали рабочую
+    базу целиком именно так.
+    """
+    if host not in LOCAL_HOSTS:
+        return (
+            f"база не локальная: хост {host!r}. "
+            f"Разрешены {', '.join(sorted(h for h in LOCAL_HOSTS if h))}."
+        )
+    if not (name or "").endswith(TEST_SUFFIX):
+        return f"имя базы {name!r} не кончается на {TEST_SUFFIX!r}. Это похоже на рабочую базу."
+    return None
+
+
+def _require_test_database() -> None:
+    """Запрещает чистку, если база не тестовая.
 
     Раньше чистка перечисляла семь таблиц руками и могла испортить меньше.
-    Теперь она снимает всё, поэтому ошибка в `DATABASE_URL` стоила бы рабочих
-    данных. Проверка стоит наносекунды и закрывает этот случай навсегда.
+    Теперь она снимает всё, поэтому ошибка в адресе стоила бы рабочих данных.
+    Проверка стоит наносекунды и закрывает этот случай навсегда.
     """
-    host = engine().url.host
-    if host not in LOCAL_HOSTS:
+    url = engine().url
+    reason = check_database(url.host, url.database)
+    if reason is not None:
         pytest.exit(
-            f"Тесты чистят базу целиком и работают только с локальной базой. "
-            f"DATABASE_URL указывает на хост {host!r}. Проверьте переменную.",
+            f"Тесты чистят базу целиком и работают только с тестовой базой. {reason} "
+            f"Назовите адрес переменной TEST_DATABASE_URL.",
             returncode=2,
         )
 
@@ -149,7 +173,7 @@ def reset_database(conn: object) -> None:
     Схему это не трогает: `schema_migration` остаётся на месте, и повторный
     `migrate.run()` ничего не переприменяет.
     """
-    _require_local_database()
+    _require_test_database()
     names = conn.execute(_MUTABLE_TABLES_SQL).scalars().all()  # type: ignore[attr-defined]
     if not names:
         return
