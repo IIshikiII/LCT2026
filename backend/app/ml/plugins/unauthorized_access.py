@@ -69,7 +69,7 @@ from sqlalchemy.engine import Connection
 from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
 from app.ml.protocol import Block, FeatureContext, FeatureVector, Window
 from app.ml.registry import register
-from app.ml.tracking import load_model
+from app.ml.tracking import load_calibrator, load_model
 
 DIRECTION = "UNAUTHORIZED_ACCESS"
 
@@ -121,6 +121,22 @@ def _model() -> Any | None:
         if model is not None:
             _CACHE["model"] = model
     return model
+
+
+def _calibrator() -> Any | None:
+    """Отдаёт калибратор вероятности направления, читая его с диска один раз.
+
+    Файла `calibration.joblib` нет значит направление ещё не откалибровано
+    (T28): `predict` тогда отдаёт сырую вероятность бустера, а не падает.
+    Как и у модели, пустой результат не кладётся в кэш, чтобы калибратор,
+    появившийся после старта процесса, подхватился на следующем вызове.
+    """
+    calibrator = _CACHE.get("calibrator")
+    if calibrator is None:
+        calibrator = load_calibrator(DIRECTION)
+        if calibrator is not None:
+            _CACHE["calibrator"] = calibrator
+    return calibrator
 
 
 def _explainer(model: Any) -> Any:
@@ -338,10 +354,21 @@ class UnauthorizedAccess:
         return build_features(ctx)
 
     def predict(self, features: FeatureVector) -> float:
+        """Отдаёт вероятность события, откалиброванную, если калибратор есть.
+
+        Бустер даёт монотонный, но не откалиброванный ранг (ADR 0002, T28).
+        `calibration.joblib` чинит это изотонической регрессией. Файла нет
+        значит калибровки нет, и метод отдаёт сырую вероятность бустера, а
+        не падает: направление без калибратора работает, как работало.
+        """
         model = _model()
         if model is None:
             raise RuntimeError(_MODEL_MISSING)
-        return float(model.predict(_row(model, features))[0])
+        raw = float(model.predict(_row(model, features))[0])
+        calibrator = _calibrator()
+        if calibrator is None:
+            return raw
+        return float(calibrator.predict([raw])[0])
 
     def explain(self, features: FeatureVector, at: datetime | None = None) -> list[Block]:
         """Отдаёт три блока карточки: `factors`, `timeseries` и `timeline`.

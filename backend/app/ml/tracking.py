@@ -23,6 +23,7 @@ from app.config import config
 log = logging.getLogger(__name__)
 
 SUFFIX = ".joblib"
+CALIBRATION_FILENAME = "calibration.joblib"
 
 
 def _local_dir(direction: str) -> Path:
@@ -183,3 +184,31 @@ def _from_file(direction: str, version: str | None) -> Any | None:
 
     log.info("модель прочитана из файла", extra={"direction": direction, "path": str(path)})
     return model
+
+
+def load_calibrator(direction: str) -> Any | None:
+    """Отдаёт калибратор вероятности направления. Отдаёт None без файла.
+
+    Калибратор не ходит в реестр MLflow и не версионируется: файл лежит
+    рядом с моделью, `ARTIFACTS_DIR/<направление>/calibration.joblib`, и
+    его кладёт туда обучение (`ml/access/05_calibrate.py`). Файла нет
+    значит направление не откалибровано, и это законное состояние, а не
+    отказ: вызывающий код обязан вернуться к сырой вероятности модели.
+    """
+    path = _local_dir(direction) / CALIBRATION_FILENAME
+    if not path.is_file():
+        return None
+
+    try:
+        import joblib
+
+        calibrator = joblib.load(path)
+    except Exception as error:  # noqa: BLE001 — битый файл не должен ронять прогон
+        log.warning(
+            "файл калибратора не прочитан",
+            extra={"direction": direction, "path": str(path), "error": str(error)},
+        )
+        return None
+
+    log.info("калибратор прочитан из файла", extra={"direction": direction, "path": str(path)})
+    return calibrator
