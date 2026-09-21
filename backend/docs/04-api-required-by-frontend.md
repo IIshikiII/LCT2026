@@ -434,6 +434,11 @@ Risk levels and the probability bands the mocks use:
 | `HIGH` | Высокий | 0.55 to 0.78 |
 | `CRITICAL` | Критический | 0.78 and above |
 
+These bands are the default. The server assigns the level and sends the code in
+the prediction, so the client does not calculate it. A direction can replace the
+bands with its own numbers, because the base rate of an event differs between
+directions. `UNAUTHORIZED_ACCESS` uses 0.009438, 0.035251 and 0.04. See ADR 0004.
+
 Prediction statuses: `NEW`, `IN_REVIEW`, `ORDER_CONFIRMED`, `REJECTED`, `CLOSED`.
 
 Order statuses: `AUTO_CREATED`, `CONFIRMED`, `IN_PROGRESS`, `REJECTED`, `DONE`.

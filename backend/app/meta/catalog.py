@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.meta.directions import Reason
+from app.meta.directions import REGISTRY, Direction, Reason
 
 PREDICTION_SCOPE = "prediction"
 ORDER_SCOPE = "order"
@@ -136,18 +136,43 @@ def mute_hours(reason: str | None, fallback: int) -> int:
     return REJECTION_MUTE_HOURS.get(reason, fallback)
 
 
-def level_for(probability: float) -> str:
-    """Отдаёт код уровня риска по вероятности."""
+def level_for(probability: float, direction: Direction | None = None) -> str:
+    """Отдаёт код уровня риска по вероятности.
+
+    Направление названо и держит свои границы значит счёт идёт по ним.
+    Иначе счёт идёт по общим порогам `RISK_LEVELS`. Разбор — ADR 0004.
+
+    Границы направления стоят на той же шкале, что и `prediction.probability`.
+    Направление с базой события ниже процента не достаёт до общих порогов ни
+    одним прогнозом, и шкала уровней на нём сжимается в один уровень `LOW`.
+    """
+    bands = direction.level_thresholds if direction is not None else ()
+    if not bands:
+        bands = tuple((level.code, level.min_probability) for level in RISK_LEVELS)
+
     code = RISK_LEVELS[0].code
-    for level in RISK_LEVELS:
-        if probability >= level.min_probability:
-            code = level.code
+    for level_code, lower_bound in bands:
+        if probability >= lower_bound:
+            code = level_code
     return code
 
 
 def level_order(code: str) -> int:
     """Отдаёт порядковый номер уровня. Неизвестный уровень считается низшим."""
     return next((item.order for item in RISK_LEVELS if item.code == code), 0)
+
+
+# Границы направления обязаны называть уровень из `RISK_LEVELS` и идти по
+# возрастанию. Опечатка в границах даёт диспетчеру уровень, которого нет в
+# `/meta`, поэтому она обязана ронять сервис на старте, а не на прогнозе.
+for _direction in REGISTRY:
+    _known = {level.code for level in RISK_LEVELS}
+    _unknown = [code for code, _ in _direction.level_thresholds if code not in _known]
+    if _unknown:
+        raise ValueError(f"направление {_direction.code} называет уровни вне RISK_LEVELS: {_unknown}")
+    _bounds = [value for _, value in _direction.level_thresholds]
+    if _bounds != sorted(_bounds):
+        raise ValueError(f"границы уровней направления {_direction.code} не возрастают: {_bounds}")
 
 
 def statuses_for(scope: str) -> tuple[Status, ...]:

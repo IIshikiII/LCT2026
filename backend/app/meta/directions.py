@@ -29,6 +29,9 @@ class Direction:
     min_horizon_hours: int
     reasons: tuple[Reason, ...]
     work_types: tuple[str, ...]
+    # Нижние границы уровней риска этого направления, по возрастанию. Пустое
+    # значение означает общие пороги `catalog.RISK_LEVELS`. ADR 0004.
+    level_thresholds: tuple[tuple[str, float], ...] = ()
     # Порог автозаявки и множитель срока по умолчанию. Спецификация §8.
     order_levels: tuple[str, ...] = ("HIGH", "CRITICAL")
     due_factor: float = 0.5
@@ -106,6 +109,12 @@ UNAUTHORIZED_ACCESS = Direction(
         "Проверка СКУД",
         "Выезд группы реагирования",
     ),
+    # База события 0,944 %, поэтому общие пороги 0,3, 0,55 и 0,78 держат всё
+    # направление в уровне LOW. Числа берутся из `ml/access/out/metrics.json`,
+    # ключ `decision.levels`: база, порог заявки ADR 0002 и граница калибровки.
+    # Шкала сырая, потому что `ARTIFACTS_DIR` бэкенда калибратора не держит.
+    # Разбор и таблица перевода в калиброванную шкалу — ADR 0004.
+    level_thresholds=(("MEDIUM", 0.009438), ("HIGH", 0.035251), ("CRITICAL", 0.04)),
 )
 
 # Пятое направление. Выключено по умолчанию: это тест на гибкость с обеих

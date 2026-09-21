@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.meta import catalog
+from app.meta import catalog, directions
 
 client = TestClient(app)
 
@@ -67,3 +67,40 @@ def test_level_for_matches_the_mock_probability_bands() -> None:
     assert catalog.level_for(0.55) == "HIGH"
     assert catalog.level_for(0.78) == "CRITICAL"
     assert catalog.level_for(1.00) == "CRITICAL"
+
+
+def test_level_for_uses_the_direction_bands() -> None:
+    """Направление со своими границами считает уровень по ним. ADR 0004."""
+    access = directions.UNAUTHORIZED_ACCESS
+    assert catalog.level_for(0.009, access) == "LOW"
+    assert catalog.level_for(0.009438, access) == "MEDIUM"
+    assert catalog.level_for(0.035, access) == "MEDIUM"
+    assert catalog.level_for(0.035251, access) == "HIGH"
+    assert catalog.level_for(0.04, access) == "CRITICAL"
+    # Число из находки T31: общие пороги давали этому прогнозу уровень LOW.
+    assert catalog.level_for(0.10, access) == "CRITICAL"
+
+
+def test_level_for_falls_back_to_the_common_bands() -> None:
+    """Направление без своих границ работает как раньше. ADR 0004 пункт 3."""
+    for direction in (directions.SENSOR_FAILURE, directions.FIRE_RISK, directions.FLOOD_RISK):
+        assert direction.level_thresholds == ()
+        for probability in (0.10, 0.30, 0.54, 0.55, 0.78, 1.00):
+            assert catalog.level_for(probability, direction) == catalog.level_for(probability)
+
+
+def test_direction_bands_name_known_levels_in_order() -> None:
+    """Граница обязана называть уровень из RISK_LEVELS и идти по возрастанию."""
+    codes = {level.code for level in catalog.RISK_LEVELS}
+    for direction in directions.REGISTRY:
+        bounds = [value for _, value in direction.level_thresholds]
+        assert all(code in codes for code, _ in direction.level_thresholds)
+        assert bounds == sorted(bounds)
+
+
+def test_the_access_band_of_high_equals_the_order_threshold() -> None:
+    """Автозаявка создаётся там, где её назначил ADR 0002. ADR 0004."""
+    access = directions.UNAUTHORIZED_ACCESS
+    bands = dict(access.level_thresholds)
+    assert access.order_levels == ("HIGH", "CRITICAL")
+    assert bands["HIGH"] == 0.035251

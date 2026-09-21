@@ -85,7 +85,7 @@ def _write_prediction(
             direction=direction.code,
             facility_id=facility_id,
             probability=probability,
-            level=level_for(probability),
+            level=level_for(probability, direction),
             horizon_hours=direction.min_horizon_hours,
             computed_at=at,
             computed_at_bucket=at,
