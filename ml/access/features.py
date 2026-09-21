@@ -32,6 +32,11 @@ backlog-строк T05/T06 (`loop/BACKLOG.md`):
 Каждый фильтр обязан читать `hour < at`, никогда `hour <= at`: признак не
 имеет права видеть час расчёта и позже, иначе прогноз смотрит в будущее.
 
+Нижняя граница окна включает свой час: `hour >= at - N HOUR`. Открытая
+граница `hour > at - 1 HOUR` не оставляет часовому окну ни одного часа, потому
+что и `hour`, и `at` стоят на границе часа. Признаки `n_alarms_1h` и
+`neighbor_channels_1h` до задачи T35 были поэтому нулями на всей панели.
+
 Признаки T06 берут дело QA-сессии §2.8: «проникновением считается
 последовательность сработок: дверь открыли, потом сработал объёмный датчик,
 потом движение туда и обратно».
@@ -58,7 +63,11 @@ backlog-строк T05/T06 (`loop/BACKLOG.md`):
   «дверь → объёмный датчик → движение» в строгом порядке отметок времени,
   каждый шаг на пикете не дальше `NEAR_PICKETS` от пикета точки `p` (близкий
   пикет), вся цепочка уместилась в окно `SEQUENCE_WINDOW_MINUTES` минут и
-  закончилась раньше `at`. Пикет и окно — оценка: пикет держит 10 метров
+  закончилась в последние `SEQUENCE_RECENCY_HOURS` часов до `at`. Длина
+  цепочки и срок её видимости — два разных числа. До задачи T35 оба равнялись
+  пятнадцати минутам, и признак ловил только цепочки, закрытые в последнюю
+  четверть часа перед границей часа: 19 клеток панели из 1 581 480. Срок
+  видимости равен горизонту прогноза. Пикет и окно — оценка: пикет держит 10 метров
   (`smvu-insights.md` §1), пять пикетов это 50 метров прохода, пятнадцать минут
   — короткий визит, а не рабочая смена. Оба числа документированы как решение,
   не как измерение: данных, размечающих настоящие проникновения, нет.
@@ -103,6 +112,9 @@ NEGATIVE_KEEP_RATE = 0.02
 # доступа. Обоснование — в docstring модуля, раздел про T06.
 NEAR_PICKETS = 5
 SEQUENCE_WINDOW_MINUTES = 15
+# Срок, в течение которого завершённая цепочка остаётся видна точке расчёта.
+# Равен горизонту прогноза: цепочка за сутки до `at` это след визита, а не шум.
+SEQUENCE_RECENCY_HOURS = HORIZON_HOURS
 
 DOOR_STYPES = ("КД Дверь", "КД Люк", "КД АВ")
 VOLUMETRIC_STYPE = "Состояние УИР-Р"
@@ -240,7 +252,7 @@ def build_features(
             p.at,
             (SELECT sum(a.n_moments) FROM {alarm} a
              WHERE (a.object_id, a.gallery, a.picket) = (p.object_id, p.gallery, p.picket)
-               AND a.hour > p.at - INTERVAL 1 HOUR AND a.hour < p.at) AS n_alarms_1h,
+               AND a.hour >= p.at - INTERVAL 1 HOUR AND a.hour < p.at) AS n_alarms_1h,
             (SELECT sum(a.n_moments) FROM {alarm} a
              WHERE (a.object_id, a.gallery, a.picket) = (p.object_id, p.gallery, p.picket)
                AND a.hour > p.at - INTERVAL 24 HOUR AND a.hour < p.at) AS n_alarms_24h,
@@ -267,7 +279,7 @@ def build_features(
                AND a.hour < p.at) AS past_moments,
             (SELECT max(a.n_channels) FROM {alarm} a
              WHERE (a.object_id, a.gallery, a.picket) = (p.object_id, p.gallery, p.picket)
-               AND a.hour > p.at - INTERVAL 1 HOUR AND a.hour < p.at) AS neighbor_channels_1h,
+               AND a.hour >= p.at - INTERVAL 1 HOUR AND a.hour < p.at) AS neighbor_channels_1h,
             CASE WHEN EXISTS (
                 SELECT 1 FROM disarm_window w
                 WHERE w.object_id = p.object_id
@@ -278,7 +290,7 @@ def build_features(
                 WHERE c.object_id = p.object_id AND c.gallery = p.gallery
                   AND abs(c.picket - p.picket) <= {NEAR_PICKETS}
                   AND c.completed_ts < p.at
-                  AND c.completed_ts >= p.at - INTERVAL {SEQUENCE_WINDOW_MINUTES} MINUTE
+                  AND c.completed_ts >= p.at - INTERVAL {SEQUENCE_RECENCY_HOURS} HOUR
             ) THEN 1 ELSE 0 END AS has_access_sequence,
             (SELECT sum(a.n_moments) FROM armed a
              WHERE (a.object_id, a.gallery, a.picket) = (p.object_id, p.gallery, p.picket)

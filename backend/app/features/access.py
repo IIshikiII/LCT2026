@@ -48,6 +48,11 @@
   той же `facility_id`. Это сужение, а не то же самое число: соседний пикет
   сюда не попадёт. Записано как документированное решение, не как измерение.
 
+Цепочка длится не дольше `SEQUENCE_WINDOW_MINUTES` минут, а видна точке
+расчёта `SEQUENCE_RECENCY_HOURS` часов. Оба числа повторяют
+`ml/access/features.py`. Задача T35 развела их: до неё срок видимости тоже
+равнялся пятнадцати минутам, и признак был нулём почти везде.
+
 Каждый запрос читает `occurred_at < at`, никогда `<= at`: признак не имеет
 права видеть момент расчёта и позже.
 """
@@ -65,6 +70,7 @@ ACCESS_ALARM_TYPES = ("DOOR_OPEN", "VOLUMETRIC", "MOTION")
 SECURITY_ARMED = "SECURITY_ARMED"
 SECURITY_DISARMED = "SECURITY_DISARMED"
 SEQUENCE_WINDOW_MINUTES = 15
+SEQUENCE_RECENCY_HOURS = 24
 NIGHT_START_HOUR = 22
 NIGHT_END_HOUR = 6
 
@@ -227,7 +233,7 @@ def _has_access_sequence(conn: Connection, facility_id: str, at: datetime) -> bo
             )
             SELECT 1 FROM chain
             WHERE completed_ts < :at
-              AND completed_ts >= :at - make_interval(mins => :window_minutes)
+              AND completed_ts >= :at - make_interval(hours => :recency_hours)
             LIMIT 1
             """
         ),
@@ -235,6 +241,7 @@ def _has_access_sequence(conn: Connection, facility_id: str, at: datetime) -> bo
             "facility_id": facility_id,
             "at": at,
             "window_minutes": SEQUENCE_WINDOW_MINUTES,
+            "recency_hours": SEQUENCE_RECENCY_HOURS,
         },
     ).fetchone()
     return row is not None
