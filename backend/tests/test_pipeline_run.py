@@ -19,7 +19,7 @@ from app.db import engine
 from app.ml.protocol import Block, FeatureContext, FeatureVector, Window
 from app.pipeline import run as pipeline_run_module
 from app.tables import facility, pipeline_run, prediction
-from tests.conftest import reset_database, seeded
+from tests.conftest import reset_database
 
 NOW = datetime(2026, 9, 18, 12, 0, tzinfo=UTC)
 
