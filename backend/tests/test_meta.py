@@ -72,13 +72,13 @@ def test_level_for_matches_the_mock_probability_bands() -> None:
 def test_level_for_uses_the_direction_bands() -> None:
     """Направление со своими границами считает уровень по ним. ADR 0004."""
     access = directions.UNAUTHORIZED_ACCESS
-    assert catalog.level_for(0.009, access) == "LOW"
-    assert catalog.level_for(0.009438, access) == "MEDIUM"
-    assert catalog.level_for(0.035, access) == "MEDIUM"
-    assert catalog.level_for(0.035251, access) == "HIGH"
-    assert catalog.level_for(0.04, access) == "CRITICAL"
+    assert catalog.level_for(0.05, access) == "LOW"
+    assert catalog.level_for(0.051913, access) == "MEDIUM"
+    assert catalog.level_for(0.16, access) == "MEDIUM"
+    assert catalog.level_for(0.163753, access) == "HIGH"
+    assert catalog.level_for(0.268961, access) == "CRITICAL"
     # Число из находки T31: общие пороги давали этому прогнозу уровень LOW.
-    assert catalog.level_for(0.10, access) == "CRITICAL"
+    assert catalog.level_for(0.30, access) == "CRITICAL"
 
 
 def test_level_for_falls_back_to_the_common_bands() -> None:
@@ -99,8 +99,13 @@ def test_direction_bands_name_known_levels_in_order() -> None:
 
 
 def test_the_access_band_of_high_equals_the_order_threshold() -> None:
-    """Автозаявка создаётся там, где её назначил ADR 0002. ADR 0004."""
+    """Автозаявка создаётся там, где её назначил ADR 0002, на шкале калибратора.
+
+    T37 положил `calibration.joblib` в `ARTIFACTS_DIR`, поэтому `HIGH` стоит на
+    калиброванной шкале, правый столбец таблицы ADR 0004, а не на сырой шкале
+    бустера ADR 0002.
+    """
     access = directions.UNAUTHORIZED_ACCESS
     bands = dict(access.level_thresholds)
     assert access.order_levels == ("HIGH", "CRITICAL")
-    assert bands["HIGH"] == 0.035251
+    assert bands["HIGH"] == 0.163753
