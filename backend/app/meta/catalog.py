@@ -169,7 +169,9 @@ for _direction in REGISTRY:
     _known = {level.code for level in RISK_LEVELS}
     _unknown = [code for code, _ in _direction.level_thresholds if code not in _known]
     if _unknown:
-        raise ValueError(f"направление {_direction.code} называет уровни вне RISK_LEVELS: {_unknown}")
+        raise ValueError(
+            f"направление {_direction.code} называет уровни вне RISK_LEVELS: {_unknown}"
+        )
     _bounds = [value for _, value in _direction.level_thresholds]
     if _bounds != sorted(_bounds):
         raise ValueError(f"границы уровней направления {_direction.code} не возрастают: {_bounds}")
