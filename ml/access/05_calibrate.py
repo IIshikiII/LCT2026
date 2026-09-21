@@ -49,6 +49,7 @@ ADR 0002, находка «Вероятность модели не равна �
 перебора: поднимать его дальше значит платить более редкой и шумной тревогой
 без калиброванного основания, что она вернее.
 """
+import itertools
 import json
 import pathlib
 
@@ -56,9 +57,8 @@ import duckdb
 import joblib
 import lightgbm as lgb
 import numpy as np
-from sklearn.isotonic import IsotonicRegression
-
 import train as train_module
+from sklearn.isotonic import IsotonicRegression
 
 OUT = pathlib.Path(__file__).resolve().parent / "out"
 MODEL = OUT / "model.txt"
@@ -75,7 +75,7 @@ def reliability(y: np.ndarray, w: np.ndarray, p: np.ndarray) -> list[dict[str, f
     среднюю предсказанную вероятность и взвешенную долю событий. Пустая
     корзина в вывод не попадает."""
     points = []
-    for lo, hi in zip(BIN_EDGES[:-1], BIN_EDGES[1:], strict=True):
+    for lo, hi in itertools.pairwise(BIN_EDGES):
         mask = (p >= lo) & (p < hi if hi < 1.0 else p <= hi)
         if not np.any(mask):
             continue

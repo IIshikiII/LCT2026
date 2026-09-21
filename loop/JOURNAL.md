@@ -779,3 +779,26 @@ possible DNS rebinding attack detected`. Конвейер переживает �
 **Дальше.** `BACKLOG.md` не держит открытых задач: T28 была последней. Находка
 про `level_for` заведена в `TODO.md`, следующая итерация может взять её или
 цель из `GOAL.md`.
+
+## REPAIR · 2026-09-21 · sonnet
+
+**Упало.** `ml ruff` — неотсортированный импорт и `zip()` вместо
+`itertools.pairwise()` в `ml/access/05_calibrate.py`. `backend tests (fast)` —
+`test_meta_flexibility.py::test_the_journal_and_the_map_accept_the_fifth_code`
+падал `sqlalchemy.exc.OperationalError: connection timeout expired`.
+
+**Причина.** Два независимых падения. `ml ruff`: T28 дописала импорты и цикл
+`zip` в новый файл, не прогнав `ruff` перед коммитом. `backend tests`: Docker
+Desktop не был запущен на машине, поэтому контейнер `arm-ods-db-1` не отвечал
+и каждый тест с базой упирался в таймаут соединения — это не дефект кода.
+
+**Починка.** В `05_calibrate.py` переставлен импорт `from sklearn.isotonic
+import IsotonicRegression` после `import train as train_module` и добавлен
+`import itertools`; цикл `reliability()` переписан на
+`itertools.pairwise(BIN_EDGES)`. Запущен Docker Desktop, поднят `docker
+compose up -d db` в `backend/`, дождался `healthy`.
+
+**Дальше.** Ворота `-Scope backend` зелёные целиком (ruff, mypy, tests, ml
+ruff, ml tests, 55 с). Если Docker Desktop не поднимается сам при перезапуске
+машины, следующей итерации нужно проверить это первым шагом при таймауте
+соединения с базой — это не баг в тестах.
