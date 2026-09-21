@@ -1,0 +1,67 @@
+{
+  "candidates": [
+    "n_alarms_1h",
+    "neighbor_channels_1h",
+    "has_access_sequence"
+  ],
+  "seeds": [
+    4217,
+    1301,
+    7717
+  ],
+  "noise_spread_pr_auc": 0.006652,
+  "full": {
+    "trees": 213,
+    "pr_auc": 0.081079,
+    "precision_at_naive_recall": 0.200779,
+    "seconds": 5.0
+  },
+  "variants": {
+    "n_alarms_1h": {
+      "trees": 315,
+      "pr_auc": 0.082768,
+      "precision_at_naive_recall": 0.199951,
+      "seconds": 7.1,
+      "dropped": [
+        "n_alarms_1h"
+      ],
+      "delta_pr_auc": -0.001689,
+      "above_noise": false
+    },
+    "neighbor_channels_1h": {
+      "trees": 4,
+      "pr_auc": 0.078553,
+      "precision_at_naive_recall": 0.226832,
+      "seconds": 1.3,
+      "dropped": [
+        "neighbor_channels_1h"
+      ],
+      "delta_pr_auc": 0.002526,
+      "above_noise": false
+    },
+    "has_access_sequence": {
+      "trees": 356,
+      "pr_auc": 0.079996,
+      "precision_at_naive_recall": 0.179252,
+      "seconds": 7.8,
+      "dropped": [
+        "has_access_sequence"
+      ],
+      "delta_pr_auc": 0.001083,
+      "above_noise": false
+    },
+    "все три": {
+      "trees": 5,
+      "pr_auc": 0.074514,
+      "precision_at_naive_recall": 0.210515,
+      "seconds": 1.3,
+      "dropped": [
+        "n_alarms_1h",
+        "neighbor_channels_1h",
+        "has_access_sequence"
+      ],
+      "delta_pr_auc": 0.006565,
+      "above_noise": false
+    }
+  }
+}

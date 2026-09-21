@@ -15,6 +15,6 @@
   "hours_since_last_alarm_min": 0,
   "is_disarmed_share_label1": 0.11859752514554174,
   "is_disarmed_share_label0": 0.17644739500134268,
-  "has_access_sequence_share_label1": 4.586248706534544e-05,
-  "has_access_sequence_share_label0": 2.4338578837930214e-06
+  "has_access_sequence_share_label1": 0.0005245521958098886,
+  "has_access_sequence_share_label0": 0.00012169289418965108
 }
