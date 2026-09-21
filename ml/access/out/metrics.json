@@ -121,5 +121,503 @@
     "max_additivity_gap": 7.105427357601002e-15,
     "tolerance": 1e-06,
     "rows_checked": 139329
+  },
+  "calibration": {
+    "method": "isotonic",
+    "fit_on": "valid",
+    "artifact": "calibration.joblib",
+    "brier_before": 0.009255,
+    "brier_after": 0.009175,
+    "reliability_before": [
+      {
+        "range": "[0.0025, 0.005)",
+        "mean_p": 0.004092,
+        "event_rate": 0.005607,
+        "weight": 3504208.9
+      },
+      {
+        "range": "[0.005, 0.0075)",
+        "mean_p": 0.0057,
+        "event_rate": 0.005612,
+        "weight": 963590.5
+      },
+      {
+        "range": "[0.0075, 0.01)",
+        "mean_p": 0.008443,
+        "event_rate": 0.028571,
+        "weight": 133317.7
+      },
+      {
+        "range": "[0.01, 0.015)",
+        "mean_p": 0.01212,
+        "event_rate": 0.044248,
+        "weight": 88997.5
+      },
+      {
+        "range": "[0.015, 0.02)",
+        "mean_p": 0.016948,
+        "event_rate": 0.101084,
+        "weight": 31073.3
+      },
+      {
+        "range": "[0.02, 0.03)",
+        "mean_p": 0.023796,
+        "event_rate": 0.101547,
+        "weight": 28390.8
+      },
+      {
+        "range": "[0.03, 0.035251)",
+        "mean_p": 0.031771,
+        "event_rate": 0.04925,
+        "weight": 14822.4
+      },
+      {
+        "range": "[0.035251, 0.04)",
+        "mean_p": 0.038552,
+        "event_rate": 0.094272,
+        "weight": 7584.4
+      },
+      {
+        "range": "[0.04, 0.06)",
+        "mean_p": 0.046412,
+        "event_rate": 0.157898,
+        "weight": 9297.1
+      },
+      {
+        "range": "[0.06, 0.08)",
+        "mean_p": 0.07277,
+        "event_rate": 0.223855,
+        "weight": 2863.5
+      },
+      {
+        "range": "[0.08, 0.15)",
+        "mean_p": 0.102186,
+        "event_rate": 0.240369,
+        "weight": 7779.7
+      },
+      {
+        "range": "[0.15, 0.3)",
+        "mean_p": 0.213097,
+        "event_rate": 0.156142,
+        "weight": 1556.3
+      },
+      {
+        "range": "[0.3, 0.5)",
+        "mean_p": 0.372181,
+        "event_rate": 0.183807,
+        "weight": 495.1
+      },
+      {
+        "range": "[0.5, 1]",
+        "mean_p": 0.69308,
+        "event_rate": 0.290959,
+        "weight": 2350.8
+      }
+    ],
+    "reliability_after": [
+      {
+        "range": "[0, 0.0025)",
+        "mean_p": 0.002498,
+        "event_rate": 0.002712,
+        "weight": 2017554.3
+      },
+      {
+        "range": "[0.0025, 0.005)",
+        "mean_p": 0.004473,
+        "event_rate": 0.009456,
+        "weight": 1501324.6
+      },
+      {
+        "range": "[0.005, 0.0075)",
+        "mean_p": 0.006903,
+        "event_rate": 0.003991,
+        "weight": 529188.2
+      },
+      {
+        "range": "[0.0075, 0.01)",
+        "mean_p": 0.008844,
+        "event_rate": 0.005953,
+        "weight": 82316.9
+      },
+      {
+        "range": "[0.01, 0.015)",
+        "mean_p": 0.014362,
+        "event_rate": 0.008091,
+        "weight": 220850.7
+      },
+      {
+        "range": "[0.015, 0.02)",
+        "mean_p": 0.016531,
+        "event_rate": 0.010012,
+        "weight": 136736.9
+      },
+      {
+        "range": "[0.02, 0.03)",
+        "mean_p": 0.025466,
+        "event_rate": 0.026856,
+        "weight": 78790.8
+      },
+      {
+        "range": "[0.04, 0.06)",
+        "mean_p": 0.051913,
+        "event_rate": 0.037038,
+        "weight": 78837.2
+      },
+      {
+        "range": "[0.06, 0.08)",
+        "mean_p": 0.07822,
+        "event_rate": 0.053391,
+        "weight": 19422.8
+      },
+      {
+        "range": "[0.08, 0.15)",
+        "mean_p": 0.099238,
+        "event_rate": 0.081452,
+        "weight": 70606.4
+      },
+      {
+        "range": "[0.15, 0.3)",
+        "mean_p": 0.19103,
+        "event_rate": 0.0909,
+        "weight": 40726.1
+      },
+      {
+        "range": "[0.3, 0.5)",
+        "mean_p": 0.324918,
+        "event_rate": 0.213076,
+        "weight": 19063.6
+      },
+      {
+        "range": "[0.5, 1]",
+        "mean_p": 0.580611,
+        "event_rate": 0.278133,
+        "weight": 909.6
+      }
+    ]
+  },
+  "decision": {
+    "rule": "порог держит цену ошибки на сегодняшнем уровне: нарядов в сутки не больше, чем даёт наивное правило, и нарядов на одно предупреждённое проникновение не больше",
+    "threshold": 0.035251,
+    "levels": {
+      "MEDIUM": 0.009438,
+      "HIGH": 0.035251,
+      "CRITICAL": 0.04
+    },
+    "level_note": "граница CRITICAL назначена калибровкой T28, см. ml/access/05_calibrate.py",
+    "order_hours": 24,
+    "grid": {
+      "cells": 4796328,
+      "days": 180.0,
+      "units": 1281,
+      "base": 0.009438,
+      "events": 1755
+    },
+    "naive": {
+      "cells": 43653,
+      "cell_precision": 0.112203,
+      "cell_recall": 0.1082,
+      "mean_p": 0.065776,
+      "orders": 703,
+      "orders_per_day": 3.91,
+      "justified_orders": 161,
+      "justified_share": 0.229018,
+      "justified_object_orders": 281,
+      "justified_object_share": 0.399716,
+      "events_caught": 129,
+      "event_recall": 0.073504,
+      "visits_per_catch": 5.45
+    },
+    "chosen": {
+      "cells": 31079,
+      "cell_precision": 0.18379,
+      "cell_recall": 0.126182,
+      "mean_p": 0.11814,
+      "orders": 701,
+      "orders_per_day": 3.89,
+      "justified_orders": 134,
+      "justified_share": 0.191155,
+      "justified_object_orders": 241,
+      "justified_object_share": 0.343795,
+      "events_caught": 215,
+      "event_recall": 0.122507,
+      "visits_per_catch": 3.26
+    },
+    "ladder": {
+      "0.0025": {
+        "cells": 4796328,
+        "cell_precision": 0.009438,
+        "cell_recall": 1.0,
+        "mean_p": 0.005709,
+        "orders": 8335,
+        "orders_per_day": 46.31,
+        "justified_orders": 113,
+        "justified_share": 0.013557,
+        "justified_object_orders": 576,
+        "justified_object_share": 0.069106,
+        "events_caught": 1755,
+        "event_recall": 1.0,
+        "visits_per_catch": 4.75,
+        "marginal_visits_per_catch": 2.7
+      },
+      "0.005": {
+        "cells": 1283152,
+        "cell_precision": 0.019967,
+        "cell_recall": 0.565985,
+        "mean_p": 0.01013,
+        "orders": 6186,
+        "orders_per_day": 34.37,
+        "justified_orders": 110,
+        "justified_share": 0.017782,
+        "justified_object_orders": 544,
+        "justified_object_share": 0.087941,
+        "events_caught": 958,
+        "event_recall": 0.545869,
+        "visits_per_catch": 6.46,
+        "marginal_visits_per_catch": 14.0
+      },
+      "0.0075": {
+        "cells": 325800,
+        "cell_precision": 0.062041,
+        "cell_recall": 0.446519,
+        "mean_p": 0.023143,
+        "orders": 3148,
+        "orders_per_day": 17.49,
+        "justified_orders": 156,
+        "justified_share": 0.049555,
+        "justified_object_orders": 462,
+        "justified_object_share": 0.14676,
+        "events_caught": 741,
+        "event_recall": 0.422222,
+        "visits_per_catch": 4.25,
+        "marginal_visits_per_catch": 6.04
+      },
+      "0.01": {
+        "cells": 195959,
+        "cell_precision": 0.083711,
+        "cell_recall": 0.362375,
+        "mean_p": 0.03287,
+        "orders": 2309,
+        "orders_per_day": 12.83,
+        "justified_orders": 156,
+        "justified_share": 0.067562,
+        "justified_object_orders": 426,
+        "justified_object_share": 0.184495,
+        "events_caught": 602,
+        "event_recall": 0.34302,
+        "visits_per_catch": 3.84,
+        "marginal_visits_per_catch": 6.31
+      },
+      "0.015": {
+        "cells": 105347,
+        "cell_precision": 0.118333,
+        "cell_recall": 0.275382,
+        "mean_p": 0.050689,
+        "orders": 1406,
+        "orders_per_day": 7.81,
+        "justified_orders": 158,
+        "justified_share": 0.112376,
+        "justified_object_orders": 353,
+        "justified_object_share": 0.251067,
+        "events_caught": 459,
+        "event_recall": 0.261538,
+        "visits_per_catch": 3.06,
+        "marginal_visits_per_catch": 3.04
+      },
+      "0.02": {
+        "cells": 75103,
+        "cell_precision": 0.124163,
+        "cell_recall": 0.205995,
+        "mean_p": 0.064249,
+        "orders": 1087,
+        "orders_per_day": 6.04,
+        "justified_orders": 158,
+        "justified_share": 0.145354,
+        "justified_object_orders": 301,
+        "justified_object_share": 0.276909,
+        "events_caught": 354,
+        "event_recall": 0.201709,
+        "visits_per_catch": 3.07,
+        "marginal_visits_per_catch": 2.88
+      },
+      "0.03": {
+        "cells": 45880,
+        "cell_precision": 0.14041,
+        "cell_recall": 0.142308,
+        "mean_p": 0.090273,
+        "orders": 796,
+        "orders_per_day": 4.42,
+        "justified_orders": 142,
+        "justified_share": 0.178392,
+        "justified_object_orders": 251,
+        "justified_object_share": 0.315327,
+        "events_caught": 253,
+        "event_recall": 0.14416,
+        "visits_per_catch": 3.15,
+        "marginal_visits_per_catch": 2.25
+      },
+      "0.04": {
+        "cells": 23965,
+        "cell_precision": 0.208512,
+        "cell_recall": 0.110387,
+        "mean_p": 0.141806,
+        "orders": 645,
+        "orders_per_day": 3.58,
+        "justified_orders": 127,
+        "justified_share": 0.196899,
+        "justified_object_orders": 232,
+        "justified_object_share": 0.35969,
+        "events_caught": 186,
+        "event_recall": 0.105983,
+        "visits_per_catch": 3.47,
+        "marginal_visits_per_catch": 1.84
+      },
+      "0.06": {
+        "cells": 14853,
+        "cell_precision": 0.237595,
+        "cell_recall": 0.077958,
+        "mean_p": 0.200249,
+        "orders": 511,
+        "orders_per_day": 2.84,
+        "justified_orders": 115,
+        "justified_share": 0.225049,
+        "justified_object_orders": 203,
+        "justified_object_share": 0.39726,
+        "events_caught": 113,
+        "event_recall": 0.064387,
+        "visits_per_catch": 4.52,
+        "marginal_visits_per_catch": 2.64
+      },
+      "0.08": {
+        "cells": 11915,
+        "cell_precision": 0.242384,
+        "cell_recall": 0.063798,
+        "mean_p": 0.231665,
+        "orders": 482,
+        "orders_per_day": 2.68,
+        "justified_orders": 113,
+        "justified_share": 0.23444,
+        "justified_object_orders": 194,
+        "justified_object_share": 0.40249,
+        "events_caught": 102,
+        "event_recall": 0.05812,
+        "visits_per_catch": 4.73,
+        "marginal_visits_per_catch": 4.44
+      },
+      "0.15": {
+        "cells": 3836,
+        "cell_precision": 0.265381,
+        "cell_recall": 0.022488,
+        "mean_p": 0.507314,
+        "orders": 269,
+        "orders_per_day": 1.49,
+        "justified_orders": 73,
+        "justified_share": 0.271375,
+        "justified_object_orders": 107,
+        "justified_object_share": 0.39777,
+        "events_caught": 54,
+        "event_recall": 0.030769,
+        "visits_per_catch": 4.98,
+        "marginal_visits_per_catch": 2.75
+      },
+      "0.3": {
+        "cells": 2661,
+        "cell_precision": 0.291244,
+        "cell_recall": 0.01712,
+        "mean_p": 0.640942,
+        "orders": 225,
+        "orders_per_day": 1.25,
+        "justified_orders": 65,
+        "justified_share": 0.288889,
+        "justified_object_orders": 88,
+        "justified_object_share": 0.391111,
+        "events_caught": 38,
+        "event_recall": 0.021652,
+        "visits_per_catch": 5.92,
+        "marginal_visits_per_catch": 2.4
+      },
+      "0.5": {
+        "cells": 2221,
+        "cell_precision": 0.307969,
+        "cell_recall": 0.01511,
+        "mean_p": 0.697066,
+        "orders": 213,
+        "orders_per_day": 1.18,
+        "justified_orders": 64,
+        "justified_share": 0.300469,
+        "justified_object_orders": 84,
+        "justified_object_share": 0.394366,
+        "events_caught": 33,
+        "event_recall": 0.018803,
+        "visits_per_catch": 6.45
+      }
+    },
+    "critical_search": {
+      "rule": "наименьший порог перебора: доля событий не растёт с порогом",
+      "candidates": [
+        {
+          "threshold": 0.04,
+          "weight": 24342.5,
+          "mean_p_raw": 0.147071,
+          "mean_p_calibrated": 0.324429,
+          "event_rate": 0.205279
+        },
+        {
+          "threshold": 0.05,
+          "weight": 16269.6,
+          "mean_p_raw": 0.197561,
+          "mean_p_calibrated": 0.342374,
+          "event_rate": 0.230061
+        },
+        {
+          "threshold": 0.06,
+          "weight": 15045.4,
+          "mean_p_raw": 0.209272,
+          "mean_p_calibrated": 0.344924,
+          "event_rate": 0.234557
+        },
+        {
+          "threshold": 0.08,
+          "weight": 12181.9,
+          "mean_p_raw": 0.241357,
+          "mean_p_calibrated": 0.35289,
+          "event_rate": 0.237073
+        },
+        {
+          "threshold": 0.1,
+          "weight": 8279.8,
+          "mean_p_raw": 0.313162,
+          "mean_p_calibrated": 0.372615,
+          "event_rate": 0.225246
+        },
+        {
+          "threshold": 0.15,
+          "weight": 4402.2,
+          "mean_p_raw": 0.487306,
+          "mean_p_calibrated": 0.426858,
+          "event_rate": 0.231248
+        },
+        {
+          "threshold": 0.2,
+          "weight": 3562.6,
+          "mean_p_raw": 0.562894,
+          "mean_p_calibrated": 0.454155,
+          "event_rate": 0.234382
+        },
+        {
+          "threshold": 0.3,
+          "weight": 2845.9,
+          "mean_p_raw": 0.637256,
+          "mean_p_calibrated": 0.489894,
+          "event_rate": 0.272319
+        }
+      ],
+      "chosen": {
+        "threshold": 0.04,
+        "weight": 24342.5,
+        "mean_p_raw": 0.147071,
+        "mean_p_calibrated": 0.324429,
+        "event_rate": 0.205279
+      }
+    }
   }
 }
