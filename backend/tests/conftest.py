@@ -61,10 +61,12 @@ BROKEN_BLOCKS = [
 
 # Прогон конвейера. Второй идёт позже первого и не закончился: здоровье
 # считается по последнему успешному, а не по последнему начатому.
+# id не задаём: TRUNCATE ... RESTART IDENTITY сбрасывает последовательность, и
+# ручной номер расходится с ней после первой же настоящей команды run-pipeline.
 RUNS = [
-    # id, статус, сдвиг начала в часах, длительность
-    (1, "DONE", -1, 42_000),
-    (2, "RUNNING", 0, None),
+    # статус, сдвиг начала в часах, длительность
+    ("DONE", -1, 42_000),
+    ("RUNNING", 0, None),
 ]
 
 # Оценки моделей. «Несанкционированный доступ» оценки не имеет, и это норма:
@@ -212,6 +214,21 @@ def _insert(conn: object) -> None:
             for code, collector_code, district, address, lon, lat in FACILITIES
         ],
     )
+    run_ids = [
+        conn.execute(  # type: ignore[attr-defined]
+            pipeline_run.insert().returning(pipeline_run.c.id),
+            {
+                "started_at": NOW + timedelta(hours=shift),
+                "finished_at": (
+                    NOW + timedelta(hours=shift, milliseconds=duration) if duration else None
+                ),
+                "duration_ms": duration,
+                "prediction_count": len(PREDICTIONS),
+                "status": status,
+            },
+        ).scalar_one()  # type: ignore[attr-defined]
+        for status, shift, duration in RUNS
+    ]
     conn.execute(  # type: ignore[attr-defined]
         prediction.insert(),
         [
@@ -229,25 +246,9 @@ def _insert(conn: object) -> None:
                 "summary": f"прогноз {code}",
                 "blocks": (BROKEN_BLOCKS if direction == "UNAUTHORIZED_ACCESS" else GOOD_BLOCKS),
                 "model_version": "test",
-                "run_id": RUNS[0][0],
+                "run_id": run_ids[0],
             }
             for code, direction, facility_id, probability, level, status, shift in PREDICTIONS
-        ],
-    )
-    conn.execute(  # type: ignore[attr-defined]
-        pipeline_run.insert(),
-        [
-            {
-                "id": run_id,
-                "started_at": NOW + timedelta(hours=shift),
-                "finished_at": (
-                    NOW + timedelta(hours=shift, milliseconds=duration) if duration else None
-                ),
-                "duration_ms": duration,
-                "prediction_count": len(PREDICTIONS),
-                "status": status,
-            }
-            for run_id, status, shift, duration in RUNS
         ],
     )
     conn.execute(  # type: ignore[attr-defined]

@@ -19,7 +19,7 @@ from app.db import engine
 from app.ml.protocol import Block, FeatureContext, FeatureVector, Window
 from app.pipeline import run as pipeline_run_module
 from app.tables import facility, pipeline_run, prediction
-from tests.conftest import reset_database
+from tests.conftest import reset_database, seeded
 
 NOW = datetime(2026, 9, 18, 12, 0, tzinfo=UTC)
 
@@ -171,3 +171,19 @@ def test_a_run_creates_orders_and_finishes_the_pipeline_run_row(
     assert row.prediction_count == 2
     assert row.finished_at is not None
     assert row.model_versions == {"SENSOR_FAILURE": "latest"}
+
+
+def test_a_real_run_after_the_seeded_fixture_does_not_collide_on_the_run_id(
+    seeded: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Фикстура `seeded` вставляет прогоны конвейера через `pipeline_run.insert()`.
+
+    id этих строк раньше задавались руками (1 и 2), и последовательность
+    `pipeline_run_id_seq` оставалась на единице. Первый настоящий прогон
+    падал `UniqueViolation` на `pipeline_run_pkey`.
+    """
+    _predictors(monkeypatch, {"SENSOR_FAILURE": FakePredictor("SENSOR_FAILURE")})
+
+    result = pipeline_run_module.run(engine(), at=NOW)
+
+    assert result.run_id is not None

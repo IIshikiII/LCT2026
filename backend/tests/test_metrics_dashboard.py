@@ -80,7 +80,7 @@ def test_metrics_survive_an_empty_table() -> None:
 
 def test_pipeline_health_counts_the_last_successful_run() -> None:
     body = get("/metrics/pipeline")
-    started = NOW + timedelta(hours=RUNS[0][2], milliseconds=RUNS[0][3])
+    started = NOW + timedelta(hours=RUNS[0][1], milliseconds=RUNS[0][2])
     assert body["lastRunAt"] == started.isoformat(timespec="seconds").replace("+00:00", "Z")
     assert body["lastRunMs"] == 42_000
 
@@ -99,7 +99,7 @@ def test_pipeline_health_carries_both_targets() -> None:
 
 def test_freshness_grows_from_the_moment_of_the_run() -> None:
     body = get("/metrics/pipeline")
-    expected = (datetime.now(UTC) - (NOW + timedelta(hours=RUNS[0][2]))).total_seconds() / 60
+    expected = (datetime.now(UTC) - (NOW + timedelta(hours=RUNS[0][1]))).total_seconds() / 60
     assert body["freshnessMinutes"] == pytest.approx(expected, abs=2.0)
 
 
