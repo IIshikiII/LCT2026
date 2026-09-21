@@ -17,7 +17,8 @@ import duckdb
 ACCESS = pathlib.Path(__file__).resolve().parents[1] / "access"
 sys.path.insert(0, str(ACCESS))
 
-import target_stats  # noqa: E402  модуль соседнего направления, путь задан выше
+# Импорт идёт после правки пути: модуль лежит у соседнего направления.
+import target_stats
 
 OUT = pathlib.Path(__file__).resolve().parent / "out"
 HOURLY = OUT / "sensor_hourly.parquet"
