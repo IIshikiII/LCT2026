@@ -169,7 +169,7 @@
 - [x] **T26** `sonnet` — Написать `ml/access/README.md` целиком: что считает
       каждый скрипт, какие числа получены, как повторить.
 
-- [ ] **T27** `opus` — Обновить `TODO.md`, `hackathon-gap-analysis.md` и
+- [x] **T27** `opus` — Обновить `TODO.md`, `hackathon-gap-analysis.md` и
       `ARM-ODS-backend-spec.md` под сделанное. Закрыть выполненные пункты,
       записать полученные числа.
 
