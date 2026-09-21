@@ -123,6 +123,23 @@ class TestFactors:
     def test_block_type_is_factors(self) -> None:
         assert factors_block(["n_alarms_1h"], [0.0], BUSY).type == "factors"
 
+    def test_block_carries_a_note(self) -> None:
+        block = factors_block(["n_alarms_24h"], [0.4], BUSY)
+        assert block.data["note"]
+
+    def test_weak_factor_is_dropped(self) -> None:
+        names = ["n_alarms_24h", "night_share", "is_weekend", "month"]
+        contributions = [4.0, 3.0, 1.0, 0.001]  # четвёртый вклад даёт вес ниже 0,02
+        block = factors_block(names, contributions, BUSY)
+        labels = [item["label"] for item in block.data["items"]]
+        assert FEATURE_LABELS["month"] not in labels
+
+    def test_three_strongest_items_survive_even_when_all_weak(self) -> None:
+        names = ["n_alarms_24h", "night_share", "is_weekend", "month"]
+        contributions = [0.001, 0.0009, 0.0008, 0.0007]
+        block = factors_block(names, contributions, BUSY)
+        assert len(block.data["items"]) == 3
+
 
 class TestTimeSeries:
     """Блок `timeseries`: средняя частота тревог по непересекающимся окнам."""

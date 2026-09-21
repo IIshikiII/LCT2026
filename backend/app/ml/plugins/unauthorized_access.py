@@ -203,12 +203,24 @@ def shap_weight(contribution: float) -> float:
     return math.tanh(contribution / 2.0)
 
 
+_FACTOR_WEIGHT_FLOOR = 0.02
+_FACTOR_NOTE = (
+    "Полосы показывают силу и направление фактора, а не слагаемые "
+    "вероятности: вклады SHAP складываются в логарифме шансов, а не в ней."
+)
+
+
 def factors_block(
     names: Sequence[str],
     contributions: Sequence[float],
     features: FeatureVector,
 ) -> Block:
-    """Собирает блок `factors`. Порядок строк по модулю веса, сверху сильнейший."""
+    """Собирает блок `factors`. Порядок строк по модулю веса, сверху сильнейший.
+
+    Строка с весом по модулю ниже `_FACTOR_WEIGHT_FLOOR` отбрасывается: такой
+    фактор двигает вероятность меньше чем на 4 % и только шумит. Первые три
+    строки остаются всегда, даже когда все веса слабые (ADR 0011).
+    """
     ranked = sorted(zip(names, contributions, strict=True), key=lambda pair: -abs(pair[1]))
     items = [
         {
@@ -218,7 +230,12 @@ def factors_block(
         }
         for name, value in ranked
     ]
-    return Block(type="factors", title="Почему модель так решила", data={"items": items})
+    kept = [item for index, item in enumerate(items) if index < 3 or abs(item["weight"]) >= _FACTOR_WEIGHT_FLOOR]
+    return Block(
+        type="factors",
+        title="Почему модель так решила",
+        data={"items": kept, "note": _FACTOR_NOTE},
+    )
 
 
 def _rate_points(
