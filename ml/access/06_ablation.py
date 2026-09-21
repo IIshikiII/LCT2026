@@ -14,13 +14,22 @@
 отложенной выборке. Оба числа считаются одним прогоном `train.py`: те же
 отрезки, тот же отступ, те же веса отрицательной клетки.
 
-## Почему рядом стоит шум жребия
+## Две помехи сравнению и что с ними сделано
 
-`PARAMS` держат `feature_fraction` 0,9 и `bagging_fraction` 0,8. Убрать
-колонку значит сменить жребий колонок и строк, поэтому PR-AUC меняется даже
-тогда, когда признак не нёс ничего. Скрипт меряет этот шум прямо: обучает
-полный набор на `NOISE_SEEDS` семенах и берёт размах PR-AUC. Вклад меньше
-размаха читается как «признак ничего не добавил», а не как «признак вредит».
+Первая помеха — жребий. `PARAMS` держат `feature_fraction` 0,9 и
+`bagging_fraction` 0,8. Убрать колонку значит сменить жребий колонок и строк,
+поэтому PR-AUC меняется даже тогда, когда признак не нёс ничего. Помеха
+снимается повтором: каждый набор обучается на `SEEDS` семенах, и вклад
+считается по среднему. Размах внутри набора идёт в замер рядом со средним.
+
+Вторая помеха — ранняя остановка. Она обрывает обучение по проверочному
+отрезку, и число деревьев скачет от 4 до 356 на соседних наборах. Прогон без
+жребия останавливается на шестом дереве и даёт всем пяти наборам ровно одну
+PR-AUC: до редких признаков такая модель не доходит. Помеха снимается
+постоянным числом раундов `ROUNDS`: все наборы получают одинаковый бюджет
+деревьев, и разность PR-AUC остаётся разностью наборов.
+
+`ROUNDS` равно числу деревьев рабочей модели из `out/metrics.json`.
 
 ## Запуск
 
@@ -47,24 +56,61 @@ ABLATION = OUT / "ablation.json"
 # Признаки, которые проверяет T35: у них был нулевой прирост до починки окон.
 CANDIDATES = ("n_alarms_1h", "neighbor_channels_1h", "has_access_sequence")
 
-# Семена для замера шума жребия. Первое повторяет `train.py`.
-NOISE_SEEDS = (train.SEED, 1301, 7717)
+# Семена повтора. Первое повторяет `train.py`.
+SEEDS = (train.SEED, 1301, 7717)
+
+# Замер модели до починки окон. Числа взяты из `out/metrics.json` коммита
+# 39fd89e^, то есть до правки `features.py`. Проверка `matches_before` ниже
+# обучает набор без трёх признаков на той же панели и сравнивает с ними.
+BEFORE_FIX = {"trees": 5, "pr_auc": 0.074514, "gain": dict.fromkeys(CANDIDATES, 0.0)}
 
 
 def fit(
     splits: dict[str, dict[str, object]],
     columns: list[str],
     seed: int,
+    rounds: int,
 ) -> dict[str, float]:
-    """Обучает модель на наборе колонок `columns` и меряет её на отложенной
-    выборке. Возвращает число деревьев, PR-AUC и точность на полноте планки."""
+    """Обучает модель на наборе колонок `columns` за `rounds` раундов и меряет
+    её на отложенной выборке. Ранней остановки нет: бюджет деревьев у всех
+    наборов одинаковый. Возвращает PR-AUC и точность на полноте планки."""
     names = train.features.FEATURE_COLUMNS
     keep = [names.index(name) for name in columns]
-    params = dict(train.PARAMS, seed=seed)
 
-    started = time.time()
     booster = lgb.train(
-        params,
+        dict(train.PARAMS, seed=seed),
+        lgb.Dataset(
+            splits["train"]["x"][:, keep],
+            label=splits["train"]["y"],
+            weight=splits["train"]["w"],
+            feature_name=columns,
+        ),
+        num_boost_round=rounds,
+    )
+
+    test = splits["test"]
+    y, w = test["y"], test["w"]
+    prediction = booster.predict(test["x"][:, keep])
+    naive = train.rule_point(y, w, test["naive"] == 1)
+    _threshold, precision, recall, _alerts = train.weighted_scores(y, w, prediction)
+    at_naive_recall = int(np.argmax(recall >= naive["recall"]))
+    return {
+        "pr_auc": round(float(average_precision_score(y, prediction, sample_weight=w)), 6),
+        "precision_at_naive_recall": round(float(precision[at_naive_recall]), 6),
+    }
+
+
+def early_stopped(
+    splits: dict[str, dict[str, object]],
+    columns: list[str],
+) -> dict[str, object]:
+    """Повторяет прогон `train.py` слово в слово, но на наборе колонок
+    `columns`: те же параметры, та же ранняя остановка, то же семя. Нужен,
+    чтобы сравнить набор с замером, который лежит в `BEFORE_FIX`."""
+    names = train.features.FEATURE_COLUMNS
+    keep = [names.index(name) for name in columns]
+    booster = lgb.train(
+        train.PARAMS,
         lgb.Dataset(
             splits["train"]["x"][:, keep],
             label=splits["train"]["y"],
@@ -83,17 +129,36 @@ def fit(
         callbacks=[lgb.early_stopping(train.EARLY_STOPPING, verbose=False)],
     )
     trees = int(booster.best_iteration)
-
     test = splits["test"]
-    y, w = test["y"], test["w"]
     prediction = booster.predict(test["x"][:, keep], num_iteration=trees)
-    naive = train.rule_point(y, w, test["naive"] == 1)
-    _threshold, precision, recall, _alerts = train.weighted_scores(y, w, prediction)
-    at_naive_recall = int(np.argmax(recall >= naive["recall"]))
     return {
         "trees": trees,
-        "pr_auc": round(float(average_precision_score(y, prediction, sample_weight=w)), 6),
-        "precision_at_naive_recall": round(float(precision[at_naive_recall]), 6),
+        "pr_auc": round(
+            float(
+                average_precision_score(test["y"], prediction, sample_weight=test["w"])
+            ),
+            6,
+        ),
+    }
+
+
+def average(
+    splits: dict[str, dict[str, object]],
+    columns: list[str],
+    rounds: int,
+) -> dict[str, object]:
+    """Обучает набор на всех семенах `SEEDS` и сводит замер к среднему,
+    размаху и списку значений PR-AUC."""
+    started = time.time()
+    runs = [fit(splits, columns, seed, rounds) for seed in SEEDS]
+    values = [item["pr_auc"] for item in runs]
+    return {
+        "pr_auc_mean": round(sum(values) / len(values), 6),
+        "pr_auc_spread": round(max(values) - min(values), 6),
+        "pr_auc_runs": values,
+        "precision_at_naive_recall_mean": round(
+            sum(item["precision_at_naive_recall"] for item in runs) / len(runs), 6
+        ),
         "seconds": round(time.time() - started, 1),
     }
 
@@ -111,14 +176,14 @@ def main() -> None:
     }
     full_columns = list(train.features.FEATURE_COLUMNS)
 
-    noise = [fit(splits, full_columns, seed) for seed in NOISE_SEEDS]
-    full = noise[0]
-    spread = round(
-        max(item["pr_auc"] for item in noise) - min(item["pr_auc"] for item in noise), 6
-    )
+    metrics = json.loads(METRICS.read_text(encoding="utf-8"))
+    rounds = int(metrics["trees"])
+
+    full = average(splits, full_columns, rounds)
     print(
-        f"полный набор: PR-AUC {full['pr_auc']:.6f}, деревьев {full['trees']}, "
-        f"размах по {len(NOISE_SEEDS)} семенам {spread:.6f}"
+        f"полный набор: PR-AUC {full['pr_auc_mean']:.6f}, "
+        f"размах по {len(SEEDS)} семенам {full['pr_auc_spread']:.6f}, "
+        f"раундов {rounds}"
     )
 
     variants = {}
@@ -126,21 +191,45 @@ def main() -> None:
     groups.append(("все три", list(CANDIDATES)))
     for title, dropped in groups:
         columns = [name for name in full_columns if name not in dropped]
-        result = fit(splits, columns, train.SEED)
+        result = average(splits, columns, rounds)
         result["dropped"] = dropped
-        result["delta_pr_auc"] = round(full["pr_auc"] - result["pr_auc"], 6)
-        result["above_noise"] = bool(abs(result["delta_pr_auc"]) > spread)
+        result["delta_pr_auc"] = round(full["pr_auc_mean"] - result["pr_auc_mean"], 6)
+        result["above_spread"] = bool(
+            abs(result["delta_pr_auc"]) > max(full["pr_auc_spread"], result["pr_auc_spread"])
+        )
         variants[title] = result
         print(
-            f"без «{title}»: PR-AUC {result['pr_auc']:.6f}, "
+            f"без «{title}»: PR-AUC {result['pr_auc_mean']:.6f}, "
             f"вклад {result['delta_pr_auc']:+.6f}, "
-            f"деревьев {result['trees']}, выше шума {result['above_noise']}"
+            f"размах {result['pr_auc_spread']:.6f}, выше размаха {result['above_spread']}"
         )
+
+    # Проверка равенства с замером до починки. Набор без трёх признаков на
+    # сегодняшней панели это в точности вчерашний набор: до правки все три
+    # колонки держали ноль на каждой строке. Совпадение PR-AUC и числа
+    # деревьев подтверждает, что признаки были пустые, а не бесполезные.
+    without = [name for name in full_columns if name not in CANDIDATES]
+    replay = early_stopped(splits, without)
+    replay["matches_before"] = bool(
+        replay["trees"] == BEFORE_FIX["trees"]
+        and abs(replay["pr_auc"] - BEFORE_FIX["pr_auc"]) < 1e-06
+    )
+    print(
+        f"повтор замера до починки: PR-AUC {replay['pr_auc']:.6f}, "
+        f"деревьев {replay['trees']}, совпало {replay['matches_before']}"
+    )
 
     report = {
         "candidates": list(CANDIDATES),
-        "seeds": list(NOISE_SEEDS),
-        "noise_spread_pr_auc": spread,
+        "seeds": list(SEEDS),
+        "rounds": rounds,
+        "before_fix": BEFORE_FIX,
+        "after_fix": {
+            "trees": metrics["trees"],
+            "pr_auc": metrics["test"]["pr_auc"],
+            "gain": {name: metrics["gain"][name] for name in CANDIDATES},
+        },
+        "replay_before_fix": replay,
         "full": full,
         "variants": variants,
     }
@@ -148,7 +237,6 @@ def main() -> None:
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    metrics = json.loads(METRICS.read_text(encoding="utf-8"))
     metrics["ablation"] = report
     METRICS.write_text(
         json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8"
