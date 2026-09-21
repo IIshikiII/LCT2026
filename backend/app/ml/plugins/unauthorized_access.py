@@ -222,7 +222,7 @@ def factors_block(
     строки остаются всегда, даже когда все веса слабые (ADR 0011).
     """
     ranked = sorted(zip(names, contributions, strict=True), key=lambda pair: -abs(pair[1]))
-    items = [
+    items: list[dict[str, Any]] = [
         {
             "label": FEATURE_LABELS.get(name, name),
             "weight": round(shap_weight(float(value)), 6),
@@ -230,7 +230,11 @@ def factors_block(
         }
         for name, value in ranked
     ]
-    kept = [item for index, item in enumerate(items) if index < 3 or abs(item["weight"]) >= _FACTOR_WEIGHT_FLOOR]
+    kept = [
+        item
+        for index, item in enumerate(items)
+        if index < 3 or abs(item["weight"]) >= _FACTOR_WEIGHT_FLOOR
+    ]
     return Block(
         type="factors",
         title="Почему модель так решила",
