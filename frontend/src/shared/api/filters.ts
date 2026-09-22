@@ -15,6 +15,8 @@ export interface PredictionFilters {
   level: string[]
   status: string[]
   district?: string
+  /** имя диспетчера, за которым закреплён прогноз */
+  assignee?: string
   from?: string
   to?: string
   /** 'поле:asc' | 'поле:desc' */
@@ -47,6 +49,7 @@ export function predictionParams(f: PredictionFilters): QueryParams {
     level: f.level,
     status: f.status,
     district: f.district,
+    assignee: f.assignee,
     from: f.from,
     to: f.to,
     sort: f.sort,

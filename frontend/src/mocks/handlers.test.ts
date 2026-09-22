@@ -92,12 +92,13 @@ describe('POST /orders/{id}/actions/close', () => {
     const closed = await close(order.id, {
       actualCause: 'OTHER',
       // Строку шлёт только чужой клиент: форма закрытия отдаёт boolean.
-      predictionConfirmed: 'true',
+      factConfirmed: 'true',
       comment: 'проверка типа',
     })
 
-    expect(closed.status).toBe('DONE')
-    expect(closed.outcome?.predictionConfirmed).toBe(false)
+    // Строка не boolean значит факт не подтверждён, и статус это отражает.
+    expect(closed.status).toBe('CLOSED_NOT_CONFIRMED')
+    expect(closed.outcome?.factConfirmed).toBe(false)
   })
 
   it('засчитывает подтверждение при true', async () => {
@@ -105,10 +106,11 @@ describe('POST /orders/{id}/actions/close', () => {
 
     const closed = await close(order.id, {
       actualCause: 'OTHER',
-      predictionConfirmed: true,
+      factConfirmed: true,
       comment: 'дефект устранён',
     })
 
-    expect(closed.outcome?.predictionConfirmed).toBe(true)
+    expect(closed.status).toBe('CLOSED_CONFIRMED')
+    expect(closed.outcome?.factConfirmed).toBe(true)
   })
 })

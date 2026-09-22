@@ -14,7 +14,7 @@ import { activeDirections, type DirectionPlugin } from '../directions'
 import { experimentalBlock } from '../directions/blockKit'
 import { predictionActions } from './actions'
 import { FACILITIES, toFacilityRef, type Facility } from './facilities'
-import { NOW, hoursFrom, iso, makeRng } from './rng'
+import { NOW, hoursFrom, iso, makeRng, type Rng } from './rng'
 
 /** Всего прогнозов в сиде, spec §10. */
 export const TOTAL_PREDICTIONS = 260
@@ -32,7 +32,40 @@ const LEVELS = [
   { code: 'CRITICAL', share: 0.1, probability: [0.78, 0.97] },
 ] as const
 
-const STATUSES = ['NEW', 'NEW', 'NEW', 'IN_REVIEW', 'ORDER_CONFIRMED', 'REJECTED', 'CLOSED']
+const STATUSES = ['NEW', 'NEW', 'NEW', 'IN_REVIEW', 'ORDER_OPEN', 'DECIDED', 'CLOSED_CONFIRMED']
+
+/** Диспетчеры смены. Настоящий список придёт из каталога организации. */
+export const DISPATCHERS = ['Авдеев А.', 'Белова М.', 'Гущин П.', 'Орлова К.']
+
+/** Имя, которым подписываются действия в заглушке. */
+export const MOCK_DISPATCHER = DISPATCHERS[0] as string
+
+/**
+ * Решение диспетчера, согласованное со статусом.
+ *
+ * Статус и решение обязаны сходиться: `DECIDED` без вердикта или `NEW` с
+ * исполнителем показали бы на демо состояние, которого сервер не создаёт.
+ */
+function verdictFor(status: string, level: string, rnd: Rng) {
+  if (status === 'NEW') return { status }
+
+  const assignee = rnd.pick(DISPATCHERS)
+  if (status === 'IN_REVIEW') return { status, assignee }
+
+  // Остальные статусы наступают только после решения. Уровень диспетчера
+  // совпадает со статусом: заявка живёт на высоком и критическом.
+  const needsOrder = status === 'ORDER_OPEN' || status.startsWith('CLOSED_')
+  const dispatcherLevel = needsOrder
+    ? rnd.pick(['HIGH', 'CRITICAL'])
+    : rnd.pick(['LOW', 'MEDIUM'])
+  return {
+    status,
+    assignee,
+    dispatcherLevel,
+    verdict: dispatcherLevel === level ? 'AGREED' : 'CORRECTED',
+    decidedAt: iso(hoursFrom(NOW, -rnd.int(1, 12))),
+  }
+}
 
 /** Уровень по позиции внутри направления — распределение точное, а не случайное. */
 function levelAt(index: number, total: number) {
@@ -76,7 +109,7 @@ function buildForDirection(
       computedAt: iso(hoursFrom(NOW, -rnd.int(0, 20) - rnd.next())),
       // Разброс правдоподобный, но всегда ниже пяти минут.
       computeMs: rnd.int(12_000, MAX_COMPUTE_MS - 20_000),
-      status: rnd.pick(STATUSES),
+      ...verdictFor(rnd.pick(STATUSES), level.code, rnd),
       facility: toFacilityRef(facility),
       facilityRecord: facility,
       summary: '',
@@ -143,7 +176,7 @@ export function buildDetail(record: PredictionRecord): PredictionDetail {
   return {
     ...prediction,
     blocks,
-    actions: predictionActions(record.status),
+    actions: predictionActions(record.status, record.assignee),
   }
 }
 

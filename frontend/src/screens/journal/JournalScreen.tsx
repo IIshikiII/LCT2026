@@ -35,6 +35,9 @@ export function JournalScreen({ meta }: { meta: AppMeta }) {
       <FilterBar
         api={api}
         seenDirections={rows.map((row) => row.direction)}
+        // Список исполнителей строится из выборки, а не из справочника: штат
+        // приходит из каталога организации, которого у сервиса нет.
+        seenAssignees={[...new Set(rows.map((row) => row.assignee).filter(Boolean))].sort() as string[]}
         actions={
           <Button
             size="sm"

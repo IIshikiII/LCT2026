@@ -23,6 +23,7 @@ import {
   directionAccent,
   directionLabel,
   isTerminalStatus,
+  levelLabel,
   statusColor,
   statusLabel,
 } from '@/shared/lib/risk'
@@ -116,12 +117,60 @@ export const predictionColumns: Record<string, ColumnDef<Prediction>> = {
       </Badge>
     ),
   },
+  dispatcher: {
+    key: 'dispatcher',
+    header: 'Решение диспетчера',
+    width: 190,
+    cell: (row, meta) => <DispatcherVerdict row={row} meta={meta} />,
+  },
+  outcome: {
+    key: 'outcome',
+    header: 'Результат бригады',
+    width: 150,
+    cell: (row) => {
+      if (row.factConfirmed === undefined) return <span className="text-text-mute">{DASH}</span>
+      return (
+        <span className={row.factConfirmed ? 'text-risk-low' : 'text-text-dim'}>
+          {row.factConfirmed ? 'факт подтверждён' : 'факта нет'}
+        </span>
+      )
+    },
+  },
   order: {
     key: 'order',
     header: 'Заявка',
     width: 96,
     cell: (row) => (row.orderId ? <OrderLink id={row.orderId} /> : <span className="text-text-mute">{DASH}</span>),
   },
+}
+
+/**
+ * Решение диспетчера в одной ячейке: согласился он с уровнем или исправил его,
+ * и кто именно решал.
+ *
+ * Исправление показано стрелкой «было → стало»: это и есть ярлык, на котором
+ * дообучается модель (ADR 0006), и диспетчеру полезно видеть, где коллеги
+ * систематически правят уровень.
+ */
+function DispatcherVerdict({ row, meta }: { row: Prediction; meta: AppMeta }) {
+  if (!row.verdict) return <span className="text-text-mute">{DASH}</span>
+
+  const corrected = row.verdict === 'CORRECTED' && row.dispatcherLevel
+  return (
+    <span className="flex flex-col gap-0.5 leading-tight">
+      <span className={corrected ? 'text-risk-high' : 'text-text-dim'}>
+        {corrected ? (
+          <>
+            {levelLabel(row.level, meta)} <span aria-hidden="true">→</span>{' '}
+            {levelLabel(row.dispatcherLevel as string, meta)}
+          </>
+        ) : (
+          'уровень подтверждён'
+        )}
+      </span>
+      {row.assignee ? <span className="text-[11px] text-text-mute">{row.assignee}</span> : null}
+    </span>
+  )
 }
 
 export const orderColumns: Record<string, ColumnDef<WorkOrder>> = {
@@ -219,6 +268,22 @@ export function csvColumnsFor(keys: string[], meta: AppMeta) {
     probability: { header: 'Вероятность', value: (r) => r.probability },
     horizon: { header: 'Горизонт, ч', value: (r) => r.horizonHours },
     status: { header: 'Статус', value: (r) => statusLabel(r.status, 'prediction', meta) },
+    dispatcher: {
+      header: 'Действие диспетчера',
+      value: (r) => {
+        if (!r.verdict) return ''
+        const who = r.assignee ? ` (${r.assignee})` : ''
+        if (r.verdict === 'AGREED') return `уровень подтверждён${who}`
+        return `исправлен на ${levelLabel(r.dispatcherLevel ?? '', meta)}${who}`
+      },
+    },
+    outcome: {
+      header: 'Результат бригады',
+      value: (r) => {
+        if (r.factConfirmed === undefined) return ''
+        return r.factConfirmed ? 'факт подтверждён' : 'факта нет'
+      },
+    },
     order: { header: 'Заявка', value: (r) => r.orderId ?? '' },
   }
   return keys

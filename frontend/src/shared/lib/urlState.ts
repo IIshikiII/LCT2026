@@ -26,6 +26,7 @@ const FILTER_KEYS = [
   'status',
   'orderStatus',
   'district',
+  'assignee',
   'from',
   'to',
   'dueBefore',
@@ -128,6 +129,7 @@ export function usePredictionFilters(): PredictionFilterApi {
     level: [...params.getAll('level')].sort(),
     status: [...params.getAll('status')].sort(),
     district: params.get('district') ?? undefined,
+    assignee: params.get('assignee') ?? undefined,
     from: params.get('from') ?? undefined,
     to: params.get('to') ?? undefined,
     sort: params.get('sort') ?? undefined,
@@ -149,6 +151,7 @@ export function usePredictionFilters(): PredictionFilterApi {
         level: undefined,
         status: undefined,
         district: undefined,
+        assignee: undefined,
         from: undefined,
         to: undefined,
         page: undefined,
@@ -157,7 +160,7 @@ export function usePredictionFilters(): PredictionFilterApi {
       filters.direction.length > 0 ||
       filters.level.length > 0 ||
       filters.status.length > 0 ||
-      Boolean(filters.district ?? filters.from ?? filters.to),
+      Boolean(filters.district ?? filters.assignee ?? filters.from ?? filters.to),
   }
 }
 

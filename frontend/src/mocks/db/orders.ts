@@ -5,7 +5,7 @@
  * Заявка всегда порождена прогнозом: сначала система создаёт её сама
  * (`AUTO_CREATED`), дальше её ведёт диспетчер. Терминальный статус заявки —
  * `DONE`, у прогноза — `CLOSED`: это разные сущности с разным жизненным циклом.
- * Закрытие несёт разметку `outcome.predictionConfirmed` — из неё считается
+ * Закрытие несёт разметку `outcome.factConfirmed` — из неё считается
  * качество модели на реальных данных, поэтому у выполненных заявок она есть
  * всегда.
  */
@@ -19,11 +19,13 @@ import { hoursFrom, iso, makeRng } from './rng'
 export const TOTAL_ORDERS = 90
 
 const STATUS_WEIGHTS: [string, number][] = [
-  ['AUTO_CREATED', 0.3],
+  ['AUTO_CREATED', 0.25],
+  ['MANUAL_CREATED', 0.1],
   ['CONFIRMED', 0.2],
   ['IN_PROGRESS', 0.2],
-  ['DONE', 0.25],
-  ['REJECTED', 0.05],
+  ['CLOSED_CONFIRMED', 0.18],
+  ['CLOSED_NOT_CONFIRMED', 0.05],
+  ['REJECTED', 0.02],
 ]
 
 function statusAt(index: number, total: number): string {
@@ -63,11 +65,12 @@ export function buildOrders(predictions: PredictionRecord[]): OrderRecord[] {
     const dueAt = hoursFrom(createdAt, rnd.int(-18, prediction.horizonHours))
 
     const outcome =
-      status === 'DONE'
+      status === 'CLOSED_CONFIRMED' || status === 'CLOSED_NOT_CONFIRMED'
         ? {
             actualCause: rnd.pick(prediction.plugin.reasons).code,
-            // Доля подтверждений согласована с Precision направления.
-            predictionConfirmed: rnd.next() < prediction.plugin.quality.precision,
+            // Факт подтверждён ровно там, где это говорит статус заявки: два
+            // источника одной истины разошлись бы на первой правке.
+            factConfirmed: status === 'CLOSED_CONFIRMED',
             comment: rnd.pick([
               'Дефект устранён на месте.',
               'Оборудование заменено, объект в работе.',
@@ -79,8 +82,11 @@ export function buildOrders(predictions: PredictionRecord[]): OrderRecord[] {
         : undefined
 
     prediction.orderId = id
-    if (status !== 'REJECTED' && prediction.status === 'NEW') {
-      prediction.status = 'ORDER_CONFIRMED'
+    // Заявка закрывает прогноз своим исходом. ADR 0006.
+    if (status === 'CLOSED_CONFIRMED' || status === 'CLOSED_NOT_CONFIRMED') {
+      prediction.status = status
+    } else if (status !== 'REJECTED' && prediction.status === 'NEW') {
+      prediction.status = 'ORDER_OPEN'
     }
 
     orders.push({

@@ -143,7 +143,7 @@ describe('ActionBar с действием, у которого своя форм
     kind: 'primary',
     fields: [
       { name: 'actualCause', label: 'Фактическая причина', type: 'select', required: true, optionsRef: 'причины' },
-      { name: 'predictionConfirmed', label: 'Прогноз подтвердился', type: 'boolean', required: true },
+      { name: 'factConfirmed', label: 'Факт подтверждён на объекте', type: 'boolean', required: true },
       { name: 'comment', label: 'Что сделано', type: 'textarea', required: true, minLength: 5 },
     ],
   }
@@ -168,7 +168,7 @@ describe('ActionBar с действием, у которого своя форм
     await user.click(submitButton('Закрыть заявку'))
 
     expect(onRun).not.toHaveBeenCalled()
-    expect(screen.getByText(/Отметьте, подтвердился ли прогноз/)).toBeInTheDocument()
+    expect(screen.getByText(/Отметьте, подтверждён ли факт/)).toBeInTheDocument()
   })
 
   it('передаёт отметку булевым значением', async () => {
@@ -183,7 +183,7 @@ describe('ActionBar с действием, у которого своя форм
 
     expect(onRun).toHaveBeenCalledWith('close', {
       actualCause: 'A',
-      predictionConfirmed: false,
+      factConfirmed: false,
       comment: 'дефект не подтверждён',
     })
   })

@@ -30,6 +30,14 @@ def facility_ref(row: Any) -> FacilityRef:
 
 
 def prediction(row: Any, facility: FacilityRef, order_id: str | None) -> Prediction:
+    # Итог бригады выводится из терминального статуса, а не из отдельного поля:
+    # заявка закрывает прогноз своим исходом, и второго источника нет. ADR 0006.
+    fact_confirmed: bool | None = None
+    if row.status == "CLOSED_CONFIRMED":
+        fact_confirmed = True
+    elif row.status == "CLOSED_NOT_CONFIRMED":
+        fact_confirmed = False
+
     return Prediction(
         id=row.id,
         direction=row.direction,
@@ -42,6 +50,11 @@ def prediction(row: Any, facility: FacilityRef, order_id: str | None) -> Predict
         facility=facility,
         summary=row.summary,
         order_id=order_id,
+        assignee=getattr(row, "assignee", None),
+        verdict=getattr(row, "verdict", None),
+        dispatcher_level=getattr(row, "dispatcher_level", None),
+        decided_at=iso(row.decided_at) if getattr(row, "decided_at", None) else None,
+        fact_confirmed=fact_confirmed,
     )
 
 

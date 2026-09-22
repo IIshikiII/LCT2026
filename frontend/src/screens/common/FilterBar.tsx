@@ -20,6 +20,8 @@ export interface FilterBarProps {
   api: PredictionFilterApi
   /** Коды направлений, реально встреченные в текущей выборке. */
   seenDirections?: string[]
+  /** Исполнители, встреченные в текущей выборке. Список строит экран. */
+  seenAssignees?: string[]
   /** Показывать ли фильтр по статусу — на карте он не нужен. */
   withStatus?: boolean
   /** Показывать ли период — на карте он не нужен. */
@@ -58,6 +60,7 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
 export function FilterBar({
   api,
   seenDirections = [],
+  seenAssignees = [],
   withStatus = true,
   withPeriod = true,
   actions,
@@ -104,6 +107,27 @@ export function FilterBar({
             />
           ))}
         </FilterGroup>
+      ) : null}
+
+      {seenAssignees.length > 0 ? (
+        <label className="flex items-center gap-1.5 pl-4 text-[12px] text-text-mute">
+          Исполнитель
+          <Select
+            className="h-6 w-44 py-0 text-[12px]"
+            value={api.filters.assignee ?? ''}
+            onChange={(event) => api.setValue('assignee', event.target.value || undefined)}
+          >
+            {/* Чипов не прибавляем: исполнителей столько, сколько диспетчеров в
+                смене, и лентой они перегрузили бы панель. Выпадающий список
+                держит одну строку при любом штате. */}
+            <option value="">все</option>
+            {seenAssignees.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </Select>
+        </label>
       ) : null}
 
       {meta.districts.length > 0 ? (

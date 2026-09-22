@@ -2,7 +2,7 @@
  * Заявки и полный цикл диспетчера.
  *
  * Критерий приёмки (spec §12): цикл «прогноз → подтверждение заявки → закрытие
- * с разметкой» проходится целиком. Разметка `predictionConfirmed` — то, из чего
+ * с разметкой» проходится целиком. Разметка `factConfirmed` — то, из чего
  * считаются честные Precision и Recall, поэтому её обязательность проверяется
  * отдельно (ADR 0004).
  */
@@ -29,23 +29,23 @@ describe('экран заявок', () => {
   })
 
   it('фильтрует по статусу через URL', async () => {
-    renderWithProviders(<AppShell />, { route: '/orders?orderStatus=DONE' })
+    renderWithProviders(<AppShell />, { route: '/orders?orderStatus=CLOSED_CONFIRMED' })
 
     await screen.findByRole('table')
-    const expected = db().orders.filter((o) => o.status === 'DONE').length
+    const expected = db().orders.filter((o) => o.status === 'CLOSED_CONFIRMED').length
     await waitFor(() => {
       expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(expected + 1)
     })
   })
 
   it('показывает разметку у выполненной заявки', async () => {
-    const done = db().orders.find((o) => o.status === 'DONE')!
+    const done = db().orders.find((o) => o.status === 'CLOSED_CONFIRMED')!
 
     renderWithProviders(<AppShell />, { route: `/orders?order=${done.id}` })
 
     const panel = await screen.findByRole('complementary', { name: 'Карточка заявки' })
     expect(await within(panel).findByText('Результат закрытия')).toBeInTheDocument()
-    expect(within(panel).getByText('Прогноз подтвердился')).toBeInTheDocument()
+    expect(within(panel).getByText('Факт подтверждён')).toBeInTheDocument()
   })
 })
 
@@ -76,19 +76,19 @@ describe('полный цикл: подтверждение, работа, за�
     /* 3. Закрытие — единственная форма со своим UI. */
     await user.click(within(panel).getByRole('button', { name: 'Закрыть заявку' }))
 
-    // Без отметки «прогноз подтвердился» закрыть нельзя.
+    // Без отметки «факт подтверждён» закрыть нельзя.
     await user.selectOptions(screen.getByLabelText(/Фактическая причина/), (
       screen.getAllByRole('option')[1] as HTMLOptionElement
     ).value)
     await user.type(screen.getByLabelText(/Что сделано/), 'дефект устранён на месте')
     await user.click(submitIn('Закрыть заявку'))
-    expect(screen.getByText(/Отметьте, подтвердился ли прогноз/)).toBeInTheDocument()
+    expect(screen.getByText(/Отметьте, подтверждён ли факт/)).toBeInTheDocument()
 
     // С отметкой — закрывается.
     await user.click(screen.getByRole('radio', { name: /событие подтвердилось/i }))
     await user.click(submitIn('Закрыть заявку'))
 
-    expect(await within(panel).findByText('Выполнена')).toBeInTheDocument()
+    expect(await within(panel).findByText('Закрыта: факт подтверждён')).toBeInTheDocument()
     expect(await within(panel).findByText('Результат закрытия')).toBeInTheDocument()
     expect(within(panel).getByText('да')).toBeInTheDocument()
   })

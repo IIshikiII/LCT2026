@@ -127,6 +127,8 @@ export interface ActionDef {
   kind: string
   /** текст подтверждения, если действие требует «вы уверены» */
   confirm?: string
+  /** подсказка под кнопкой: контекст, который знает только сервер */
+  help?: string
   fields: FieldDef[]
 }
 
@@ -148,6 +150,16 @@ export interface Prediction {
   summary: string
   /** автоматически созданная заявка, если она есть */
   orderId?: string
+  /** кто взял прогноз в работу */
+  assignee?: string
+  /** 'AGREED' | 'CORRECTED' — согласился диспетчер с уровнем или исправил */
+  verdict?: string
+  /** уровень, который диспетчер считает верным */
+  dispatcherLevel?: string
+  /** ISO — когда диспетчер принял решение */
+  decidedAt?: string
+  /** итог бригады: подтверждён ли факт на объекте */
+  factConfirmed?: boolean
 }
 
 export interface PredictionDetail extends Prediction {
@@ -157,8 +169,11 @@ export interface PredictionDetail extends Prediction {
 
 export interface WorkOrderOutcome {
   actualCause: string
-  /** отметка, из которой считаются честные Precision и Recall */
-  predictionConfirmed: boolean
+  /**
+   * Факт на объекте по итогу выезда. Второй ярлык для дообучения (ADR 0006).
+   * Бригада видела факт, а не пользу выезда: пользу измерить нечем.
+   */
+  factConfirmed: boolean
   comment: string
   closedAt: string
 }

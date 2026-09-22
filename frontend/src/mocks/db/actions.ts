@@ -13,6 +13,13 @@ import type { ActionDef } from '@/shared/api/types'
 /** Ключ общего справочника причин отклонения — один на все направления. */
 export const REJECTION_REASONS_REF = 'rejection'
 
+/**
+ * Ключ справочника уровней риска. Форма решения диспетчера берёт варианты
+ * оттуда же, откуда причины: фронт резолвит любой `optionsRef` через
+ * `meta.reasons`, и отдельный механизм ради одного списка не нужен.
+ */
+export const RISK_LEVELS_REF = 'riskLevels'
+
 export const REJECTION_REASONS = [
   { code: 'KNOWN_ISSUE', label: 'Известная особенность объекта' },
   { code: 'PLANNED_WORKS', label: 'На объекте идут плановые работы' },
@@ -25,77 +32,28 @@ export const REJECTION_REASONS = [
  * Действия карточки прогноза.
  * `directionRef` — ключ справочника фактических причин этого направления.
  */
-export function predictionActions(status: string): ActionDef[] {
-  if (status === 'NEW' || status === 'IN_REVIEW') {
+export function predictionActions(status: string, assignee?: string): ActionDef[] {
+  if (status === 'NEW') {
     return [
       {
-        code: 'confirm_order',
-        label: 'Подтвердить заявку',
-        kind: 'primary',
-        confirm: 'Заявка будет передана в работу. Подтвердить?',
-        fields: [
-          {
-            name: 'comment',
-            label: 'Комментарий диспетчера',
-            type: 'textarea',
-            placeholder: 'Необязательно',
-          },
-        ],
-      },
-      {
-        code: 'inspect',
-        // Этого кода нет в actionRegistry — он рисуется обычной динамической
-        // формой. Ровно так работает добавление действия «только на бэкенде».
-        label: 'Назначить осмотр',
+        code: 'take',
+        label: 'Взять в работу',
         kind: 'secondary',
-        fields: [
-          { name: 'plannedAt', label: 'Срок осмотра', type: 'datetime', required: true },
-          { name: 'crew', label: 'Бригада', type: 'text', required: true, minLength: 2 },
-          { name: 'comment', label: 'Задача бригаде', type: 'textarea' },
-        ],
+        fields: [],
       },
-      {
-        code: 'reject',
-        label: 'Отклонить прогноз',
-        kind: 'danger',
-        confirm: 'Прогноз будет отклонён и уйдёт в статистику модели.',
-        fields: [
-          {
-            name: 'reason',
-            label: 'Причина отклонения',
-            type: 'select',
-            required: true,
-            optionsRef: REJECTION_REASONS_REF,
-          },
-          {
-            name: 'comment',
-            label: 'Комментарий',
-            type: 'textarea',
-            required: true,
-            minLength: 5,
-            help: 'Уйдёт в обучающую выборку — пишите по существу.',
-          },
-        ],
-      },
+      decideAction(),
     ]
   }
 
-  if (status === 'ORDER_CONFIRMED') {
+  if (status === 'IN_REVIEW') {
     return [
+      decideAction(),
       {
-        code: 'reject',
-        label: 'Отклонить прогноз',
-        kind: 'danger',
-        fields: [
-          {
-            name: 'reason',
-            label: 'Причина отклонения',
-            type: 'select',
-            required: true,
-            optionsRef: REJECTION_REASONS_REF,
-          },
-          { name: 'comment', label: 'Комментарий', type: 'textarea', required: true, minLength: 5 },
-        ],
+        code: 'release',
+        label: 'Вернуть в очередь',
+        kind: 'ghost',
+        help: assignee ? `Сейчас за прогнозом закреплён ${assignee}` : undefined,
+        fields: [],
       },
     ]
   }
@@ -104,9 +62,44 @@ export function predictionActions(status: string): ActionDef[] {
 }
 
 /**
- * Действия карточки заявки.
- * `causesRef` — справочник фактических причин направления, из которого заявка.
+ * Единственное решение диспетчера по прогнозу (ADR 0006).
+ *
+ * Диспетчер отвечает на один вопрос: верен ли уровень. Нужен ли выезд, решает
+ * итоговый уровень, а не согласие. Поэтому действие одно, а не два.
  */
+function decideAction(): ActionDef {
+  return {
+    code: 'decide',
+    label: 'Принять решение',
+    kind: 'primary',
+    fields: [
+      {
+        name: 'dispatcherLevel',
+        label: 'Уровень по решению диспетчера',
+        type: 'select',
+        required: true,
+        optionsRef: RISK_LEVELS_REF,
+        help: 'Высокий и критический требуют выезда: система создаст заявку.',
+      },
+      {
+        name: 'reason',
+        label: 'Причина изменения уровня',
+        type: 'select',
+        optionsRef: REJECTION_REASONS_REF,
+        help: 'Заполняется, когда уровень отличается от предложенного моделью',
+      },
+      {
+        name: 'comment',
+        label: 'Комментарий',
+        type: 'textarea',
+        required: true,
+        minLength: 5,
+        help: 'Уйдёт в обучающую выборку — пишите по существу.',
+      },
+    ],
+  }
+}
+
 export function orderActions(status: string, causesRef: string): ActionDef[] {
   if (status === 'AUTO_CREATED') {
     return [
@@ -167,7 +160,7 @@ export function orderActions(status: string, causesRef: string): ActionDef[] {
             optionsRef: causesRef,
           },
           {
-            name: 'predictionConfirmed',
+            name: 'factConfirmed',
             label: 'Прогноз подтвердился',
             type: 'boolean',
             required: true,

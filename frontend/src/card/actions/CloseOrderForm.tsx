@@ -1,10 +1,13 @@
 /**
  * Закрытие заявки — единственное действие с нестандартной формой.
  *
- * Причина ровно одна: отметка «прогноз подтвердился / не подтвердился» должна
+ * Причина ровно одна: отметка «факт подтверждён / не подтверждён» должна
  * быть обязательным выбором из двух вариантов, а не чекбоксом. Из неё считаются
  * Precision и Recall на реальных данных, и «диспетчер не тронул галочку» не
- * должно молча означать «не подтвердился» (ADR 0004).
+ * должно молча означать «не подтверждён» (ADR 0004).
+ *
+ * Поле называется `factConfirmed`: бригада видела факт на объекте, а не пользу
+ * выезда. Итог выбирает терминальный статус и закрывает прогноз (ADR 0006).
  *
  * Всё остальное — фактическая причина и комментарий — берётся из `action.fields`,
  * то есть справочник причин по-прежнему живёт на бэкенде.
@@ -27,7 +30,7 @@ export function CloseOrderForm({ action, meta, onSubmit, onCancel, pending }: Ac
   const [touched, setTouched] = useState(false)
 
   const causeError = touched && !actualCause ? 'Выберите фактическую причину' : undefined
-  const confirmedError = touched && !confirmed ? 'Отметьте, подтвердился ли прогноз' : undefined
+  const confirmedError = touched && !confirmed ? 'Отметьте, подтверждён ли факт' : undefined
   const commentError =
     touched && comment.trim().length < MIN_COMMENT ? `Не короче ${MIN_COMMENT} символов` : undefined
 
@@ -37,7 +40,7 @@ export function CloseOrderForm({ action, meta, onSubmit, onCancel, pending }: Ac
     if (!actualCause || !confirmed || comment.trim().length < MIN_COMMENT) return
     onSubmit({
       actualCause,
-      predictionConfirmed: confirmed === 'yes',
+      factConfirmed: confirmed === 'yes',
       comment: comment.trim(),
     })
   }
@@ -62,7 +65,7 @@ export function CloseOrderForm({ action, meta, onSubmit, onCancel, pending }: Ac
 
       <fieldset className="flex flex-col gap-1.5">
         <legend className="text-[12px] text-text-dim">
-          Прогноз подтвердился
+          Факт подтверждён на объекте
           <span className="ml-0.5 text-risk-high" title="Обязательное поле">
             *
           </span>
@@ -77,7 +80,7 @@ export function CloseOrderForm({ action, meta, onSubmit, onCancel, pending }: Ac
             <label key={value} className="flex items-center gap-1.5 text-[13px] text-text-dim">
               <input
                 type="radio"
-                name="predictionConfirmed"
+                name="factConfirmed"
                 value={value}
                 checked={confirmed === value}
                 onChange={() => setConfirmed(value)}

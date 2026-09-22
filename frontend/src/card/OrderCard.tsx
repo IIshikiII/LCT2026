@@ -105,13 +105,9 @@ export function OrderCard({ id, meta }: OrderCardProps) {
                 </dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt className="text-text-mute">Прогноз подтвердился</dt>
-                <dd
-                  className={
-                    order.outcome.predictionConfirmed ? 'text-risk-low' : 'text-text-dim'
-                  }
-                >
-                  {order.outcome.predictionConfirmed ? 'да' : 'нет'}
+                <dt className="text-text-mute">Факт подтверждён</dt>
+                <dd className={order.outcome.factConfirmed ? 'text-risk-low' : 'text-text-dim'}>
+                  {order.outcome.factConfirmed ? 'да' : 'нет'}
                 </dd>
               </div>
               <div className="flex justify-between gap-2">

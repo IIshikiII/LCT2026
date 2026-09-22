@@ -11,7 +11,7 @@ import { db, resetDb, type OrderRecord, type PredictionRecord } from './db'
 import { orderActions } from './db/actions'
 import { COLLECTORS } from './db/catalog'
 import { toWorkOrder } from './db/orders'
-import { buildDetail, buildSeries } from './db/predictions'
+import { MOCK_DISPATCHER, buildDetail, buildSeries } from './db/predictions'
 import { devFlags } from './devFlags'
 
 /** Базовый путь. Звёздочка — чтобы работало и на относительном URL, и на полном. */
@@ -178,18 +178,27 @@ export const handlers = [
     const code = String(params['code'])
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
 
-    if (code === 'reject') {
-      record.status = 'REJECTED'
+    if (code === 'take') {
+      record.status = 'IN_REVIEW'
+      record.assignee = MOCK_DISPATCHER
+    } else if (code === 'release') {
+      record.status = 'NEW'
+      record.assignee = undefined
+    } else if (code === 'decide') {
+      // Выезд назначает итоговый уровень, а не согласие диспетчера. Четыре
+      // случая таблицы ADR 0006 сходятся в два действия над заявкой.
+      const level = String(body['dispatcherLevel'] ?? record.level)
+      record.verdict = level === record.level ? 'AGREED' : 'CORRECTED'
+      record.dispatcherLevel = level
+      record.decidedAt = new Date().toISOString()
+      record.assignee = record.assignee ?? MOCK_DISPATCHER
+
+      const needsOrder = level === 'HIGH' || level === 'CRITICAL'
+      record.status = needsOrder ? 'ORDER_OPEN' : 'DECIDED'
+
       const order = record.orderId ? db().orderById.get(record.orderId) : undefined
-      if (order && order.status !== 'DONE') {
+      if (!needsOrder && order && (order.status === 'AUTO_CREATED' || order.status === 'MANUAL_CREATED')) {
         order.status = 'REJECTED'
-        order.actions = orderActions(order.status, order.causesRef)
-      }
-    } else if (code === 'confirm_order') {
-      record.status = 'ORDER_CONFIRMED'
-      const order = record.orderId ? db().orderById.get(record.orderId) : undefined
-      if (order && order.status === 'AUTO_CREATED') {
-        order.status = 'CONFIRMED'
         order.actions = orderActions(order.status, order.causesRef)
       }
     } else {
@@ -296,20 +305,22 @@ export const handlers = [
     } else if (code === 'reject') {
       order.status = 'REJECTED'
     } else if (code === 'close') {
-      // Заявка выполнена. Терминальный статус заявки — DONE, прогноза — CLOSED.
-      order.status = 'DONE'
+      // Исход бригады выбирает терминальный статус и закрывает прогноз тем же
+      // исходом. ADR 0006: два поля с одним смыслом разошлись бы на первой
+      // же правке, поэтому у прогноза своего поля исхода нет.
+      const confirmed = body['factConfirmed'] === true
+      order.status = confirmed ? 'CLOSED_CONFIRMED' : 'CLOSED_NOT_CONFIRMED'
       order.outcome = {
         actualCause: String(body['actualCause'] ?? ''),
-        // Разметка обязательна: из неё считаются Precision и Recall. Принимаем
-        // только boolean — форма шлёт именно его, а бэкенд не должен наследовать
-        // терпимость к строке в поле, от которого зависит качество модели.
-        predictionConfirmed: body['predictionConfirmed'] === true,
+        // Принимаем только boolean — форма шлёт именно его, а заглушка не
+        // должна быть терпимее сервера в поле, от которого зависит обучение.
+        factConfirmed: confirmed,
         comment: String(body['comment'] ?? ''),
         closedAt: new Date().toISOString(),
       }
       const prediction = db().predictionById.get(order.predictionId)
       if (prediction) {
-        prediction.status = 'CLOSED'
+        prediction.status = order.status
       }
     }
 

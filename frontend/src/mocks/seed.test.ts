@@ -152,17 +152,29 @@ describe('прогнозы', () => {
 describe('заявки', () => {
   it('представлены во всех статусах', () => {
     const statuses = new Set(db().orders.map((o) => o.status))
-    for (const code of ['AUTO_CREATED', 'CONFIRMED', 'IN_PROGRESS', 'DONE', 'REJECTED']) {
+    for (const code of [
+      'AUTO_CREATED',
+      'MANUAL_CREATED',
+      'CONFIRMED',
+      'IN_PROGRESS',
+      'CLOSED_CONFIRMED',
+      'CLOSED_NOT_CONFIRMED',
+      'REJECTED',
+    ]) {
       expect(statuses).toContain(code)
     }
   })
 
-  it('у выполненных всегда есть разметка «прогноз подтвердился»', () => {
-    const done = db().orders.filter((o) => o.status === 'DONE')
-    expect(done.length).toBeGreaterThan(0)
-    for (const order of done) {
+  it('у закрытых всегда есть разметка «факт подтверждён»', () => {
+    const closed = db().orders.filter(
+      (o) => o.status === 'CLOSED_CONFIRMED' || o.status === 'CLOSED_NOT_CONFIRMED',
+    )
+    expect(closed.length).toBeGreaterThan(0)
+    for (const order of closed) {
       expect(order.outcome).toBeDefined()
-      expect(typeof order.outcome?.predictionConfirmed).toBe('boolean')
+      // Статус и разметка обязаны совпадать: два источника одной истины
+      // разошлись бы на первой правке (ADR 0006).
+      expect(order.outcome?.factConfirmed).toBe(order.status === 'CLOSED_CONFIRMED')
       expect(order.outcome?.actualCause).toBeTruthy()
     }
   })

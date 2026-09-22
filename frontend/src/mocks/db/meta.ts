@@ -8,13 +8,24 @@
  */
 import type { AppMeta } from '@/shared/api/types'
 import { activeDirections } from '../directions'
-import { REJECTION_REASONS, REJECTION_REASONS_REF } from './actions'
+import { REJECTION_REASONS, REJECTION_REASONS_REF, RISK_LEVELS_REF } from './actions'
+
+/** Уровни риска как справочник для формы решения диспетчера. */
+const RISK_LEVELS_OPTIONS = [
+  { code: 'LOW', label: 'Низкий' },
+  { code: 'MEDIUM', label: 'Средний' },
+  { code: 'HIGH', label: 'Высокий' },
+  { code: 'CRITICAL', label: 'Критический' },
+]
 import { DISTRICTS } from './catalog'
 
 export function buildMeta(): AppMeta {
   const plugins = activeDirections()
 
-  const reasons: AppMeta['reasons'] = { [REJECTION_REASONS_REF]: REJECTION_REASONS }
+  const reasons: AppMeta['reasons'] = {
+    [REJECTION_REASONS_REF]: REJECTION_REASONS,
+    [RISK_LEVELS_REF]: RISK_LEVELS_OPTIONS,
+  }
   for (const plugin of plugins) {
     reasons[plugin.reasonsRef] = plugin.reasons
   }
@@ -36,15 +47,18 @@ export function buildMeta(): AppMeta {
      */
     statuses: [
       { code: 'NEW', label: 'Новый', scope: 'prediction', colorVar: '--state-attention' },
-      { code: 'IN_REVIEW', label: 'На рассмотрении', scope: 'prediction', colorVar: '--state-progress' },
-      { code: 'ORDER_CONFIRMED', label: 'Заявка подтверждена', scope: 'prediction', colorVar: '--state-progress' },
-      { code: 'REJECTED', label: 'Отклонён', scope: 'prediction', colorVar: '--state-muted', terminal: true },
-      { code: 'CLOSED', label: 'Закрыт', scope: 'prediction', colorVar: '--state-done', terminal: true },
+      { code: 'IN_REVIEW', label: 'В работе', scope: 'prediction', colorVar: '--state-progress' },
+      { code: 'DECIDED', label: 'Решение принято', scope: 'prediction', colorVar: '--state-done', terminal: true },
+      { code: 'ORDER_OPEN', label: 'Заявка в работе', scope: 'prediction', colorVar: '--state-progress' },
+      { code: 'CLOSED_CONFIRMED', label: 'Закрыт: факт подтверждён', scope: 'prediction', colorVar: '--state-done', terminal: true },
+      { code: 'CLOSED_NOT_CONFIRMED', label: 'Закрыт: факт не подтверждён', scope: 'prediction', colorVar: '--state-muted', terminal: true },
       { code: 'AUTO_CREATED', label: 'Создана автоматически', scope: 'order', colorVar: '--state-attention' },
+      { code: 'MANUAL_CREATED', label: 'Создана диспетчером', scope: 'order', colorVar: '--state-attention' },
       { code: 'CONFIRMED', label: 'Подтверждена', scope: 'order', colorVar: '--state-progress' },
       { code: 'IN_PROGRESS', label: 'В работе', scope: 'order', colorVar: '--state-progress' },
       { code: 'REJECTED', label: 'Отклонена', scope: 'order', colorVar: '--state-muted', terminal: true },
-      { code: 'DONE', label: 'Выполнена', scope: 'order', colorVar: '--state-done', terminal: true },
+      { code: 'CLOSED_CONFIRMED', label: 'Закрыта: факт подтверждён', scope: 'order', colorVar: '--state-done', terminal: true },
+      { code: 'CLOSED_NOT_CONFIRMED', label: 'Закрыта: факт не подтверждён', scope: 'order', colorVar: '--state-muted', terminal: true },
     ],
 
     districts: DISTRICTS.map((d) => ({ code: d.code, label: d.label })),

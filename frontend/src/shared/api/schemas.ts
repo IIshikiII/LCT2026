@@ -107,6 +107,7 @@ export const ActionDefSchema = dto({
   label: z.string(),
   kind: z.string(),
   confirm: opt(z.string()),
+  help: opt(z.string()),
   fields: z.array(FieldDefSchema),
 })
 
@@ -122,6 +123,11 @@ export const PredictionSchema = dto({
   facility: FacilityRefSchema,
   summary: z.string(),
   orderId: opt(z.string()),
+  assignee: opt(z.string()),
+  verdict: opt(z.string()),
+  dispatcherLevel: opt(z.string()),
+  decidedAt: opt(z.string()),
+  factConfirmed: opt(z.boolean()),
 })
 
 export const PredictionDetailSchema = dto({
@@ -132,7 +138,7 @@ export const PredictionDetailSchema = dto({
 
 export const WorkOrderOutcomeSchema = dto({
   actualCause: z.string(),
-  predictionConfirmed: z.boolean(),
+  factConfirmed: z.boolean(),
   comment: z.string(),
   closedAt: z.string(),
 })

@@ -69,6 +69,15 @@ class Prediction(Dto):
     facility: FacilityRef
     summary: str
     order_id: str | None = None
+    # Решение диспетчера. Журнал показывает его отдельной колонкой, потому что
+    # выгрузка ТЗ §10 требует «результаты отработки» рядом с прогнозом. ADR 0006.
+    assignee: str | None = None
+    verdict: str | None = None
+    dispatcher_level: str | None = None
+    decided_at: str | None = None
+    # Итог бригады, сведённый в одну строку: подтверждён факт или нет. Полный
+    # исход с причиной и комментарием лежит в заявке.
+    fact_confirmed: bool | None = None
 
 
 class PredictionDetail(Prediction):
