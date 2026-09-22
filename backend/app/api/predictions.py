@@ -49,6 +49,7 @@ def _filtered(
     levels: list[str],
     statuses: list[str],
     district: str | None,
+    assignee: str | None,
     date_from: str | None,
     date_to: str | None,
 ) -> Select[Any]:
@@ -60,6 +61,8 @@ def _filtered(
         statement = statement.where(prediction.c.status.in_(statuses))
     if district:
         statement = statement.where(facility.c.district == district)
+    if assignee:
+        statement = statement.where(prediction.c.assignee == assignee)
     if date_from:
         statement = statement.where(prediction.c.computed_at >= common.day_start(date_from))
     if date_to:
@@ -79,6 +82,7 @@ def list_predictions(
     level: Annotated[list[str], Query(default_factory=list)],
     status: Annotated[list[str], Query(default_factory=list)],
     district: str | None = None,
+    assignee: str | None = None,
     from_: Annotated[str | None, Query(alias="from")] = None,
     to: str | None = None,
     sort: str | None = None,
@@ -86,7 +90,7 @@ def list_predictions(
     page_size: Annotated[int, Query(alias="pageSize")] = common.DEFAULT_PAGE_SIZE,
 ) -> Page[Prediction]:
     page, page_size = common.clamp_page(page, page_size)
-    where = (direction, level, status, district, from_, to)
+    where = (direction, level, status, district, assignee, from_, to)
 
     total = conn.execute(_filtered(select(func.count()).select_from(JOINED), *where)).scalar_one()
 

@@ -50,6 +50,9 @@ export const FALLBACK_META: AppMeta = {
     'probability',
     'horizon',
     'status',
+    'assignee',
+    'dispatcher',
+    'outcome',
     'order',
   ],
 

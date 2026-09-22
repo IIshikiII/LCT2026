@@ -90,11 +90,8 @@ def test_facility_is_embedded_not_an_id() -> None:
 def test_card_returns_blocks_and_actions() -> None:
     body = get("/predictions/P-1")
     assert [block["type"] for block in body["blocks"]] == ["factors", "timeseries"]
-    # ADR 0006: у нового прогноза два действия — взять в работу и решить.
-    assert [action["code"] for action in body["actions"]] == [
-        "take",
-        "decide",
-    ]
+    # У нового прогноза одно действие: пока он ничей, решать по нему нельзя.
+    assert [action["code"] for action in body["actions"]] == ["take"]
 
 
 def test_actions_depend_on_the_status() -> None:

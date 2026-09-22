@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest'
 import { AppShell } from '@/app/AppShell'
 import { renderWithProviders } from '@/test/renderWithProviders'
 import { db } from './db'
+import userEvent from '@testing-library/user-event'
 import { devFlags } from './devFlags'
 import { floodRisk } from './directions'
 
@@ -24,17 +25,20 @@ describe('новое направление, о котором фронтенд 
   it('по умолчанию выключено — базовое состояние чистое', async () => {
     renderWithProviders(<AppShell />, { route: '/journal' })
     await screen.findByRole('table')
-    expect(screen.queryByRole('button', { name: NEW.shortLabel })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: NEW.label })).not.toBeInTheDocument()
   })
 
   it('появляется в фильтрах журнала', async () => {
+    // Направления живут в выпадающем списке, а не плашками: плашками остался
+    // только уровень риска. Смысл проверки прежний — новое направление
+    // появляется в фильтрах само, без правок фронта.
     devFlags.override({ extraDirection: true })
 
     renderWithProviders(<AppShell />, { route: '/journal' })
     await screen.findByRole('table')
 
-    const chip = await screen.findByRole('button', { name: NEW.shortLabel })
-    expect(chip).toHaveAttribute('title', NEW.label)
+    await userEvent.click(screen.getByText('Подсистема'))
+    expect(await screen.findByRole('checkbox', { name: NEW.label })).toBeInTheDocument()
   })
 
   it('фильтрует журнал по новому направлению', async () => {

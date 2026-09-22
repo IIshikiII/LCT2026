@@ -80,14 +80,16 @@ def prediction_actions(status: str, assignee: str | None = None) -> list[ActionD
     итоговый уровень, а не согласие. Поэтому действие одно, а не два.
     """
     if status == "NEW":
+        # Одно действие: пока прогноз ничей, решать по нему нельзя. Имя
+        # исполнителя записывается первым, и только потом открывается решение.
         return [
             ActionDef(
                 code="take",
                 label="Взять в работу",
-                kind="secondary",
+                kind="primary",
+                help="Решение станет доступно после того, как прогноз закреплён за вами",
                 fields=[],
-            ),
-            _decide(),
+            )
         ]
     if status == "IN_REVIEW":
         return [

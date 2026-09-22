@@ -117,6 +117,18 @@ export const predictionColumns: Record<string, ColumnDef<Prediction>> = {
       </Badge>
     ),
   },
+  assignee: {
+    key: 'assignee',
+    header: 'Исполнитель',
+    width: 130,
+    sortable: true,
+    cell: (row) =>
+      row.assignee ? (
+        <span className="text-text-dim">{row.assignee}</span>
+      ) : (
+        <span className="text-text-mute">не взят</span>
+      ),
+  },
   dispatcher: {
     key: 'dispatcher',
     header: 'Решение диспетчера',
@@ -168,7 +180,6 @@ function DispatcherVerdict({ row, meta }: { row: Prediction; meta: AppMeta }) {
           'уровень подтверждён'
         )}
       </span>
-      {row.assignee ? <span className="text-[11px] text-text-mute">{row.assignee}</span> : null}
     </span>
   )
 }
@@ -268,13 +279,13 @@ export function csvColumnsFor(keys: string[], meta: AppMeta) {
     probability: { header: 'Вероятность', value: (r) => r.probability },
     horizon: { header: 'Горизонт, ч', value: (r) => r.horizonHours },
     status: { header: 'Статус', value: (r) => statusLabel(r.status, 'prediction', meta) },
+    assignee: { header: 'Исполнитель', value: (r) => r.assignee ?? '' },
     dispatcher: {
       header: 'Действие диспетчера',
       value: (r) => {
         if (!r.verdict) return ''
-        const who = r.assignee ? ` (${r.assignee})` : ''
-        if (r.verdict === 'AGREED') return `уровень подтверждён${who}`
-        return `исправлен на ${levelLabel(r.dispatcherLevel ?? '', meta)}${who}`
+        if (r.verdict === 'AGREED') return 'уровень подтверждён'
+        return `исправлен на ${levelLabel(r.dispatcherLevel ?? '', meta)}`
       },
     },
     outcome: {

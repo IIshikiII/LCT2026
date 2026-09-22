@@ -6,15 +6,27 @@
  * Состав фильтров целиком из меты: направления, уровни риска, статусы, районы.
  * Списка направлений в этом файле нет — он приходит из `/meta` и достраивается
  * кодами, встреченными в данных (ADR 0002).
+ *
+ * **Плашками остался только уровень риска.** Их было двенадцать в ряд, и панель
+ * читалась как сплошная лента. Уровень заслужил место: он различается цветом, а
+ * не текстом, и это первое, что диспетчер ищет глазами. Остальное свёрнуто в
+ * выпадающие списки, каждый из которых занимает одну позицию независимо от
+ * числа вариантов.
  */
 import type { ReactNode } from 'react'
 import { useMeta } from '@/shared/api/queries'
-import { directionOptions, levelsBySeverity, statusColor, statusOptions } from '@/shared/lib/risk'
+import {
+  directionOptions,
+  levelColor,
+  levelsBySeverity,
+  statusColor,
+  statusOptions,
+} from '@/shared/lib/risk'
 import type { PredictionFilterApi } from '@/shared/lib/urlState'
 import { Button } from '@/shared/ui/Button'
 import { Chip } from '@/shared/ui/Chip'
 import { Select, TextInput } from '@/shared/ui/Field'
-import { levelColor } from '@/shared/lib/risk'
+import { FilterDropdown } from '@/shared/ui/FilterDropdown'
 
 export interface FilterBarProps {
   api: PredictionFilterApi
@@ -30,30 +42,13 @@ export interface FilterBarProps {
   actions?: ReactNode
 }
 
-/**
- * Группа фильтров с видимым заголовком.
- *
- * Раньше три группы стояли одной лентой и различались только цветом точки.
- * Диспетчер видел пятнадцать одинаковых меток подряд и не мог сказать, где
- * кончается уровень риска и начинается статус. Подписи в `sr-only` читал
- * только экранный диктор.
- *
- * Заголовок отвечает на вопрос «что это» до того, как диспетчер начнёт читать
- * сами метки. Вертикальная черта отделяет группу от соседней; у первой группы
- * её нет, поэтому лента не начинается с висящей линии.
- */
-function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
+/** Подпись поля в одну строку с самим полем. */
+function Labelled({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <fieldset className="flex flex-wrap items-center gap-1.5 border-l border-line pl-3 first:border-l-0 first:pl-0">
-      <legend className="sr-only">{title}</legend>
-      <span
-        aria-hidden="true"
-        className="text-[10px] font-medium tracking-wide text-text-mute uppercase"
-      >
-        {title}
-      </span>
+    <label className="flex items-center gap-1.5 text-[12px] text-text-mute">
+      {title}
       {children}
-    </fieldset>
+    </label>
   )
 }
 
@@ -70,20 +65,14 @@ export function FilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-panel px-3 py-2">
-      <FilterGroup title="Подсистема">
-        {directionOptions(meta, seenDirections).map((direction) => (
-          <Chip
-            key={direction.code}
-            label={direction.shortLabel}
-            title={direction.label}
-            color={direction.accent}
-            active={filters.direction.includes(direction.code)}
-            onToggle={() => api.toggle('direction', direction.code)}
-          />
-        ))}
-      </FilterGroup>
-
-      <FilterGroup title="Риск">
+      <fieldset className="flex flex-wrap items-center gap-1.5">
+        <legend className="sr-only">Уровень риска</legend>
+        <span
+          aria-hidden="true"
+          className="text-[10px] font-medium tracking-wide text-text-mute uppercase"
+        >
+          Риск
+        </span>
         {levelsBySeverity(meta).map((level) => (
           <Chip
             key={level.code}
@@ -93,33 +82,41 @@ export function FilterBar({
             onToggle={() => api.toggle('level', level.code)}
           />
         ))}
-      </FilterGroup>
+      </fieldset>
+
+      <FilterDropdown
+        title="Подсистема"
+        options={directionOptions(meta, seenDirections).map((direction) => ({
+          code: direction.code,
+          label: direction.label,
+          color: direction.accent,
+        }))}
+        selected={filters.direction}
+        onToggle={(code) => api.toggle('direction', code)}
+        onClear={() => api.setList('direction', [])}
+      />
 
       {withStatus ? (
-        <FilterGroup title="Статус">
-          {statusOptions('prediction', meta).map((status) => (
-            <Chip
-              key={status.code}
-              label={status.label}
-              color={statusColor(status.code, 'prediction', meta)}
-              active={filters.status.includes(status.code)}
-              onToggle={() => api.toggle('status', status.code)}
-            />
-          ))}
-        </FilterGroup>
+        <FilterDropdown
+          title="Статус"
+          options={statusOptions('prediction', meta).map((status) => ({
+            code: status.code,
+            label: status.label,
+            color: statusColor(status.code, 'prediction', meta),
+          }))}
+          selected={filters.status}
+          onToggle={(code) => api.toggle('status', code)}
+          onClear={() => api.setList('status', [])}
+        />
       ) : null}
 
       {seenAssignees.length > 0 ? (
-        <label className="flex items-center gap-1.5 pl-4 text-[12px] text-text-mute">
-          Исполнитель
+        <Labelled title="Исполнитель">
           <Select
-            className="h-6 w-44 py-0 text-[12px]"
-            value={api.filters.assignee ?? ''}
+            className="h-6 w-40 py-0 text-[12px]"
+            value={filters.assignee ?? ''}
             onChange={(event) => api.setValue('assignee', event.target.value || undefined)}
           >
-            {/* Чипов не прибавляем: исполнителей столько, сколько диспетчеров в
-                смене, и лентой они перегрузили бы панель. Выпадающий список
-                держит одну строку при любом штате. */}
             <option value="">все</option>
             {seenAssignees.map((name) => (
               <option key={name} value={name}>
@@ -127,14 +124,13 @@ export function FilterBar({
               </option>
             ))}
           </Select>
-        </label>
+        </Labelled>
       ) : null}
 
       {meta.districts.length > 0 ? (
-        <label className="flex items-center gap-1.5 pl-4 text-[12px] text-text-mute">
-          Район
+        <Labelled title="Район">
           <Select
-            className="h-6 w-40 py-0 text-[12px]"
+            className="h-6 w-36 py-0 text-[12px]"
             value={filters.district ?? ''}
             onChange={(event) => api.setValue('district', event.target.value || undefined)}
           >
@@ -145,19 +141,28 @@ export function FilterBar({
               </option>
             ))}
           </Select>
-        </label>
+        </Labelled>
       ) : null}
 
       {withPeriod ? (
-        <label className="flex items-center gap-1.5 pl-4 text-[12px] text-text-mute">
-          С
+        <div className="flex items-center gap-1.5 text-[12px] text-text-mute">
+          Период
           <TextInput
             type="date"
-            className="h-6 w-36 py-0 text-[12px]"
+            aria-label="Период с"
+            className="h-6 w-32 py-0 text-[12px]"
             value={filters.from ?? ''}
             onChange={(event) => api.setValue('from', event.target.value || undefined)}
           />
-        </label>
+          <span aria-hidden="true">—</span>
+          <TextInput
+            type="date"
+            aria-label="Период по"
+            className="h-6 w-32 py-0 text-[12px]"
+            value={filters.to ?? ''}
+            onChange={(event) => api.setValue('to', event.target.value || undefined)}
+          />
+        </div>
       ) : null}
 
       <div className="ml-auto flex items-center gap-1.5">

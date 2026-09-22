@@ -65,6 +65,12 @@ def orders_of(prediction_id: str) -> list[Any]:
 
 
 def decide(prediction_id: str, level: str, **extra: Any) -> Any:
+    """Берёт прогноз в работу, если он ещё ничей, и принимает решение.
+
+    Решать можно только то, что взял на себя, поэтому два шага идут вместе.
+    """
+    if client.get(f"{API_PREFIX}/predictions/{prediction_id}").json()["status"] == "NEW":
+        ok("predictions", prediction_id, "take")
     body: dict[str, Any] = {"dispatcherLevel": level, "comment": "разобрал и решил"}
     body.update(extra)
     return ok("predictions", prediction_id, "decide", **body)
@@ -149,7 +155,14 @@ def test_lowering_a_high_level_rejects_the_auto_order() -> None:
     assert [order.status for order in orders_of("P-1")] == ["REJECTED"]
 
 
+def test_deciding_a_prediction_nobody_took_answers_409() -> None:
+    """Пока прогноз ничей, решать по нему нельзя: имя исполнителя обязательно."""
+    response = act("predictions", "P-1", "decide", dispatcherLevel="LOW", comment="мимо очереди")
+    assert response.status_code == 409
+
+
 def test_the_level_must_exist_in_the_reference_book() -> None:
+    ok("predictions", "P-1", "take")
     response = act(
         "predictions", "P-1", "decide", dispatcherLevel="ОЧЕНЬ_СТРАШНО", comment="ерунда"
     )
@@ -173,11 +186,13 @@ def test_a_terminal_prediction_offers_no_actions() -> None:
 
 
 def test_a_required_field_is_checked_on_the_server() -> None:
+    ok("predictions", "P-1", "take")
     response = act("predictions", "P-1", "decide", comment="без уровня")
     assert response.status_code == 422
 
 
 def test_min_length_is_checked_on_the_server() -> None:
+    ok("predictions", "P-1", "take")
     response = act("predictions", "P-1", "decide", dispatcherLevel="LOW", comment="да")
     assert response.status_code == 422
 
@@ -292,6 +307,7 @@ def test_every_action_lands_in_the_audit_log() -> None:
     decide("P-1", "CRITICAL")
     ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
 
+    # take, decide, assign
     assert len(logged()) == before + 3
 
 
