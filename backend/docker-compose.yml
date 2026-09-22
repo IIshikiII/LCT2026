@@ -51,6 +51,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.mlflow
+    environment:
+      # Список хостов, с которыми сервер соглашается работать. MLflow 3
+      # проверяет заголовок Host и защищается от перепривязки DNS. По
+      # умолчанию он берёт петлю и частные адреса, но не имена. Контейнеры
+      # ходят по имени службы, поэтому `mlflow:5000` не проходил, и реестр
+      # версий отвечал 403 «Invalid Host header».
+      #
+      # Переменная заменяет список по умолчанию целиком, а не дополняет его,
+      # поэтому петлевые адреса перечислены здесь же: по ним ходит браузер.
+      MLFLOW_SERVER_ALLOWED_HOSTS: >-
+        mlflow:5000,localhost:5000,127.0.0.1:5000,[::1]:5000
     command:
       - uv
       - run
@@ -83,6 +94,9 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arm}:${POSTGRES_PASSWORD:-arm}@db:5432/${POSTGRES_DB:-arm}
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # В образе нет git, и MLflow пишет об этом три абзаца на каждый вызов.
+      # Логи автономного цикла от этого становятся нечитаемыми.
+      GIT_PYTHON_REFRESH: quiet
     volumes:
       - ./app:/srv/app:ro
       - ./migrations:/srv/migrations:ro
@@ -103,6 +117,9 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arm}:${POSTGRES_PASSWORD:-arm}@db:5432/${POSTGRES_DB:-arm}
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # В образе нет git, и MLflow пишет об этом три абзаца на каждый вызов.
+      # Логи автономного цикла от этого становятся нечитаемыми.
+      GIT_PYTHON_REFRESH: quiet
     # Только петлевой интерфейс: JupyterLab поднят без токена.
     ports:
       - "127.0.0.1:8888:8888"

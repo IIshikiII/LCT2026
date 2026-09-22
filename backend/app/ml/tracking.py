@@ -77,6 +77,36 @@ def _newest_local(direction: str) -> Path | None:
     return max(files, key=lambda item: (item.stat().st_mtime, item.name))
 
 
+def _register(mlflow: Any, model: Any, direction: str) -> bool:
+    """Кладёт модель в реестр версией с именем направления.
+
+    Отдаёт True, когда версия зарегистрирована.
+
+    Зачем вообще: `log_artifact` кладёт файл рядом с прогоном, но версии из
+    него не делает. Поиск `search_model_versions` тогда всегда пуст, чтение
+    `models:/<направление>/<номер>` всегда отказывает, и реестр остаётся
+    только на бумаге. Обучение писало артефакт и молчало об этом.
+
+    Тип модели решает, каким видом её записать. Вид нужен для того, чтобы
+    чтение шло через `pyfunc` и не зависело от библиотеки обучения. Вид
+    неизвестен значит модель остаётся артефактом, как раньше: реестр не имеет
+    права ронять обучение.
+    """
+    module = type(model).__module__.split(".")[0]
+    flavours = {"lightgbm": "lightgbm", "sklearn": "sklearn", "xgboost": "xgboost"}
+    name = flavours.get(module)
+    if name is None:
+        log.info(
+            "вид модели неизвестен реестру, версия не заведена",
+            extra={"direction": direction, "module": module},
+        )
+        return False
+
+    flavour = getattr(mlflow, name)
+    flavour.log_model(model, name="model", registered_model_name=direction)
+    return True
+
+
 def log_run(
     direction: str,
     params: dict[str, Any],
@@ -108,6 +138,7 @@ def log_run(
             mlflow.log_metrics(metrics)
             if path is not None:
                 mlflow.log_artifact(str(path))
+            registered = _register(mlflow, model, direction) if model is not None else False
             run_id: str = run.info.run_id
     except Exception as error:  # noqa: BLE001 — реестр не имеет права ронять обучение
         log.warning(
@@ -116,7 +147,10 @@ def log_run(
         )
         return None
 
-    log.info("обучение записано в реестр", extra={"direction": direction, "runId": run_id})
+    log.info(
+        "обучение записано в реестр",
+        extra={"direction": direction, "runId": run_id, "registered": registered},
+    )
     return run_id
 
 
