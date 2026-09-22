@@ -9,7 +9,7 @@ from app import logging as app_logging
 from app.config import config
 from app.migrate import run as run_migrations
 
-COMMANDS = ("migrate", "seed", "run-pipeline", "train", "ingest")
+COMMANDS = ("migrate", "seed", "run-pipeline", "publish-metrics", "train", "ingest")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -51,6 +51,20 @@ def main(argv: list[str] | None = None) -> int:
             f"{seeded.facility_count} объектов, "
             f"{seeded.alarm_event_count} событий доступа"
         )
+        return 0
+
+    if args.command == "publish-metrics":
+        from app.db import engine
+        from app.meta import active as active_directions
+        from app.ml.publish import publish_all
+
+        codes = tuple(direction.code for direction in active_directions())
+        with engine().begin() as conn:
+            published = publish_all(conn, codes)
+        if published:
+            print("замеры опубликованы: " + ", ".join(published))
+        else:
+            print("замеров нет: ни одно направление не положило metrics.json в ARTIFACTS_DIR")
         return 0
 
     print(f"команда {args.command} ещё не реализована", file=sys.stderr)
