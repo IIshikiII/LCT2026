@@ -243,9 +243,9 @@
     "levels": {
       "MEDIUM": 0.009438,
       "HIGH": 0.156089,
-      "CRITICAL": 0.04
+      "CRITICAL": 0.2
     },
-    "level_note": "граница CRITICAL назначена калибровкой T28, см. ml/access/05_calibrate.py",
+    "level_note": "границы стоят на шкале, которую отдаёт predict: сырой выход бустера",
     "order_hours": 24,
     "grid": {
       "cells": 4796328,
@@ -497,48 +497,6 @@
       "rule": "наименьший порог перебора: доля событий не растёт с порогом",
       "candidates": [
         {
-          "threshold": 0.04,
-          "weight": 154655.4,
-          "mean_p_raw": 0.115939,
-          "mean_p_calibrated": 0.14974,
-          "event_rate": 0.093686
-        },
-        {
-          "threshold": 0.05,
-          "weight": 119646.0,
-          "mean_p_raw": 0.136752,
-          "mean_p_calibrated": 0.17379,
-          "event_rate": 0.107542
-        },
-        {
-          "threshold": 0.06,
-          "weight": 96708.6,
-          "mean_p_raw": 0.156224,
-          "mean_p_calibrated": 0.196503,
-          "event_rate": 0.11941
-        },
-        {
-          "threshold": 0.08,
-          "weight": 67793.0,
-          "mean_p_raw": 0.193107,
-          "mean_p_calibrated": 0.238457,
-          "event_rate": 0.140191
-        },
-        {
-          "threshold": 0.1,
-          "weight": 51378.9,
-          "mean_p_raw": 0.226335,
-          "mean_p_calibrated": 0.264774,
-          "event_rate": 0.15847
-        },
-        {
-          "threshold": 0.15,
-          "weight": 29815.0,
-          "mean_p_raw": 0.300888,
-          "mean_p_calibrated": 0.31692,
-          "event_rate": 0.193594
-        },
-        {
           "threshold": 0.2,
           "weight": 20482.8,
           "mean_p_raw": 0.359481,
@@ -554,18 +512,20 @@
         }
       ],
       "chosen": {
-        "threshold": 0.04,
-        "weight": 154655.4,
-        "mean_p_raw": 0.115939,
-        "mean_p_calibrated": 0.14974,
-        "event_rate": 0.093686
+        "threshold": 0.2,
+        "weight": 20482.8,
+        "mean_p_raw": 0.359481,
+        "mean_p_calibrated": 0.347932,
+        "event_rate": 0.208418
       }
-    }
+    },
+    "scale": "raw"
   },
   "calibration": {
     "method": "isotonic",
     "fit_on": "valid",
-    "artifact": "calibration.joblib",
+    "kept": false,
+    "artifact": null,
     "brier_before": 0.009127,
     "brier_after": 0.009171,
     "reliability_before": [

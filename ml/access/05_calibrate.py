@@ -101,14 +101,28 @@ CRITICAL_CANDIDATES = [0.04, 0.05, 0.06, 0.08, 0.1, 0.15, 0.2, 0.3]
 
 
 def pick_critical(
-    y: np.ndarray, w: np.ndarray, p_raw: np.ndarray, p_cal: np.ndarray
+    y: np.ndarray, w: np.ndarray, p_raw: np.ndarray, p_cal: np.ndarray, high: float
 ) -> dict[str, object]:
     """Меряет взвешенную долю событий на каждом пороге `CRITICAL_CANDIDATES` и
     берёт наименьший: перебор не растёт с порогом, поэтому строгий порог не
     покупает уверенности, только редеющую выборку. Разбор чисел — в docstring
-    модуля, раздел «Граница уровня CRITICAL»."""
+    модуля, раздел «Граница уровня CRITICAL».
+
+    Перебор начинается строго выше границы `HIGH`. Это и было замыслом правила:
+    когда его писали, `HIGH` равнялся 0,035251, и первый кандидат 0,04 стоял
+    сразу над ним. Переобучение T08b подняло `HIGH` до 0,156089, а кандидат
+    остался прежним, и шкала перестала возрастать: `CRITICAL` оказался ниже
+    `HIGH` и стал недостижим. Отбор по `HIGH` держит замысел при любом
+    переобучении.
+    """
+    above = [value for value in CRITICAL_CANDIDATES if value > high]
+    if not above:
+        raise ValueError(
+            f"ни один кандидат CRITICAL не лежит выше границы HIGH {high:.6f}. "
+            f"Кандидаты: {CRITICAL_CANDIDATES}. Расширьте список."
+        )
     rows = []
-    for threshold in CRITICAL_CANDIDATES:
+    for threshold in above:
         mask = p_raw >= threshold
         wb = w[mask]
         n = float(wb.sum())
@@ -146,11 +160,24 @@ def main() -> None:
 
     calibrator = IsotonicRegression(out_of_bounds="clip", y_min=0.0, y_max=1.0)
     calibrator.fit(p_valid, valid["y"], sample_weight=valid["w"])
-    joblib.dump(calibrator, CALIBRATION)
 
     p_test_cal = calibrator.predict(p_test)
     after = reliability(test["y"], test["w"], p_test_cal)
     brier_after = brier(test["y"], test["w"], p_test_cal)
+
+    # Калибратор едет в прод только тогда, когда он выигрывает на отложенной
+    # выборке. Метод без выигрыша не ставится вовсе: он добавляет файл, шкалу и
+    # ещё одно чтение на каждый прогноз, ничего не давая взамен.
+    #
+    # Изотония училась на проверочном отрезке с базой 1,2284 % и переносилась на
+    # тест с базой 0,9438 %. Она принесла чужую частоту событий и стала завышать
+    # вероятность почти во всех полосах: в полосе [0,03, 0,035251) доля событий
+    # упала с 0,03558 до 0,01303 при почти том же предсказании.
+    kept = brier_after < brier_before
+    if kept:
+        joblib.dump(calibrator, CALIBRATION)
+    else:
+        CALIBRATION.unlink(missing_ok=True)
 
     print(f"счёт Брайера: до {brier_before:.6f}, после {brier_after:.6f}")
     print("кривая надёжности до калибровки:")
@@ -160,26 +187,41 @@ def main() -> None:
     for point in after:
         print(f"  {point}")
 
-    critical = pick_critical(test["y"], test["w"], p_test, p_test_cal)
-    print(f"граница CRITICAL: {critical['chosen']}")
+    print(f"калибратор {'принят' if kept else 'отклонён: проигрыш по Брайеру'}")
 
     metrics = json.loads(METRICS.read_text(encoding="utf-8"))
+    levels = metrics["decision"]["levels"]
+    critical = pick_critical(test["y"], test["w"], p_test, p_test_cal, float(levels["HIGH"]))
+    print(f"граница CRITICAL: {critical['chosen']}")
+
     metrics["calibration"] = {
         "method": "isotonic",
         "fit_on": "valid",
-        "artifact": CALIBRATION.name,
+        "kept": kept,
+        "artifact": CALIBRATION.name if kept else None,
         "brier_before": brier_before,
         "brier_after": brier_after,
         "reliability_before": before,
         "reliability_after": after,
     }
-    metrics["decision"]["levels"]["CRITICAL"] = critical["chosen"]["threshold"]
+    levels["CRITICAL"] = critical["chosen"]["threshold"]
+    metrics["decision"]["scale"] = "calibrated" if kept else "raw"
     metrics["decision"]["critical_search"] = critical
     metrics["decision"]["level_note"] = (
-        "граница CRITICAL назначена калибровкой T28, см. ml/access/05_calibrate.py"
+        "границы стоят на шкале, которую отдаёт predict: "
+        + ("после калибровки" if kept else "сырой выход бустера")
     )
+
+    # Шкала обязана возрастать. Немонотонный набор делает верхний уровень
+    # недостижимым, и диспетчер не видит ни одного CRITICAL. Проверка стоит
+    # здесь, а не только в бэкенде: файл замера читают и люди.
+    order = ["MEDIUM", "HIGH", "CRITICAL"]
+    values = [float(levels[name]) for name in order]
+    if values != sorted(values) or len(set(values)) != len(values):
+        raise ValueError(f"границы уровней не возрастают: {dict(zip(order, values))}")
+
     METRICS.write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"калибратор в {CALIBRATION}, замер в {METRICS}")
+    print(f"замер в {METRICS}, шкала {metrics['decision']['scale']}")
 
 
 if __name__ == "__main__":
