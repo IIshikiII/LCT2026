@@ -200,6 +200,28 @@ work_order = Table(
     Column("outcome", JSONB),
 )
 
+# Учётная запись. Замещает каталог Active Directory, которого нам не дадут:
+# те же поля «логин, имя, роль, область видимости». ADR 0007.
+app_user = Table(
+    "app_user",
+    metadata,
+    Column("username", Text, primary_key=True),
+    Column("full_name", Text, nullable=False),
+    Column("role", Text, nullable=False),
+    Column("scope_kind", Text, nullable=False, default="ALL"),
+    Column("scope_value", Text),
+    Column("password_hash", Text),
+    Column("totp_secret", Text),
+    Column("mfa_enrolled", Boolean, nullable=False, default=False),
+    Column("is_active", Boolean, nullable=False, default=True),
+    Column("directory", Text, nullable=False, default="LOCAL"),
+    _ts("created_at"),
+    _ts("last_login_at"),
+)
+
+# `entity_type` принимает `prediction`, `order` и `auth`. Третье значение
+# держит входы и выходы: ТЗ §11 требует журналировать все действия, а не
+# только смену состояния.
 action_log = Table(
     "action_log",
     metadata,
@@ -207,7 +229,7 @@ action_log = Table(
     Column("entity_type", Text, nullable=False),
     Column("entity_id", Text, nullable=False),
     Column("action_code", Text, nullable=False),
-    Column("actor", Text, nullable=False, default="dispatcher"),
+    Column("actor", Text, nullable=False),
     Column("payload", JSONB, nullable=False, default=dict),
     _ts("created_at", nullable=False),
 )

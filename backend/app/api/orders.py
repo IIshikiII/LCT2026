@@ -11,6 +11,9 @@ from sqlalchemy.engine import Connection
 
 from app.api import common, mappers
 from app.api.common import iso, parse_moment
+from app.auth import scope
+from app.auth.actor import Actor
+from app.auth.deps import CurrentActor, check_permission
 from app.db import get_conn, get_tx
 from app.domain import OrderContext, apply, order_actions, suppress_until, transitions
 from app.schemas import Page, WorkOrder
@@ -43,7 +46,10 @@ BASE = (
 COUNT_FROM = work_order.join(facility, facility.c.id == work_order.c.facility_id)
 
 
-def _filtered(statement: Select[Any], statuses: list[str], due_before: str | None) -> Select[Any]:
+def _filtered(
+    statement: Select[Any], actor: Actor, statuses: list[str], due_before: str | None
+) -> Select[Any]:
+    statement = scope.apply_joined(statement, actor)
     if statuses:
         statement = statement.where(work_order.c.status.in_(statuses))
     if due_before:
@@ -59,17 +65,18 @@ def _context(row: Any) -> OrderContext:
     )
 
 
-def _row_to_order(row: Any) -> WorkOrder:
+def _row_to_order(row: Any, actor: Actor) -> WorkOrder:
     return mappers.work_order(
         row,
         mappers.facility_ref(row),
-        list(order_actions(row.status, _context(row))),
+        list(order_actions(row.status, _context(row), actor)),
     )
 
 
 @router.get("/orders", response_model=Page[WorkOrder], response_model_by_alias=True)
 def list_orders(
     conn: Annotated[Connection, Depends(get_conn)],
+    actor: CurrentActor,
     status: Annotated[list[str], Query(default_factory=list)],
     due_before: Annotated[str | None, Query(alias="dueBefore")] = None,
     sort: str | None = None,
@@ -79,34 +86,37 @@ def list_orders(
     page, page_size = common.clamp_page(page, page_size)
 
     total = conn.execute(
-        _filtered(select(func.count()).select_from(COUNT_FROM), status, due_before)
+        _filtered(select(func.count()).select_from(COUNT_FROM), actor, status, due_before)
     ).scalar_one()
 
     rows = conn.execute(
-        _filtered(BASE, status, due_before)
+        _filtered(BASE, actor, status, due_before)
         .order_by(common.order_by(sort, SORT_FIELDS, work_order.c.due_at.asc()))
         .limit(page_size)
         .offset((page - 1) * page_size)
     ).all()
 
     return Page(
-        items=[_row_to_order(row) for row in rows],
+        items=[_row_to_order(row, actor) for row in rows],
         page=page,
         page_size=page_size,
         total=total,
     )
 
 
-def _load(conn: Connection, order_id: str) -> Any:
-    row = conn.execute(BASE.where(work_order.c.id == order_id)).first()
+def _load(conn: Connection, actor: Actor, order_id: str) -> Any:
+    """Читает заявку в границах видимости роли. Чужая заявка даёт 404."""
+    row = conn.execute(scope.apply_joined(BASE.where(work_order.c.id == order_id), actor)).first()
     if row is None:
         raise HTTPException(status_code=404, detail=f"заявка {order_id} не найдена")
     return row
 
 
 @router.get("/orders/{order_id}", response_model=WorkOrder, response_model_by_alias=True)
-def get_order(order_id: str, conn: Annotated[Connection, Depends(get_conn)]) -> WorkOrder:
-    return _row_to_order(_load(conn, order_id))
+def get_order(
+    order_id: str, conn: Annotated[Connection, Depends(get_conn)], actor: CurrentActor
+) -> WorkOrder:
+    return _row_to_order(_load(conn, actor, order_id), actor)
 
 
 @router.post(
@@ -118,13 +128,21 @@ def act_on_order(
     order_id: str,
     code: str,
     conn: Annotated[Connection, Depends(get_tx)],
+    actor: CurrentActor,
     body: Annotated[dict[str, Any], Body(default_factory=dict)],
 ) -> WorkOrder:
-    """Единственный эндпоинт действий над заявкой."""
-    row = _load(conn, order_id)
+    """Единственный эндпоинт действий над заявкой.
+
+    Права делят действия между диспетчером и группой реагирования. Закрыть
+    заявку отметкой о факте может только группа реагирования: отметка идёт в
+    дообучение как ярлык «факт наступил», и ставит её тот, кто был на объекте.
+    """
+    apply.require_known(transitions.ORDER, code)
+    check_permission(conn, actor, code)
+    row = _load(conn, actor, order_id)
     status = row.status
 
-    apply.check_body(list(order_actions(status, _context(row))), code, body)
+    apply.check_body(list(order_actions(status, _context(row), actor)), code, body)
     new_status = apply.next_status(transitions.ORDER, code, status)
 
     extra: dict[str, Any] = {}
@@ -144,9 +162,7 @@ def act_on_order(
         # Заявка закрывает прогноз. Своего поля исхода у прогноза нет: два поля
         # с одним смыслом разошлись бы на первой же правке. ADR 0006.
         conn.execute(
-            update(prediction)
-            .where(prediction.c.id == row.prediction_id)
-            .values(status=new_status)
+            update(prediction).where(prediction.c.id == row.prediction_id).values(status=new_status)
         )
 
     if code == "reject":
@@ -158,8 +174,8 @@ def act_on_order(
             .values(suppress_until=_mute_until(body, row.direction))
         )
 
-    apply.log(conn, transitions.ORDER, order_id, code, body)
-    return _row_to_order(_load(conn, order_id))
+    apply.log(conn, transitions.ORDER, order_id, code, actor.username, body)
+    return _row_to_order(_load(conn, actor, order_id), actor)
 
 
 def _mute_until(body: dict[str, Any], direction: str) -> datetime:

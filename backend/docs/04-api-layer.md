@@ -140,9 +140,9 @@ Docker и балансировщик, а не фронт.
 
 | Сущность | Код | Из | В | Эффект |
 |---|---|---|---|---|
-| Прогноз | `confirm_order` | `NEW`, `IN_REVIEW` | `ORDER_CONFIRMED` | заявка `AUTO_CREATED` → `CONFIRMED` |
+| Прогноз | `decide` | `IN_REVIEW` | `ORDER_OPEN` либо `DECIDED` | выезд нужен — заявка подтверждается или создаётся, выезд не нужен — открытая заявка отклоняется |
 | Прогноз | `inspect` | `NEW`, `IN_REVIEW` | `IN_REVIEW` | нет |
-| Прогноз | `reject` | `NEW`, `IN_REVIEW`, `ORDER_CONFIRMED` | `REJECTED` | открытая заявка → `REJECTED` |
+| Заявка | `reject` | `AUTO_CREATED`, `CONFIRMED` | `REJECTED` | прогноз получает `suppress_until` |
 | Заявка | `confirm` | `AUTO_CREATED` | `CONFIRMED` | нет |
 | Заявка | `reject` | `AUTO_CREATED` | `REJECTED` | нет |
 | Заявка | `start` | `CONFIRMED` | `IN_PROGRESS` | нет |
@@ -160,7 +160,7 @@ Docker и балансировщик, а не фронт.
 которым фронт рисовал форму. Источник правды один: правка поля меняет и форму,
 и проверку. Отказ — 422 с указанием поля.
 
-**`predictionConfirmed` принимает только `true` или `false`.** Строка `"true"`
+**`factConfirmed` принимает только `true` или `false`.** Строка `"true"`
 даёт 422. Заглушки фронта приводят чужой тип к `false`, а сервер отказывает: молча
 записанное `false` занижает Recall.
 

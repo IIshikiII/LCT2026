@@ -127,9 +127,7 @@ def _assert_valid_forecast(plugin: UnauthorizedAccess, features: dict[str, float
 
 
 @pytest.mark.usefixtures("db")
-def test_unit_without_a_single_alarm_in_720h(
-    stub_model: StubModel, fake_shap: None
-) -> None:
+def test_unit_without_a_single_alarm_in_720h(stub_model: StubModel, fake_shap: None) -> None:
     fid = "F-ACC-NO-ALARMS"
     with engine().begin() as conn:
         conn.execute(
@@ -156,9 +154,7 @@ def test_unit_without_a_single_alarm_in_720h(
 
 
 @pytest.mark.usefixtures("db")
-def test_unit_missing_from_the_facility_catalog(
-    stub_model: StubModel, fake_shap: None
-) -> None:
+def test_unit_missing_from_the_facility_catalog(stub_model: StubModel, fake_shap: None) -> None:
     fid = "F-ACC-UNKNOWN"
     with engine().connect() as conn:
         features = unauthorized_access.UnauthorizedAccess().build_features(

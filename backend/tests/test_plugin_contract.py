@@ -31,6 +31,7 @@ from app.tables import alarm_event, facility
 AT = datetime(2026, 9, 10, 12, 0, 0, tzinfo=UTC)
 FACILITY_ID = "F-CONTRACT-TEST"
 
+
 # Имена признаков, устойчивость которых уже закреплена буква в букву с
 # `ml/access/features.py::FEATURE_COLUMNS` (докстринг `app/features/access.py`).
 # Направление без записи здесь проверяется только на структуру словаря: тип

@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
 from app.api import common
+from app.auth.deps import CurrentActor
 from app.db import get_conn
 from app.meta import active
 from app.schemas import ModelMetric, PipelineHealth
@@ -39,12 +40,19 @@ NEVER_MINUTES = 525_600.0
 
 
 @router.get("/metrics/models", response_model=list[ModelMetric], response_model_by_alias=True)
-def model_metrics(conn: Annotated[Connection, Depends(get_conn)]) -> list[ModelMetric]:
+def model_metrics(
+    conn: Annotated[Connection, Depends(get_conn)], actor: CurrentActor
+) -> list[ModelMetric]:
     """Последняя оценка по каждому включённому направлению.
 
     Направление без оценки в ответ не попадает. Нули вместо оценки читались бы
     как «модель не работает», хотя верное чтение — «оценки ещё нет».
+
+    Качество модели от роли не зависит: оно измерено на всей сети, и техник
+    видит то же число, что диспетчер ОДС. Резать его границей видимости
+    значило бы показывать четыре разных Precision у одной модели.
     """
+    del actor
     newest = (
         select(model_metric)
         .distinct(model_metric.c.direction)
@@ -69,13 +77,19 @@ def model_metrics(conn: Annotated[Connection, Depends(get_conn)]) -> list[ModelM
 
 
 @router.get("/metrics/pipeline", response_model=PipelineHealth, response_model_by_alias=True)
-def pipeline_health(conn: Annotated[Connection, Depends(get_conn)]) -> PipelineHealth:
+def pipeline_health(
+    conn: Annotated[Connection, Depends(get_conn)], actor: CurrentActor
+) -> PipelineHealth:
     """Здоровье конвейера по последнему успешному прогону.
 
     Измеренные значения идут рядом с целевыми, потому что ТЗ требует
     доказательства двух чисел: прогноз считается меньше пяти минут и горизонт
     не меньше суток.
+
+    Прогон конвейера один на предприятие, поэтому границей видимости он не
+    режется: свежесть данных одинакова у всех ролей.
     """
+    del actor
     run = conn.execute(
         select(pipeline_run)
         .where(pipeline_run.c.status == RUN_DONE)

@@ -224,3 +224,29 @@ export function pageOf<T extends z.ZodType>(item: T) {
 
 export const PredictionPageSchema = pageOf(PredictionSchema)
 export const WorkOrderPageSchema = pageOf(WorkOrderSchema)
+
+/* ----------------------------------------------------------------- сессия */
+
+export const CurrentUserSchema = dto({
+  username: z.string(),
+  fullName: z.string(),
+  role: z.string(),
+  roleLabel: z.string(),
+  scopeKind: z.string(),
+  scopeValue: opt(z.string()),
+  permissions: z.array(z.string()),
+})
+
+export const LoginChallengeSchema = dto({
+  status: z.string(),
+  mfaToken: z.string(),
+  secret: opt(z.string()),
+  otpauthUrl: opt(z.string()),
+})
+
+export const SessionResponseSchema = dto({
+  accessToken: z.string(),
+  tokenType: z.string(),
+  expiresIn: z.number(),
+  user: CurrentUserSchema,
+})

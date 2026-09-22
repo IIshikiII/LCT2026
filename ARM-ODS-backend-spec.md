@@ -221,13 +221,14 @@ backend/
   migrations/              нумерованные .sql: 001_init.sql, 002_....sql
   app/
     main.py                сборка FastAPI, CORS, роутеры
-    cli.py                 команды: migrate, seed, run-pipeline, train, ingest
+    cli.py                 команды: migrate, seed, create-user, run-pipeline, train, ingest
     config.py              frozen dataclass, читает os.environ
     db.py                  engine SQLAlchemy Core, зависимость get_conn
     logging.py             JSON-форматтер поверх stdlib logging
     tables/                определения таблиц (sqlalchemy.Table), без ORM
     schemas/               pydantic-DTO ответов API (зеркало zod-схем фронта)
-    api/                   роутеры: meta, predictions, facilities, orders, metrics, dashboard
+    api/                   роутеры: auth, meta, predictions, facilities, orders, metrics, dashboard
+    auth/                  роли, области видимости, пароль, второй фактор, токен
     domain/                бизнес-логика: действия, автозаявки, пороги
     meta/                  реестр направлений, уровней, статусов, колонок, причин
     ingest/                парсеры выгрузок -> таблицы
@@ -250,8 +251,12 @@ backend/
 `/facilities/lines` отдают GeoJSON, `/metrics/models` и `/dashboard/top-risks`
 отдают голый массив.
 
+- `POST /auth/login` (открыт)
+- `POST /auth/mfa` (открыт)
+- `GET  /auth/me`
+- `POST /auth/logout`
 - `GET  /meta`
-- `GET  /predictions?direction&level&status&complex&from&to&sort&page&pageSize`
+- `GET  /predictions?direction&level&status&complex&assignee&from&to&sort&page&pageSize`
 - `GET  /predictions/{id}`
 - `GET  /predictions/{id}/timeseries`
 - `POST /predictions/{id}/actions/{code}`
@@ -265,6 +270,11 @@ backend/
 - `GET  /metrics/pipeline`
 - `GET  /dashboard/summary`
 - `GET  /dashboard/top-risks?limit=10`
+
+Токен обязателен везде, кроме двух шагов входа, проверки здоровья и трёх
+адресов описания API. Список открытых маршрутов лежит в `app/api/__init__.py`,
+и тест `tests/test_auth_guard.py` следит, чтобы ни один другой не остался без
+проверки. Разбор — §10 и ADR 0007.
 
 Трассы коллекторов отдаёт отдельный эндпоинт `/facilities/lines`. Причина:
 карта опрашивает точки раз в минуту, а трассы не меняются. Фронт берёт их один
@@ -306,15 +316,26 @@ backend/
 - `FacilityRef`: `id, complex, object, picket, offsetM?, distanceM, label,
   lat, lon`. Единица прогноза это пара «объект и пикет», см. §6.
 - `Prediction`: `id, direction, level, probability (0..1), horizonHours,
-  computedAt, computeMs, status, facility, summary, orderId?`.
+  computedAt, computeMs, status, facility, summary, orderId?, assignee?,
+  verdict?, dispatcherLevel?, decidedAt?`. Последние четыре поля держат решение
+  диспетчера, разбор — ADR 0006.
 - `PredictionDetail` = `Prediction` + `blocks[CardBlock]` + `actions[ActionDef]`.
 - `CardBlock`: `{ type, title, data }`, где `data` — произвольный JSON.
 - `ActionDef`: `{ code, label, kind, confirm?, fields[FieldDef] }`;
   `FieldDef`: `{ name, label, type, required?, minLength?, optionsRef?,
   placeholder?, help? }`. `optionsRef` указывает на ключ в `meta.reasons`.
 - `WorkOrder`: `id, number, predictionId, facility, workType, dueAt, status,
-  createdAt, actions[], outcome?`;
-  `outcome`: `{ actualCause, predictionConfirmed, comment, closedAt }`.
+  createdAt, createdBy, actions[], outcome?`;
+  `outcome`: `{ actualCause, factConfirmed, comment, closedAt }`.
+  Поле `createdBy` принимает `PIPELINE` или `DISPATCHER`: это происхождение
+  заявки, а не состояние, поэтому оно поле, а не статус.
+- `CurrentUser`: `username, fullName, role, roleLabel, scopeKind, scopeValue?,
+  permissions[]`. Подпись роли приходит с сервера: списка ролей интерфейс не
+  держит, как не держит списка направлений.
+- `LoginChallenge`: `status, mfaToken, secret?, otpauthUrl?`. Поле `status`
+  принимает `MFA_REQUIRED` или `ENROLL_REQUIRED`; секрет приходит только во
+  втором случае и только один раз.
+- `SessionResponse`: `accessToken, tokenType, expiresIn, user`.
 - `ModelMetric`: `{ direction, precision, recall, targetPrecision,
   targetRecall, evaluatedAt }`.
 - `PipelineHealth`: `{ lastRunAt, lastRunMs, freshnessMinutes, maxComputeMs,
@@ -336,15 +357,15 @@ backend/
 
 | Токен | Значение | Коды сегодня |
 |---|---|---|
-| `--state-attention` | ждёт диспетчера | `NEW`, `AUTO_CREATED` |
-| `--state-progress` | работа идёт | `IN_REVIEW`, `ORDER_CONFIRMED`, `CONFIRMED`, `IN_PROGRESS` |
-| `--state-done` | закончено | `CLOSED`, `DONE` |
-| `--state-muted` | отброшено | `REJECTED` |
+| `--state-attention` | ждёт диспетчера | `NEW`, `AUTO_CREATED`, `CONFIRMED` |
+| `--state-progress` | работа идёт | `IN_REVIEW`, `ORDER_OPEN`, `IN_PROGRESS` |
+| `--state-done` | закончено | `DECIDED`, `CLOSED_CONFIRMED` |
+| `--state-muted` | отброшено | `REJECTED`, `CLOSED_NOT_CONFIRMED` |
 
 Признак `terminal: true` помечает статус, на котором работа закончилась. Фронт
-перестаёт предупреждать о сроке. Ставить его на `DONE`, `REJECTED` и `CLOSED`.
-Статус без `colorVar` получает нейтральную подпись, статус без `terminal`
-считается открытым.
+перестаёт предупреждать о сроке. Ставить его на `DECIDED`, `REJECTED`,
+`CLOSED_CONFIRMED` и `CLOSED_NOT_CONFIRMED`. Статус без `colorVar` получает
+нейтральную подпись, статус без `terminal` считается открытым.
 
 ### Типы блоков карточки, которые фронт умеет рисовать
 
@@ -365,13 +386,13 @@ backend/
    телом из значений полей формы. Ответ — обновлённая сущность целиком.
    Отдельных ручек `/confirm`, `/reject`, `/close` не заводить.
 3. **`actions` вычисляются сервером** от текущего статуса сущности и роли
-   пользователя. Фронт кнопки не придумывает. Коды в моках: прогноз принимает
-   `confirm_order`, `inspect`, `reject`; заявка принимает `confirm`, `reject`,
-   `start`, `close`. Код `confirm` принадлежит заявке, а не прогнозу.
-   Действие `close` обязано принимать `outcome.predictionConfirmed`. Значение
-   только булево: строка `"true"` подтверждением не считается. Поле измеряет
-   пользу заявки, а не точность прогноза, и целью обучения не является. См.
-   `backend/docs/06-labels-and-metrics.md`.
+   пользователя. Фронт кнопки не придумывает. Прогноз принимает `take`,
+   `release` и `decide`; заявка принимает `assign`, `reject` и `close`.
+   Действие `close` принадлежит заявке и доступно только группе реагирования
+   (ADR 0007). Оно обязано принимать `outcome.factConfirmed`. Значение только
+   булево: строка `"true"` подтверждением не считается. Поле отвечает на
+   вопрос, наступил ли факт на объекте, и является вторым ярлыком для
+   дообучения. См. `backend/docs/06-labels-and-metrics.md`.
 4. **Состав UI приходит из `/meta`**: колонки журнала, виджеты дашборда,
    справочники причин. Менять состав экрана — значит менять `/meta`, а не фронт.
 5. **Терпимость к неизвестному взаимна**: фронт разбирает ответы мягко, поэтому
@@ -421,10 +442,20 @@ backend/
 - `prediction` — прогноз: направление, объект, вероятность, уровень, горизонт,
   `computed_at`, `compute_ms`, статус, `summary`, JSONB `blocks`, JSONB
   `features`, `model_version`. Колонка `blocks` — витрина для диспетчера,
-  колонка `features` — вход модели, имя признака к числу.
+  колонка `features` — вход модели, имя признака к числу. Решение диспетчера
+  лежит четырьмя отдельными полями: `assignee`, `verdict`, `dispatcher_level`,
+  `decided_at`. Статус отвечает за место в работе, поля — за то, что решил
+  человек (ADR 0006).
 - `work_order` — заявка: номер, прогноз, объект, тип работ, срок, статус,
-  `outcome` (JSONB) с `prediction_confirmed`.
+  `created_by` со значением `PIPELINE` или `DISPATCHER`, `outcome` (JSONB) с
+  `factConfirmed`.
+- `app_user` — учётная запись: логин, имя, роль, вид и значение области
+  видимости, хеш пароля, секрет второго фактора, источник записи (`LOCAL` или
+  `LDAP`). Стоит на месте каталога Active Directory, которого заказчик не
+  отдаст. Разбор — ADR 0007.
 - `action_log` — аудит: кто, когда, какое действие, над чем, с каким телом.
+  Поле `entity_type` принимает `prediction`, `order` или `auth`: ТЗ §11 требует
+  журналировать все действия, и вход является первым из них.
 - `pipeline_run` — прогон конвейера: начало, длительность, число прогнозов,
   версия моделей.
 - `model_metric` — метрики по направлению и дате оценки.
@@ -539,10 +570,22 @@ backend/
 умолчанию 0.5) и типом работ от плагина направления. Пороги, коэффициент и
 запрет дублей — в конфиге направления.
 
-Жизненный цикл заявки: `AUTO_CREATED → CONFIRMED → IN_PROGRESS → DONE`,
-ветка `REJECTED`. Статусы прогноза: `NEW → IN_REVIEW → ORDER_CONFIRMED → CLOSED`,
-ветка `REJECTED`. Названия статусов фронт берёт из `/meta`, менять их можно, но
-только вместе с моками.
+Жизненный цикл прогноза и заявки нарисован стрелками в
+`ARM-ODS-lifecycle.md`, обоснование лежит в ADR 0006. Коротко.
+
+Прогноз: `NEW → IN_REVIEW → DECIDED` либо `NEW → IN_REVIEW → ORDER_OPEN →
+CLOSED_CONFIRMED | CLOSED_NOT_CONFIRMED`. Терминальны `DECIDED` и оба `CLOSED`.
+
+Заявка: `AUTO_CREATED → CONFIRMED → IN_PROGRESS → CLOSED_CONFIRMED |
+CLOSED_NOT_CONFIRMED`, ветка `REJECTED`. Заявку подтверждает решение диспетчера
+по прогнозу, отдельного действия подтверждения нет.
+
+Выезд назначает итоговый уровень `dispatcher_level`, а не согласие диспетчера с
+моделью. Уровни `HIGH` и `CRITICAL` требуют выезда, `LOW` и `MEDIUM` закрывают
+прогноз без заявки.
+
+Названия статусов фронт берёт из `/meta`, менять их можно, но только вместе с
+моками.
 
 ## 9. Метрики качества
 
@@ -551,9 +594,9 @@ backend/
 офлайн-оценка на отложенной по времени выборке. Поле `evaluatedAt` показывает,
 когда оценка получена, а `model_metric.method` — каким способом.
 
-Отметка диспетчера `predictionConfirmed` в этот расчёт не входит. Она измеряет
-пользу заявки, появляется только после ввода сервиса в эксплуатацию и лежит на
-смещённой выборке: разметку получают лишь прогнозы, по которым выехала бригада.
+Отметка бригады `factConfirmed` в этот расчёт не входит. Она появляется только
+после ввода сервиса в эксплуатацию и лежит на смещённой выборке: разметку
+получают лишь прогнозы, по которым выехала бригада.
 Recall по ней не считается вовсе, потому что среди закрытых заявок нет
 пропущенных аварий. Разбор — в `backend/docs/06-labels-and-metrics.md`, план
 использования — в `roadmap-post-deployment.md`.
@@ -617,30 +660,54 @@ PR-AUC равна 0,0745 при базе 0,944 %. Порог выведен из
   фронт с `VITE_USE_MOCKS=false` заработал сразу после `docker compose up`.
 - Здоровье: `GET /healthz` — проверка соединения с БД, без зависимостей.
 - Аутентификация обязательна. ТЗ §11 держит RBAC и федерацию с LDAP/AD в
-  обязательных требованиях, а не в §8 «по согласованию». Сервер проверяет токен
-  Keycloak на каждом эндпоинте и объявляет требуемую роль. Проверка только на
-  фронте правами не является.
+  обязательных требованиях, а не в §8 «по согласованию». Токен проверяется на
+  каждом эндпоинте, кроме шести открытых. Проверка только на фронте правами не
+  является.
 - Журнал действий пишет имя пользователя из токена, а не константу. ТЗ §11
-  требует журналировать все действия: входы, просмотры карточек, действия над
-  прогнозом и заявкой, выгрузки.
+  требует журналировать все действия. Смена состояния и вход лежат в таблице
+  `action_log`, чтение — строкой журнала доступа с полем `actor`.
 
 ### Роли
 
-Заказчик свёл пять групп пользователей из ТЗ §3 к трём уровням видимости.
+Заказчик свёл пять групп пользователей из ТЗ §3 к трём уровням видимости и
+согласился на четвёртую роль для подтверждения факта на объекте (ответ 4.1).
 Делить права по инженерным системам он не советует: тенденции нужны всем.
 
-| Роль | Область видимости |
-|---|---|
-| `TECHNICIAN` | один комплекс |
-| `DISTRICT_DISPATCHER` | район целиком |
-| `ODS_DISPATCHER` | всё предприятие |
-| `RESPONSE_TEAM` | подтверждение факта на объекте |
+| Роль | Область видимости | Права |
+|---|---|---|
+| `TECHNICIAN` | один комплекс | чтение |
+| `DISTRICT_DISPATCHER` | комплексы своего района | `take`, `release`, `decide`, `assign`, `reject` |
+| `ODS_DISPATCHER` | всё предприятие | те же пять действий |
+| `RESPONSE_TEAM` | всё предприятие | `close` |
 
-Область видимости режет выборку на уровне запроса, а не в интерфейсе. Роль
-`RESPONSE_TEAM` добавляет одно право: закрыть заявку с отметкой о факте.
+Право названо кодом действия. Состав кнопок карточки считает сервер (§5 правило
+3), поэтому отбор по правам идёт там же, где список действий и собирается.
+Кнопка без права не доезжает до экрана, а запрос мимо интерфейса получает 403.
+
+Область видимости режет выборку условием запроса к базе, а не в интерфейсе.
+Прогноз вне границы отвечает 404, а не 403: разные коды сказали бы, что прогноз
+с таким номером есть. Качество модели границей не режется: оно измерено на всей
+сети.
 
 Политика работы с одним прогнозом простая: видят все, запись остаётся за тем,
 кто закрыл. Блокировка карточки за первым открывшим необязательна.
+
+### Вход в систему
+
+Вход идёт двумя шагами: пароль, затем одноразовый код по RFC 6238. Пароль без
+кода сессии не открывает: промежуточный токен несёт поле `kind` и не принимается
+ни одним эндпоинтом данных. Запись без заведённого ключа получает секрет один
+раз, и в базу он попадает только после верного кода.
+
+Пароль, код и токен написаны на стандартной библиотеке: `hashlib.scrypt`,
+`hmac` и подпись HS256. Правило §2 о пяти прямых зависимостях набора `api`
+осталось целым.
+
+Таблица `app_user` стоит на месте каталога Active Directory: настоящий каталог
+заказчик не отдаст (ответ 4.2), а место стыковки названо полем `directory` и
+функцией `app/auth/directory.authenticate`.
+
+Порядок работы описан в `backend/docs/09-auth.md`, обоснование — в ADR 0007.
 
 ## 11. Порядок работы
 

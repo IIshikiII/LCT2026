@@ -54,6 +54,54 @@ return raw as T           // отдаём как есть, а не бросае�
 
 ## Ручки
 
+### Вход в систему
+
+```
+POST /auth/login  { username, password } → LoginChallenge   (открыт)
+POST /auth/mfa    { mfaToken, code }     → SessionResponse   (открыт)
+GET  /auth/me                            → CurrentUser
+POST /auth/logout                        → { status }
+```
+
+Вход идёт двумя шагами. Первый проверяет пароль и отдаёт промежуточный токен,
+второй проверяет одноразовый код и отдаёт токен сессии. Промежуточный токен не
+открывает ни одного эндпоинта данных.
+
+```ts
+interface LoginChallenge {
+  status: string      // MFA_REQUIRED | ENROLL_REQUIRED
+  mfaToken: string
+  secret?: string     // приходит один раз, только при ENROLL_REQUIRED
+  otpauthUrl?: string
+}
+
+interface SessionResponse {
+  accessToken: string
+  tokenType: string   // Bearer
+  expiresIn: number   // секунды
+  user: CurrentUser
+}
+
+interface CurrentUser {
+  username: string
+  fullName: string
+  role: string        // код роли
+  roleLabel: string   // подпись роли, фронт её не составляет
+  scopeKind: string   // ALL | DISTRICT | COMPLEX
+  scopeValue?: string
+  permissions: string[]
+}
+```
+
+Токен уходит заголовком `Authorization: Bearer <токен>`. Подставляет его
+`shared/api/client.ts`, читая сессию из `sessionStorage`. Ответ 401 снимает
+сессию, и каркас показывает экран входа: истёкший токен не должен давать экран
+ошибки с бесполезной кнопкой «повторить».
+
+Все остальные ручки требуют токен. Ответ 403 значит «роль не выполняет это
+действие», ответ 404 на существующий объект значит «он вне области видимости
+роли». Разбор — `backend/docs/adr/0007-roles-and-auth.md`.
+
 ### Метаданные
 
 ```
@@ -81,8 +129,9 @@ interface AppMeta {
 `optionsRef` в `FieldDef`.
 
 `statuses` различает сущности полем `scope`: один и тот же код может встретиться
-дважды. Сейчас так ведёт себя только `REJECTED`. Терминальные статусы разные:
-у заявки `DONE`, у прогноза `CLOSED`.
+дважды. Так ведут себя `CLOSED_CONFIRMED` и `CLOSED_NOT_CONFIRMED`: они есть и у
+прогноза, и у заявки. Терминальны `DECIDED` и оба `CLOSED` у прогноза,
+`REJECTED` и оба `CLOSED` у заявки.
 
 Ещё два поля статуса необязательные, но меняют вид экрана:
 
@@ -140,6 +189,10 @@ POST /orders/{id}/actions/{code}
 Не заводить ручку под кнопку. Бэкенд знает, что делать с кодом; фронт знает только
 `ActionDef` из ответа. Ответ — сущность целиком, чтобы фронт не угадывал, что
 изменилось: он просто кладёт её в кэш.
+
+Состав действий зависит и от статуса, и от роли. Диспетчер получает `take`,
+`release`, `decide`, `assign` и `reject`; группа реагирования получает `close`;
+техник не получает ничего. Фронт ролью не ветвится: он рисует то, что пришло.
 См. [adr/0004-single-action-endpoint.md](adr/0004-single-action-endpoint.md).
 
 ### Объекты и карта

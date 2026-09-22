@@ -37,6 +37,10 @@ async def _with_request_id(request: Request, call_next: Handler) -> Response:
             "path": request.url.path,
             "status": response.status_code,
             "durationMs": duration_ms,
+            # Имя ставит зависимость `current_actor`. ТЗ §11 требует
+            # журналировать действия пользователей, а чтение тоже действие.
+            # Ответ без имени означает запрос до входа или отказ 401.
+            "actor": getattr(request.state, "actor", "-"),
         },
     )
     return response

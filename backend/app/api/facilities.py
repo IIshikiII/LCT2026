@@ -9,6 +9,10 @@ from sqlalchemy import Select, select
 from sqlalchemy.engine import Connection
 
 from app.api import common, mappers
+from app.auth import scope
+from app.auth.actor import Actor
+from app.auth.deps import CurrentActor
+from app.auth.roles import SCOPE_COMPLEX, SCOPE_DISTRICT
 from app.db import get_conn
 from app.schemas import FacilityRef
 from app.tables import collector, facility, prediction
@@ -37,11 +41,13 @@ POINTS = (
 
 def _filtered(
     statement: Select[Any],
+    actor: Actor,
     directions: list[str],
     levels: list[str],
     district: str | None,
     bbox: common.BBox | None,
 ) -> Select[Any]:
+    statement = scope.apply_joined(statement, actor)
     if directions:
         statement = statement.where(prediction.c.direction.in_(directions))
     if levels:
@@ -60,6 +66,7 @@ def _filtered(
 @router.get("/facilities")
 def list_facilities(
     conn: Annotated[Connection, Depends(get_conn)],
+    actor: CurrentActor,
     direction: Annotated[list[str], Query(default_factory=list)],
     level: Annotated[list[str], Query(default_factory=list)],
     district: str | None = None,
@@ -71,7 +78,7 @@ def list_facilities(
     а не стадию работы по нему.
     """
     rows = conn.execute(
-        _filtered(POINTS, direction, level, district, common.parse_bbox(bbox))
+        _filtered(POINTS, actor, direction, level, district, common.parse_bbox(bbox))
     ).all()
 
     return {
@@ -97,9 +104,20 @@ def list_facilities(
 
 
 @router.get("/facilities/lines")
-def list_lines(conn: Annotated[Connection, Depends(get_conn)]) -> dict[str, Any]:
-    """Трассы коллекторов. Отдельный эндпоинт: фронт берёт их раз за сессию."""
-    rows = conn.execute(select(collector)).all()
+def list_lines(
+    conn: Annotated[Connection, Depends(get_conn)], actor: CurrentActor
+) -> dict[str, Any]:
+    """Трассы коллекторов. Отдельный эндпоинт: фронт берёт их раз за сессию.
+
+    Граница роли режет и трассы. Техник видит линию своего комплекса, и карта
+    у него не рисует сеть, к которой он не допущен.
+    """
+    statement = select(collector)
+    if actor.scope_kind == SCOPE_COMPLEX:
+        statement = statement.where(collector.c.code == actor.scope_value)
+    elif actor.scope_kind == SCOPE_DISTRICT:
+        statement = statement.where(collector.c.district == actor.scope_value)
+    rows = conn.execute(statement).all()
     return {
         "type": "FeatureCollection",
         "features": [
@@ -114,8 +132,12 @@ def list_lines(conn: Annotated[Connection, Depends(get_conn)]) -> dict[str, Any]
 
 
 @router.get("/facilities/{facility_id}", response_model=FacilityRef, response_model_by_alias=True)
-def get_facility(facility_id: str, conn: Annotated[Connection, Depends(get_conn)]) -> FacilityRef:
-    row = conn.execute(select(facility).where(facility.c.id == facility_id)).first()
+def get_facility(
+    facility_id: str, conn: Annotated[Connection, Depends(get_conn)], actor: CurrentActor
+) -> FacilityRef:
+    row = conn.execute(
+        scope.apply_joined(select(facility).where(facility.c.id == facility_id), actor)
+    ).first()
     if row is None:
         raise HTTPException(status_code=404, detail=f"объект {facility_id} не найден")
     return mappers.facility_ref(row)

@@ -21,12 +21,7 @@ import pytest
 from app.meta import directions
 
 # Замер берётся рядом с работающей моделью: именно её числа видит диспетчер.
-METRICS = (
-    Path(__file__).resolve().parents[1]
-    / "artifacts"
-    / "unauthorized_access"
-    / "metrics.json"
-)
+METRICS = Path(__file__).resolve().parents[1] / "artifacts" / "unauthorized_access" / "metrics.json"
 
 
 def _decision() -> dict[str, object]:
@@ -46,8 +41,7 @@ def test_the_access_bands_equal_the_measured_levels() -> None:
     assert set(bands) == set(levels)
     for code, bound in bands.items():
         assert bound == pytest.approx(float(levels[code])), (
-            f"граница {code} в directions.py равна {bound}, "
-            f"а в metrics.json {levels[code]}"
+            f"граница {code} в directions.py равна {bound}, а в metrics.json {levels[code]}"
         )
 
 

@@ -5,6 +5,10 @@
  * с разметкой» проходится целиком. Разметка `factConfirmed` — то, из чего
  * считаются честные Precision и Recall, поэтому её обязательность проверяется
  * отдельно (ADR 0004).
+ *
+ * Цикл идёт двумя ролями, и это не усложнение теста, а сам порядок работы:
+ * бригаду назначает диспетчер, факт на объекте подтверждает группа
+ * реагирования (ADR 0007).
  */
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -12,6 +16,7 @@ import { describe, expect, it } from 'vitest'
 import { AppShell } from '@/app/AppShell'
 import { db } from '@/mocks/db'
 import { currentSearch, renderWithProviders } from '@/test/renderWithProviders'
+import { signInAs } from '@/test/session'
 
 /** Кнопка отправки формы — в панели действий есть одноимённая кнопка-раскрывашка. */
 function submitIn(label: string) {
@@ -56,7 +61,9 @@ describe('полный цикл: подтверждение, работа, за�
     // это делает решение по прогнозу. Диспетчеру остаётся назначить бригаду.
     const order = db().orders.find((o) => o.status === 'CONFIRMED')!
 
-    renderWithProviders(<AppShell />, { route: `/orders?order=${order.id}` })
+    const { queryClient } = renderWithProviders(<AppShell />, {
+      route: `/orders?order=${order.id}`,
+    })
 
     const panel = await screen.findByRole('complementary', { name: 'Карточка заявки' })
     expect(await within(panel).findByText('Ждёт бригаду')).toBeInTheDocument()
@@ -71,8 +78,15 @@ describe('полный цикл: подтверждение, работа, за�
 
     expect(await within(panel).findByText('Бригада назначена')).toBeInTheDocument()
 
+    /* 2. Смена роли. Дальше работает группа реагирования: закрыть заявку
+       отметкой о факте может только она (ADR 0007). Кнопки «Закрыть заявку»
+       у диспетчера нет вовсе — сервер её не отдаёт. */
+    expect(within(panel).queryByRole('button', { name: 'Закрыть заявку' })).toBeNull()
+    signInAs('crew')
+    await queryClient.invalidateQueries()
+
     /* 3. Закрытие — единственная форма со своим UI. */
-    await user.click(within(panel).getByRole('button', { name: 'Закрыть заявку' }))
+    await user.click(await within(panel).findByRole('button', { name: 'Закрыть заявку' }))
 
     // Без отметки «факт подтверждён» закрыть нельзя.
     await user.selectOptions(screen.getByLabelText(/Фактическая причина/), (

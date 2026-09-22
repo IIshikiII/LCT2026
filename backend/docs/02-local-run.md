@@ -34,8 +34,13 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
 ```
 
 Семя фиксировано (`app/synth/generate.py`), поэтому повтор команды не плодит
-дублей: объекты и события те же. Наполняются только `collector`, `facility` и
+дублей: объекты и события те же. Наполняются `collector`, `facility` и
 `alarm_event` — этого достаточно для направления «несанкционированный доступ».
+
+Та же команда заводит четыре учётные записи, по одной на роль: `ods`,
+`district`, `tech`, `crew`. Пароль берётся из переменной `SEED_PASSWORD`, по
+умолчанию `collector`. Без них API не отдаст ничего: токен обязателен
+(ADR 0007). Порядок входа — в [09-auth.md](09-auth.md).
 
 ## Сквозная проверка
 
@@ -60,14 +65,31 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
    docker compose run --rm pipeline uv run --no-sync python -m app.cli run-pipeline
    ```
    Команда печатает итог вида `прогон 1: 40 прогнозов, 3 заявок, 3250 мс`.
-5. Возьмите список прогнозов и выберите из него идентификатор с уровнем `HIGH`
+5. Войдите и возьмите токен. Вход идёт двумя шагами, и первый вход записи
+   заводит ключ второго фактора, поэтому код возьмите из ответа сервера:
+   ```
+   curl -s -X POST http://127.0.0.1:8000/api/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"username":"ods","password":"collector"}'
+   ```
+   Ответ несёт `mfaToken` и, при первом входе, `secret`. Заведите секрет в
+   аутентификаторе и подтвердите кодом:
+   ```
+   curl -s -X POST http://127.0.0.1:8000/api/v1/auth/mfa \
+     -H "Content-Type: application/json" \
+     -d '{"mfaToken":"<токен>","code":"<шесть цифр>"}'
+   ```
+   Из ответа возьмите `accessToken`.
+6. Возьмите список прогнозов и выберите из него идентификатор с уровнем `HIGH`
    или `CRITICAL`:
    ```
-   curl -s "http://127.0.0.1:8000/api/v1/predictions?limit=5"
+   curl -s -H "Authorization: Bearer <токен>" \
+     "http://127.0.0.1:8000/api/v1/predictions?pageSize=5"
    ```
-6. Возьмите карточку этого прогноза:
+7. Возьмите карточку этого прогноза:
    ```
-   curl -s "http://127.0.0.1:8000/api/v1/predictions/<id>"
+   curl -s -H "Authorization: Bearer <токен>" \
+     "http://127.0.0.1:8000/api/v1/predictions/<id>"
    ```
 
 Карточка обязана содержать три блока: `factors`, `timeseries` и `timeline`.
@@ -77,7 +99,7 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
 ### Чем проверить форму ответа
 
 Схемы фронтенда лежат в `frontend/src/shared/api/schemas.ts`. Сохраните ответы
-шагов 5 и 6 в файлы и разберите их схемами `PredictionSchema` и
+шагов 6 и 7 в файлы и разберите их схемами `PredictionSchema` и
 `PredictionDetailSchema`. Разбор обязан пройти без замечаний.
 
 Замечание `Invalid input: expected string, received null` значит, что бэкенд

@@ -1,5 +1,7 @@
 /**
- * Рендер компонента со всем окружением приложения: клиент запросов и роутер.
+ * Рендер компонента со всем окружением приложения: клиент запросов, сессия и
+ * роутер. Состав тот же, что в `AppProviders`: иначе тест проходил бы там, где
+ * приложение падает.
  *
  * Роутер — MemoryRouter с заданным адресом, чтобы проверять восстановление
  * состояния из ссылки (docs/06-url-state.md). Обёртки `Routes` здесь нет
@@ -12,6 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, type RenderOptions, type RenderResult } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
+import { AuthProvider } from '@/shared/auth/AuthProvider'
 
 export function createTestQueryClient(): QueryClient {
   return new QueryClient({
@@ -50,10 +53,12 @@ export function renderWithProviders(
   function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[route]}>
-          <LocationProbe />
-          {children}
-        </MemoryRouter>
+        <AuthProvider>
+          <MemoryRouter initialEntries={[route]}>
+            <LocationProbe />
+            {children}
+          </MemoryRouter>
+        </AuthProvider>
       </QueryClientProvider>
     )
   }

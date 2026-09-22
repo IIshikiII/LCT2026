@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import API_PREFIX, app
+from tests import roles
 
 pytestmark = pytest.mark.usefixtures("seeded")
 
@@ -192,13 +193,23 @@ def test_order_actions_follow_the_lifecycle() -> None:
     # диспетчер работает с прогнозом. ADR 0006, поправка о назначении бригады.
     assert [a["code"] for a in items["O-1"]["actions"]] == ["reject"]
     assert [a["code"] for a in items["O-2"]["actions"]] == ["assign", "reject"]
-    assert [a["code"] for a in items["O-3"]["actions"]] == ["close"]
+    # Заявку в работе закрывает группа реагирования, а не диспетчер. ADR 0007.
+    assert items["O-3"]["actions"] == []
     assert items["O-4"]["actions"] == []
 
 
+def test_the_crew_sees_only_the_closing_action() -> None:
+    """Роль делит действия заявки: назначает диспетчер, закрывает бригада."""
+    roles.sign_in("crew")
+    items = {item["id"]: item for item in get("/orders")["items"]}
+
+    assert [a["code"] for a in items["O-3"]["actions"]] == ["close"]
+    assert items["O-2"]["actions"] == []
+
+
 def test_close_form_asks_for_the_direction_reasons() -> None:
-    order = get("/orders/O-3")
-    close = order["actions"][0]
+    roles.sign_in("crew")
+    close = get("/orders/O-3")["actions"][0]
     cause = next(field for field in close["fields"] if field["name"] == "actualCause")
     # Заявка O-3 висит на прогнозе направления UNAUTHORIZED_ACCESS.
     assert cause["optionsRef"] == "UNAUTHORIZED_ACCESS"

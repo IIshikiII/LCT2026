@@ -2,15 +2,22 @@
 
 Все монтируются под `/api/v1`. Добавить область — значит добавить модуль и
 строку в `ROUTERS`.
+
+**Открытые маршруты перечислены здесь.** Всё остальное требует токен. Список
+короткий по смыслу: войти можно только тем, у кого токена ещё нет, а проверка
+здоровья зовётся системой развёртывания до всякого входа. Тест
+`tests/test_auth_guard.py` обходит маршруты приложения и падает, если
+защищённый маршрут остался без зависимости `current_actor`.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api import dashboard, facilities, meta, metrics, orders, predictions
+from app.api import auth, dashboard, facilities, meta, metrics, orders, predictions
 
 ROUTERS: tuple[APIRouter, ...] = (
+    auth.router,
     meta.router,
     predictions.router,
     facilities.router,
@@ -19,4 +26,18 @@ ROUTERS: tuple[APIRouter, ...] = (
     dashboard.router,
 )
 
-__all__ = ["ROUTERS"]
+# Полные пути, которым токен не нужен. Сверяются с `route.path` приложения.
+PUBLIC_PATHS: frozenset[str] = frozenset(
+    {
+        "/healthz",
+        "/api/v1/auth/login",
+        "/api/v1/auth/mfa",
+        # Описание API и страница Swagger. Данных они не отдают, а жюри и
+        # интегратор открывают их до всякого входа.
+        "/api/v1/docs",
+        "/api/v1/docs/oauth2-redirect",
+        "/api/v1/openapi.json",
+    }
+)
+
+__all__ = ["PUBLIC_PATHS", "ROUTERS"]

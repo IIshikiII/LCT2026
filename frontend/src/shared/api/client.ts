@@ -8,8 +8,13 @@
  *
  * Бросаем только на транспортных ошибках: сеть, код ответа >= 400, невалидный
  * JSON. Их ловит TanStack Query и рисует ErrorState с кнопкой «повторить».
+ *
+ * Токен подставляется здесь же. Ответ 401 значит, что сессия кончилась: клиент
+ * снимает её, и каркас приложения показывает экран входа. Без этого истёкший
+ * токен давал бы экран ошибки с кнопкой «повторить», которая не помогает.
  */
 import type { ZodType } from 'zod'
+import { clearSession, currentToken } from '@/shared/auth/session'
 import { env } from '@/shared/config/env'
 
 export type QueryValue = string | number | boolean | string[] | undefined | null
@@ -65,6 +70,15 @@ export function parseTolerant<T>(schema: ZodType, raw: unknown, url: string): T 
   return raw as T
 }
 
+/** Заголовки запроса: тип тела и токен сессии, если он есть. */
+function authHeaders(hasBody: boolean): Record<string, string> | undefined {
+  const headers: Record<string, string> = {}
+  if (hasBody) headers['Content-Type'] = 'application/json'
+  const token = currentToken()
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  return Object.keys(headers).length > 0 ? headers : undefined
+}
+
 async function request<T>(
   method: 'GET' | 'POST',
   path: string,
@@ -76,7 +90,7 @@ async function request<T>(
   const response = await fetch(url, {
     method,
     signal: options.signal,
-    headers: options.body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers: authHeaders(options.body !== undefined),
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   })
 
@@ -86,6 +100,7 @@ async function request<T>(
   const text = await response.text()
 
   if (!response.ok) {
+    if (response.status === 401) clearSession()
     throw new ApiError(`Запрос завершился с кодом ${response.status}`, response.status, url)
   }
 

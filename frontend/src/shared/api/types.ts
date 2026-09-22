@@ -290,3 +290,38 @@ export interface LineCollection {
     properties: { collector: string }
   }[]
 }
+
+/* ----------------------------------------------------------------- сессия */
+
+/**
+ * Кто вошёл. Роль приходит строкой и кодом, и подпись роли тоже приходит с
+ * сервера: интерфейс не держит списка ролей, как не держит списка направлений
+ * (ADR 0002).
+ */
+export interface CurrentUser {
+  username: string
+  fullName: string
+  role: string
+  roleLabel: string
+  /** `ALL`, `DISTRICT` или `COMPLEX`. Что именно видно, решает сервер. */
+  scopeKind: string
+  scopeValue?: string
+  /** Коды действий, доступных роли. Кнопки всё равно приходят из `actions`. */
+  permissions: string[]
+}
+
+/** Итог первого шага входа: код прислать или ключ сначала завести. */
+export interface LoginChallenge {
+  status: string
+  mfaToken: string
+  /** Секрет и ссылка приходят один раз, только при регистрации ключа. */
+  secret?: string
+  otpauthUrl?: string
+}
+
+export interface SessionResponse {
+  accessToken: string
+  tokenType: string
+  expiresIn: number
+  user: CurrentUser
+}

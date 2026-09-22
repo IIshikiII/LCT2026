@@ -1,6 +1,10 @@
 /**
  * Каркас приложения: шапка, рельс, рабочая зона, правая панель.
  *
+ * Перед каркасом стоят ворота. Сессии нет — показывается экран входа, и ни
+ * один запрос данных не уходит: ТЗ §11 держит разграничение доступа в
+ * обязательных требованиях, а запрос без токена всё равно вернул бы 401.
+ *
  * Здесь же — единственное место, где приложение ждёт `/meta`. Если она не
  * пришла или сломана, `useMeta()` отдаёт запасную конфигурацию, и интерфейс
  * поднимается как ни в чём не бывало (критерий приёмки spec §12).
@@ -10,13 +14,25 @@
  * (ADR 0007).
  */
 import { useMeta, useMetaQuery } from '@/shared/api/queries'
+import { useAuth } from '@/shared/auth/context'
 import { Spinner } from '@/shared/ui/states'
+import { LoginScreen } from '@/screens/login/LoginScreen'
 import { Header } from './Header'
 import { Rail } from './Rail'
 import { RightPanel } from './RightPanel'
 import { AppRoutes } from './router'
 
 export function AppShell() {
+  const { session } = useAuth()
+  if (session === null) return <LoginScreen />
+  return <SignedIn />
+}
+
+/**
+ * Рабочая часть. Отдельным компонентом, потому что хуки данных не должны
+ * вызываться до входа: иначе первый запрос уходит без токена.
+ */
+function SignedIn() {
   const metaQuery = useMetaQuery()
   const meta = useMeta()
 

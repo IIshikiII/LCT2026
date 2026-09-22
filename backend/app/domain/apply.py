@@ -33,14 +33,12 @@ def check_body(actions: list[ActionDef], code: str, body: dict[str, Any]) -> Non
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
-def next_status(entity: str, code: str, status: str) -> str:
-    """Отдаёт следующий статус или отказывает.
+def require_known(entity: str, code: str) -> transitions.Transition:
+    """Отдаёт переход или отказывает 404.
 
-    Неизвестный код даёт 404: такого действия не существует. Молчаливая смена
-    статуса по неизвестному коду скрывала бы опечатку и устаревшего клиента.
-
-    Известный код в неподходящем статусе даёт 409. Сущность есть, тело верное,
-    но переход запрещён.
+    Проверка стоит раньше проверки права, и порядок здесь важен. Иначе опечатка
+    в коде действия отвечала бы «роли это не разрешено», и клиент искал бы
+    права там, где он ошибся буквой.
     """
     move = transitions.find(entity, code)
     if move is None:
@@ -51,6 +49,19 @@ def next_status(entity: str, code: str, status: str) -> str:
             status_code=404,
             detail=f"действия {code} не существует, известны: {known}",
         )
+    return move
+
+
+def next_status(entity: str, code: str, status: str) -> str:
+    """Отдаёт следующий статус или отказывает.
+
+    Неизвестный код даёт 404: такого действия не существует. Молчаливая смена
+    статуса по неизвестному коду скрывала бы опечатку и устаревшего клиента.
+
+    Известный код в неподходящем статусе даёт 409. Сущность есть, тело верное,
+    но переход запрещён.
+    """
+    move = require_known(entity, code)
 
     if status not in move.from_statuses:
         allowed = ", ".join(transitions.codes_for(entity, status)) or "нет доступных действий"
@@ -83,14 +94,25 @@ def set_status(
         )
 
 
-def log(conn: Connection, entity: str, entity_id: str, code: str, body: dict[str, Any]) -> None:
-    """Пишет действие в аудит. Тело сохраняется целиком: другого следа нет."""
+def log(
+    conn: Connection,
+    entity: str,
+    entity_id: str,
+    code: str,
+    actor: str,
+    body: dict[str, Any],
+) -> None:
+    """Пишет действие в аудит. Тело сохраняется целиком: другого следа нет.
+
+    Имя приходит из токена. Прежняя константа `dispatcher` утверждала, что
+    действие выполнил человек с таким именем, и ТЗ §11 этим не закрывалось.
+    """
     conn.execute(
         action_log.insert().values(
             entity_type=entity,
             entity_id=entity_id,
             action_code=code,
-            actor="dispatcher",
+            actor=actor,
             payload=body,
         )
     )

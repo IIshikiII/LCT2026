@@ -6,6 +6,7 @@
  * метрики моделей — реже.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { z } from 'zod'
 import { FALLBACK_META } from '@/shared/config/fallbacks'
 import { apiGet, apiPost } from './client'
 import { endpoints } from './endpoints'
@@ -20,6 +21,7 @@ import { queryKeys } from './queryKeys'
 import {
   AppMetaSchema,
   DashboardSummarySchema,
+  LoginChallengeSchema,
   FacilityCollectionSchema,
   LineCollectionSchema,
   ModelMetricListSchema,
@@ -27,6 +29,7 @@ import {
   PredictionDetailSchema,
   PredictionListSchema,
   PredictionPageSchema,
+  SessionResponseSchema,
   TimeSeriesResponseSchema,
   WorkOrderPageSchema,
   WorkOrderSchema,
@@ -36,11 +39,13 @@ import type {
   DashboardSummary,
   FacilityCollection,
   LineCollection,
+  LoginChallenge,
   ModelMetric,
   PageResult,
   PipelineHealth,
   Prediction,
   PredictionDetail,
+  SessionResponse,
   TimeSeriesResponse,
   WorkOrder,
 } from './types'
@@ -254,5 +259,43 @@ export function useTopRisks(limit = 10) {
         params: { limit },
         signal,
       }),
+  })
+}
+
+/* ---------------------------------------------------------------- сессия */
+
+/**
+ * Первый шаг входа: логин и пароль.
+ *
+ * Сессии здесь ещё нет. Ответ говорит, что делать дальше: прислать код или
+ * сначала завести ключ. Разделение живёт на сервере, фронт только читает
+ * поле `status`.
+ */
+export function useLogin() {
+  return useMutation({
+    mutationFn: (body: { username: string; password: string }) =>
+      apiPost<LoginChallenge>(endpoints.login(), LoginChallengeSchema, body),
+  })
+}
+
+/** Второй шаг входа. Он же подтверждает только что заведённый ключ. */
+export function useConfirmCode() {
+  return useMutation({
+    mutationFn: (body: { mfaToken: string; code: string }) =>
+      apiPost<SessionResponse>(endpoints.mfa(), SessionResponseSchema, body),
+  })
+}
+
+/**
+ * Выход. Токен снимает браузер, сервер записывает событие в журнал.
+ *
+ * Кэш запросов чистится целиком: в нём лежат данные прежней роли, и показать
+ * их следующему вошедшему нельзя.
+ */
+export function useLogout() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiPost<unknown>(endpoints.logout(), z.unknown(), {}),
+    onSettled: () => qc.clear(),
   })
 }

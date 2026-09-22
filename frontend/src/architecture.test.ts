@@ -104,7 +104,7 @@ describe('ADR 0007: заглушки изолированы', () => {
    * Тесты в список не входят: им обращаться к заглушкам можно и нужно —
    * проверка охраняет продакшен-код, а не тестовый.
    */
-  const ALLOWED = ['main.tsx', 'test/msw.ts', 'test/setup.ts']
+  const ALLOWED = ['main.tsx', 'test/msw.ts', 'test/setup.ts', 'test/session.ts']
 
   it('никто вне разрешённого списка не импортирует из src/mocks/', () => {
     const bad = appFiles.filter((file) => {

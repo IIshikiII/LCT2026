@@ -9,7 +9,15 @@ from app import logging as app_logging
 from app.config import config
 from app.migrate import run as run_migrations
 
-COMMANDS = ("migrate", "seed", "run-pipeline", "publish-metrics", "train", "ingest")
+COMMANDS = (
+    "migrate",
+    "seed",
+    "create-user",
+    "run-pipeline",
+    "publish-metrics",
+    "train",
+    "ingest",
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -21,6 +29,19 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=None,
         help="число объектов для команды seed, по умолчанию число из app.synth.generate",
+    )
+    parser.add_argument("--username", help="логин для команды create-user")
+    parser.add_argument("--full-name", default="", help="имя пользователя для create-user")
+    parser.add_argument("--role", help="код роли для create-user")
+    parser.add_argument(
+        "--scope",
+        default=None,
+        help="комплекс или район для create-user, по виду области видимости роли",
+    )
+    parser.add_argument(
+        "--password",
+        default=None,
+        help="пароль для create-user, по умолчанию берётся из переменной SEED_PASSWORD",
     )
     args = parser.parse_args(argv)
 
@@ -40,16 +61,49 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "seed":
+        from app.auth.seed import seed_users
         from app.db import engine
         from app.synth.generate import DEFAULT_FACILITY_COUNT, generate
 
         count = args.facilities if args.facilities is not None else DEFAULT_FACILITY_COUNT
         with engine().begin() as conn:
             seeded = generate(conn, facility_count=count)
+            # Учётные записи заводятся после объектов: границы видимости узких
+            # ролей берутся из первого коллектора посева.
+            users = seed_users(conn)
         print(
             f"посев: {seeded.collector_count} коллекторов, "
             f"{seeded.facility_count} объектов, "
-            f"{seeded.alarm_event_count} событий доступа"
+            f"{seeded.alarm_event_count} событий доступа, "
+            f"учётные записи {', '.join(users)} с паролем из SEED_PASSWORD"
+        )
+        return 0
+
+    if args.command == "create-user":
+        from app.auth import directory
+        from app.auth.roles import require
+        from app.db import engine
+
+        if not args.username or not args.role:
+            print("нужны --username и --role", file=sys.stderr)
+            return 2
+        try:
+            role = require(args.role)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 2
+        with engine().begin() as conn:
+            directory.upsert(
+                conn,
+                username=args.username,
+                full_name=args.full_name or args.username,
+                role=role.code,
+                password=args.password or config.seed_password,
+                scope_value=args.scope,
+            )
+        print(
+            f"учётная запись {args.username}: роль {role.label}, "
+            f"область {role.scope_kind} {args.scope or ''}".strip()
         )
         return 0
 

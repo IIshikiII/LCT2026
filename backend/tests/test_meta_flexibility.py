@@ -14,6 +14,9 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from app.auth.deps import current_actor
+from tests.roles import DEFAULT_USER, actor_named
+
 
 @pytest.fixture
 def five_directions(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
@@ -28,6 +31,11 @@ def five_directions(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     importlib.reload(app.config)
     importlib.reload(app.meta.directions)
     importlib.reload(app.main)
+
+    # Перезагрузка собирает новый объект приложения, и подмена актёра из
+    # `conftest` осталась на прежнем. Без неё запросы этого теста уходят без
+    # токена и получают 401.
+    app.main.app.dependency_overrides[current_actor] = lambda: actor_named(DEFAULT_USER)
     yield TestClient(app.main.app)
 
     monkeypatch.delenv("ENABLED_DIRECTIONS")

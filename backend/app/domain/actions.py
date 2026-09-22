@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from app.auth.actor import Actor
 from app.meta import REJECTION_REASONS_REF, RISK_LEVELS_REF, by_code
 from app.schemas import ActionDef, FieldDef
 
@@ -72,13 +73,34 @@ def _reject(scope_label: str) -> ActionDef:
     )
 
 
-def prediction_actions(status: str, assignee: str | None = None) -> list[ActionDef]:
+def allowed(actions: list[ActionDef], actor: Actor | None) -> list[ActionDef]:
+    """Оставляет действия, на которые у роли есть право. ADR 0007.
+
+    Отбор стоит здесь, а не в роутере, потому что список действий и есть
+    интерфейс: кнопка без права не доезжает до экрана, и объяснять там нечего.
+    Запрос мимо интерфейса ловит `check_permission` и отвечает 403.
+
+    Роль не названа значит отбора нет. Так зовут эту функцию конвейер и тесты
+    домена: у них нет ни токена, ни человека.
+    """
+    if actor is None:
+        return actions
+    return [action for action in actions if actor.may(action.code)]
+
+
+def prediction_actions(
+    status: str, assignee: str | None = None, actor: Actor | None = None
+) -> list[ActionDef]:
     """Действия прогноза. ADR 0006.
 
     Диспетчер отвечает на один вопрос: верен ли уровень критичности. Ответ
     попадает в поля `verdict` и `dispatcher_level`, а нужен ли выезд, решает
     итоговый уровень, а не согласие. Поэтому действие одно, а не два.
     """
+    return allowed(_prediction_actions(status, assignee), actor)
+
+
+def _prediction_actions(status: str, assignee: str | None) -> list[ActionDef]:
     if status == "NEW":
         # Одно действие: пока прогноз ничей, решать по нему нельзя. Имя
         # исполнителя записывается первым, и только потом открывается решение.
@@ -150,12 +172,22 @@ def _decide() -> ActionDef:
     )
 
 
-def order_actions(status: str, context: OrderContext | None = None) -> list[ActionDef]:
+def order_actions(
+    status: str, context: OrderContext | None = None, actor: Actor | None = None
+) -> list[ActionDef]:
     """Действия заявки.
 
     Форма закрытия берёт список фактических причин у направления связанного
     прогноза. Поэтому `work_order.prediction_id` обязателен.
+
+    Отбор по правам делит эти действия между двумя ролями. Диспетчер назначает
+    бригаду и отклоняет заявку, группа реагирования закрывает её отметкой о
+    факте. Заказчик развёл эти роли прямо, ответ 4.1.
     """
+    return allowed(_order_actions(status, context), actor)
+
+
+def _order_actions(status: str, context: OrderContext | None) -> list[ActionDef]:
     context = context or OrderContext()
     direction = context.direction
 

@@ -19,6 +19,10 @@
 | Заявки | `/orders` | Что система создала и что с этим стало |
 | Карточка прогноза | правая панель на `/map` и `/journal` | Решение |
 
+Перед периметром стоят ворота — экран входа. В четыре экрана он не входит: он не
+показывает данных, не живёт в рельсе и не имеет своего маршрута. Пока сессии
+нет, `AppShell` рисует его вместо каркаса, и ни один запрос данных не уходит.
+
 **Явно вне периметра.** Не реализуем: звуковые оповещения, ленту событий, смены и
 приёмку/сдачу, планирование ППР, календарь, мобильный клиент бригады, режим
 видеостены, канбан, командную палитру, переключатель масштаба, отсрочку прогноза,
@@ -33,7 +37,13 @@
 1. **Вход и роли.** ТЗ §11 держит RBAC и федерацию с LDAP/AD в обязательных
    требованиях. Невыполненное обязательное требование без объяснения снимает
    решение с оценки по формальному признаку. Ролей четыре, они описаны в
-   `ARM-ODS-backend-spec.md` §10.
+   `ARM-ODS-backend-spec.md` §10 и в ADR 0007. Сделано: вход в два шага с
+   одноразовым кодом, сессия в `sessionStorage`, имя и роль в шапке, выход.
+
+   Ролью фронт не ветвится ни в одном месте. Что видно, решает сервер условием
+   запроса к базе; какие кнопки есть, приходит полем `actions` карточки. Список
+   ролей интерфейс не держит, как не держит списка направлений: подпись роли
+   приходит с сервера полем `roleLabel`.
 2. **Уведомления о критических инцидентах.** ТЗ §10 требует оповещать в режиме
    реального времени. Заказчик снизил планку: уведомления внутри веб-интерфейса
    достаточно, почта и Telegram приветствуются, но обязательными не являются.
@@ -165,6 +175,7 @@ src/
     map/
     journal/
     orders/
+    login/              ворота перед периметром, в рельсе его нет
   card/                 карточка прогноза — общий модуль для map и journal
     PredictionCard.tsx
     blockRegistry.tsx   ← точка расширения №1
@@ -179,6 +190,7 @@ src/
     widgetRegistry.tsx  ← точка расширения №4 (дашборд)
   shared/
     api/                http.ts, schemas.ts, endpoints.ts
+    auth/               сессия, провайдер, хук useAuth
     ui/                 Panel, Button, Badge, RiskBar, Field, EmptyState, ErrorState
     lib/                format.ts, urlState.ts, risk.ts
     config/             tokens.css, features.ts, fallbacks.ts
@@ -266,10 +278,14 @@ export interface Prediction {
   horizonHours: number;      // >= 24 по ТЗ
   computedAt: string;        // ISO — время формирования прогноза
   computeMs: number;         // сколько считался, для метрики < 5 мин
-  status: string;            // NEW | IN_REVIEW | ORDER_CONFIRMED | REJECTED | CLOSED
+  status: string;            // NEW | IN_REVIEW | DECIDED | ORDER_OPEN | CLOSED_CONFIRMED | CLOSED_NOT_CONFIRMED
   facility: FacilityRef;
   summary: string;           // одна строка человеческим языком
   orderId?: string;          // автоматически созданная заявка
+  assignee?: string;         // кто взял прогноз в работу
+  verdict?: string;          // AGREED | CORRECTED — согласился ли диспетчер
+  dispatcherLevel?: string;  // уровень, который диспетчер считает верным
+  decidedAt?: string;        // ISO — когда решение принято
 }
 
 export interface PredictionDetail extends Prediction {
@@ -284,15 +300,26 @@ export interface WorkOrder {
   facility: FacilityRef;
   workType: string;
   dueAt: string;
-  status: string;            // AUTO_CREATED | CONFIRMED | REJECTED | IN_PROGRESS | DONE
+  status: string;            // AUTO_CREATED | CONFIRMED | IN_PROGRESS | REJECTED | CLOSED_CONFIRMED | CLOSED_NOT_CONFIRMED
   createdAt: string;
+  createdBy: string;         // PIPELINE | DISPATCHER — кто породил заявку
   actions: ActionDef[];
   outcome?: {
     actualCause: string;
-    predictionConfirmed: boolean;
+    factConfirmed: boolean;  // наступил ли факт на объекте
     comment: string;
     closedAt: string;
   };
+}
+
+export interface CurrentUser {
+  username: string;
+  fullName: string;
+  role: string;              // код роли из реестра сервера
+  roleLabel: string;         // подпись роли, фронт её не составляет
+  scopeKind: string;         // ALL | DISTRICT | COMPLEX
+  scopeValue?: string;
+  permissions: string[];     // коды действий, доступных роли
 }
 
 export interface ModelMetric {

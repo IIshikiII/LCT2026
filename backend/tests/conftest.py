@@ -16,9 +16,11 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app import migrate
+from app.auth.roles import require
 from app.db import engine
 from app.tables import (
     action_log,
+    app_user,
     collector,
     facility,
     model_metric,
@@ -26,8 +28,22 @@ from app.tables import (
     prediction,
     work_order,
 )
+from tests import roles
 
 NOW = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def signed_in() -> Iterator[None]:
+    """Подписывает все запросы тестов диспетчером ОДС.
+
+    Без этого каждый тест чтения проверял бы вход, а не то, ради чего написан.
+    Тест роли переключается сам вызовом `roles.sign_in`.
+    """
+    roles.sign_in(roles.DEFAULT_USER)
+    yield
+    roles.sign_out()
+
 
 FACILITIES = [
     # id, коллектор, район, адрес, lon, lat
@@ -101,7 +117,16 @@ ORDERS = [
 
 
 # Порядок чистки: сначала ссылающиеся таблицы.
-TABLES = (action_log, work_order, prediction, model_metric, pipeline_run, facility, collector)
+TABLES = (
+    action_log,
+    app_user,
+    work_order,
+    prediction,
+    model_metric,
+    pipeline_run,
+    facility,
+    collector,
+)
 
 # Список таблиц для чистки читается из базы, а не пишется руками. Рукописный
 # список уже разошёлся со схемой: в нём не было `alarm_event`, и строки
@@ -184,6 +209,25 @@ def reset_database(conn: object) -> None:
 
 
 def _insert(conn: object) -> None:
+    conn.execute(  # type: ignore[attr-defined]
+        app_user.insert(),
+        [
+            {
+                "username": username,
+                "full_name": full_name,
+                "role": role,
+                "scope_kind": require(role).scope_kind,
+                "scope_value": scope_value,
+                "password_hash": roles.TEST_PASSWORD_HASH,
+                "totp_secret": roles.TEST_TOTP_SECRET if enrolled else None,
+                "mfa_enrolled": enrolled,
+                "is_active": True,
+                "directory": "LOCAL",
+                "created_at": NOW,
+            }
+            for username, full_name, role, scope_value, enrolled in roles.USERS
+        ],
+    )
     conn.execute(  # type: ignore[attr-defined]
         collector.insert(),
         [
