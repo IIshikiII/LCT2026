@@ -106,8 +106,18 @@ services:
       db:
         condition: service_healthy
 
-  # Разведочный анализ. Запуск: docker compose --profile tools up research
-  # Затем откройте http://localhost:8888. В прод этот сервис не идёт.
+  # Разведочный анализ и подбор модели. Служба держит оба занятия, потому что
+  # набор research описывает их оба (pyproject.toml, спецификация §2).
+  #
+  # JupyterLab: docker compose --profile tools up research, затем
+  # http://localhost:8888.
+  #
+  # Скрипты направления лежат вне каталога backend, поэтому служба монтирует
+  # корень репозитория в /repo. Запуск витрины направления доступа:
+  #   docker compose --profile tools run --rm -w /repo/ml/access research \
+  #       python 01_dataset.py
+  #
+  # В прод этот сервис не идёт.
   research:
     build:
       context: .
@@ -125,6 +135,8 @@ services:
       - "127.0.0.1:8888:8888"
     volumes:
       - .:/srv
+      # Корень репозитория: ml/, eda/out и notebooks/out лежат выше backend.
+      - ..:/repo
     depends_on:
       db:
         condition: service_healthy
