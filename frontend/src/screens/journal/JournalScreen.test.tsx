@@ -27,10 +27,9 @@ describe('журнал прогнозов', () => {
     renderWithProviders(<AppShell />, { route: '/journal?level=CRITICAL' })
 
     await screen.findByRole('table')
-    expect(screen.getByRole('button', { name: 'Критический' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    // Уровни живут в выпадающем списке: плашек в панели больше нет.
+    await userEvent.click(screen.getByText('Риск'))
+    expect(screen.getByRole('checkbox', { name: 'Критический' })).toBeChecked()
 
     const expected = db().predictions.filter((p) => p.level === 'CRITICAL').length
     await waitFor(() => {
@@ -111,7 +110,8 @@ describe('журнал прогнозов', () => {
     renderWithProviders(<AppShell />, { route: '/journal?page=3' })
 
     await screen.findByRole('table')
-    await user.click(screen.getByRole('button', { name: 'Высокий' }))
+    await user.click(screen.getByText('Риск'))
+    await user.click(screen.getByRole('checkbox', { name: 'Высокий' }))
 
     await waitFor(() => expect(currentSearch()).not.toContain('page='))
   })

@@ -5,6 +5,7 @@
  * Это самый ценный тест устойчивости: `/meta` — единственная ручка, без которой
  * фронт в принципе не знает, что рисовать.
  */
+import userEvent from '@testing-library/user-event'
 import { screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { AppShell } from '@/app/AppShell'
@@ -29,9 +30,11 @@ describe('приложение при недоступной /meta', () => {
       { timeout: 5000 },
     )
 
-    // Уровни риска из запасной меты доехали до фильтров.
+    // Уровни риска из запасной меты доехали до фильтров. Они лежат в
+    // выпадающем списке, как подсистема и статус: плашек в панели нет.
+    await userEvent.click(screen.getByText('Риск'))
     for (const level of FALLBACK_META.riskLevels) {
-      expect(screen.getByRole('button', { name: level.label })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: level.label })).toBeInTheDocument()
     }
   })
 

@@ -7,11 +7,10 @@
  * Списка направлений в этом файле нет — он приходит из `/meta` и достраивается
  * кодами, встреченными в данных (ADR 0002).
  *
- * **Плашками остался только уровень риска.** Их было двенадцать в ряд, и панель
- * читалась как сплошная лента. Уровень заслужил место: он различается цветом, а
- * не текстом, и это первое, что диспетчер ищет глазами. Остальное свёрнуто в
- * выпадающие списки, каждый из которых занимает одну позицию независимо от
- * числа вариантов.
+ * **Плашек в панели нет.** Их было двенадцать в ряд, и панель читалась как
+ * сплошная лента. Каждая группа свёрнута в выпадающий список и занимает одну
+ * позицию независимо от числа вариантов. Цвет уровня и подсистемы не потерялся:
+ * он остался точкой слева от каждой строки внутри списка.
  */
 import type { ReactNode } from 'react'
 import { useMeta } from '@/shared/api/queries'
@@ -24,7 +23,6 @@ import {
 } from '@/shared/lib/risk'
 import type { PredictionFilterApi } from '@/shared/lib/urlState'
 import { Button } from '@/shared/ui/Button'
-import { Chip } from '@/shared/ui/Chip'
 import { Select, TextInput } from '@/shared/ui/Field'
 import { FilterDropdown } from '@/shared/ui/FilterDropdown'
 
@@ -65,24 +63,17 @@ export function FilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-panel px-3 py-2">
-      <fieldset className="flex flex-wrap items-center gap-1.5">
-        <legend className="sr-only">Уровень риска</legend>
-        <span
-          aria-hidden="true"
-          className="text-[10px] font-medium tracking-wide text-text-mute uppercase"
-        >
-          Риск
-        </span>
-        {levelsBySeverity(meta).map((level) => (
-          <Chip
-            key={level.code}
-            label={level.label}
-            color={levelColor(level.code, meta)}
-            active={filters.level.includes(level.code)}
-            onToggle={() => api.toggle('level', level.code)}
-          />
-        ))}
-      </fieldset>
+      <FilterDropdown
+        title="Риск"
+        options={levelsBySeverity(meta).map((level) => ({
+          code: level.code,
+          label: level.label,
+          color: levelColor(level.code, meta),
+        }))}
+        selected={filters.level}
+        onToggle={(code) => api.toggle('level', code)}
+        onClear={() => api.setList('level', [])}
+      />
 
       <FilterDropdown
         title="Подсистема"
