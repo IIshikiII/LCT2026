@@ -142,7 +142,7 @@ def test_another_direction_gets_its_own_order(conn: Connection) -> None:
 def test_a_finished_order_does_not_block_a_new_one(conn: Connection) -> None:
     # Выполненная заявка не запрещает новую: состояние объекта могло ухудшиться.
     auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
-    conn.execute(update(work_order).values(status="DONE"))
+    conn.execute(update(work_order).values(status="CLOSED_CONFIRMED"))
     later = add_prediction(conn, "P-2", "HIGH", at=NOW + timedelta(minutes=15))
     assert auto_orders.create_for(conn, later) is not None
     assert len(orders(conn)) == 2

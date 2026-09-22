@@ -20,15 +20,28 @@ class Transition:
     to_status: str
 
 
+OPEN = ("NEW", "IN_REVIEW")
+
+# Целевой статус прогноза у действия `decide` зависит от уровня, который
+# назвал диспетчер: выезд нужен значит `ORDER_OPEN`, иначе `DECIDED`. Поэтому в
+# таблице он записан как `ORDER_OPEN`, а роутер подменяет его на `DECIDED` по
+# правилу `catalog.needs_order`. ADR 0006, раздел 2.
 TRANSITIONS: tuple[Transition, ...] = (
-    Transition("confirm_order", PREDICTION, ("NEW", "IN_REVIEW"), "ORDER_CONFIRMED"),
-    Transition("inspect", PREDICTION, ("NEW", "IN_REVIEW"), "IN_REVIEW"),
-    Transition("reject", PREDICTION, ("NEW", "IN_REVIEW", "ORDER_CONFIRMED"), "REJECTED"),
-    Transition("confirm", ORDER, ("AUTO_CREATED",), "CONFIRMED"),
-    Transition("reject", ORDER, ("AUTO_CREATED",), "REJECTED"),
+    Transition("take", PREDICTION, ("NEW",), "IN_REVIEW"),
+    Transition("release", PREDICTION, ("IN_REVIEW",), "NEW"),
+    Transition("decide", PREDICTION, OPEN, "ORDER_OPEN"),
+    Transition("confirm", ORDER, ("AUTO_CREATED", "MANUAL_CREATED"), "CONFIRMED"),
+    Transition("reject", ORDER, ("AUTO_CREATED", "MANUAL_CREATED"), "REJECTED"),
     Transition("start", ORDER, ("CONFIRMED",), "IN_PROGRESS"),
-    Transition("close", ORDER, ("IN_PROGRESS",), "DONE"),
+    Transition("close", ORDER, ("IN_PROGRESS",), "CLOSED_CONFIRMED"),
 )
+
+# Итог закрытия заявки меняет и её статус, и статус прогноза. Ключ — значение
+# поля `factConfirmed` формы закрытия.
+CLOSE_OUTCOME: dict[bool, str] = {
+    True: "CLOSED_CONFIRMED",
+    False: "CLOSED_NOT_CONFIRMED",
+}
 
 
 def find(entity: str, code: str) -> Transition | None:

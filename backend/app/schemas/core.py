@@ -51,6 +51,9 @@ class ActionDef(Dto):
     label: str
     kind: str
     confirm: str | None = None
+    # Подсказка под кнопкой. Несёт контекст, который знает только сервер:
+    # например, за кем сейчас закреплён прогноз.
+    help: str | None = None
     fields: list[FieldDef] = []
 
 
@@ -74,8 +77,15 @@ class PredictionDetail(Prediction):
 
 
 class WorkOrderOutcome(Dto):
+    """Итог работ на объекте. ADR 0006.
+
+    Поле называется `factConfirmed`, а не `predictionConfirmed`: бригада видела
+    факт, а не пользу выезда. Старое имя смешивало две разные величины, и
+    `docs/06-labels-and-metrics.md` это запрещает.
+    """
+
     actual_cause: str
-    prediction_confirmed: bool
+    fact_confirmed: bool
     comment: str
     closed_at: str
 

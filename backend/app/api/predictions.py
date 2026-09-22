@@ -11,7 +11,8 @@ from sqlalchemy.engine import Connection
 
 from app.api import common, mappers
 from app.db import get_conn, get_tx
-from app.domain import apply, prediction_actions, suppress_until, transitions
+from app.domain import apply, auto_orders, prediction_actions, transitions
+from app.meta import catalog
 from app.schemas import Page, Prediction, PredictionDetail, Series, SeriesPoint, TimeSeriesResponse
 from app.tables import facility, prediction, sensor_reading, work_order
 
@@ -182,46 +183,75 @@ def act_on_prediction(
     row = _load(conn, prediction_id)
     status = row.status
 
-    apply.check_body(list(prediction_actions(status)), code, body)
+    apply.check_body(list(prediction_actions(status, row.assignee)), code, body)
     new_status = apply.next_status(transitions.PREDICTION, code, status)
 
     extra: dict[str, Any] = {}
-    if code == "reject":
-        extra["suppress_until"] = _mute_until(body, row)
+    if code == "take":
+        extra["assignee"] = common.current_actor()
+    elif code == "release":
+        extra["assignee"] = None
+    elif code == "decide":
+        new_status, extra = _decision(row, body)
 
     apply.set_status(conn, prediction, prediction_id, status, new_status, **extra)
-    _cascade_to_order(conn, row.order_id, code)
+    if code == "decide":
+        _settle_order(conn, row, extra["dispatcher_level"])
     apply.log(conn, transitions.PREDICTION, prediction_id, code, body)
 
     updated = _load(conn, prediction_id)
     return mappers.prediction_detail(
         row_to_prediction(updated),
         updated.blocks,
-        list(prediction_actions(updated.status)),
+        list(prediction_actions(updated.status, updated.assignee)),
     )
 
 
-def _mute_until(body: dict[str, Any], row: Any) -> datetime:
-    """Момент, до которого направление на объекте не предлагает новых заявок.
+def _decision(row: Any, body: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """Разбирает решение диспетчера в статус и поля прогноза. ADR 0006.
 
-    Диспетчер называет свой срок. Без ответа срок следует из причины
-    отклонения.
+    Выезд назначает итоговый уровень, а не согласие: диспетчер мог согласиться
+    с критическим уровнем или поднять до него средний, и в обоих случаях нужна
+    заявка.
     """
-    named = body.get("suppressUntil")
-    if named:
-        return common.parse_moment(named, field="suppressUntil")
-    return suppress_until(body.get("reason"), row.direction, datetime.now(UTC))
+    level = str(body.get("dispatcherLevel") or "")
+    if not catalog.level_exists(level):
+        raise HTTPException(
+            status_code=422,
+            detail=f"уровень {level!r} не входит в справочник riskLevels",
+        )
+
+    verdict = "AGREED" if level == row.level else "CORRECTED"
+    extra = {
+        "verdict": verdict,
+        "dispatcher_level": level,
+        "decided_at": datetime.now(UTC),
+        "assignee": row.assignee or common.current_actor(),
+    }
+    if body.get("suppressUntil"):
+        extra["suppress_until"] = common.parse_moment(
+            body["suppressUntil"], field="suppressUntil"
+        )
+    status = "ORDER_OPEN" if catalog.needs_order(level) else "DECIDED"
+    return status, extra
 
 
-def _cascade_to_order(conn: Connection, order_id: str | None, code: str) -> None:
-    """Действие над прогнозом двигает его заявку. Поведение взято из моков."""
-    if order_id is None:
+def _settle_order(conn: Connection, row: Any, level: str) -> None:
+    """Приводит заявку в соответствие с решением диспетчера.
+
+    Четыре случая таблицы ADR 0006 сходятся в два действия: выезд нужен значит
+    заявка должна существовать и быть подтверждённой к работе, выезд не нужен
+    значит открытая заявка отклоняется.
+    """
+    order = None
+    if row.order_id is not None:
+        order = conn.execute(select(work_order).where(work_order.c.id == row.order_id)).first()
+
+    if catalog.needs_order(level):
+        if order is None:
+            # Диспетчер поднял уровень: заявки не было, её создаёт он.
+            auto_orders.create_for(conn, row, status="MANUAL_CREATED")
         return
-    order = conn.execute(select(work_order).where(work_order.c.id == order_id)).first()
-    if order is None:
-        return
 
-    if code == "confirm_order" and order.status == "AUTO_CREATED":
-        apply.set_status(conn, work_order, order_id, order.status, "CONFIRMED")
-    elif code == "reject" and order.status not in ("DONE", "REJECTED"):
-        apply.set_status(conn, work_order, order_id, order.status, "REJECTED")
+    if order is not None and order.status in ("AUTO_CREATED", "MANUAL_CREATED"):
+        apply.set_status(conn, work_order, order.id, order.status, "REJECTED")

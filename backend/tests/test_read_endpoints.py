@@ -90,15 +90,17 @@ def test_facility_is_embedded_not_an_id() -> None:
 def test_card_returns_blocks_and_actions() -> None:
     body = get("/predictions/P-1")
     assert [block["type"] for block in body["blocks"]] == ["factors", "timeseries"]
+    # ADR 0006: у нового прогноза два действия — взять в работу и решить.
     assert [action["code"] for action in body["actions"]] == [
-        "confirm_order",
-        "inspect",
-        "reject",
+        "take",
+        "decide",
     ]
 
 
 def test_actions_depend_on_the_status() -> None:
-    assert [a["code"] for a in get("/predictions/P-3")["actions"]] == ["reject"]
+    # P-3 ждёт бригаду: решение принято, действий у диспетчера больше нет.
+    assert [a["code"] for a in get("/predictions/P-3")["actions"]] == []
+    assert [a["code"] for a in get("/predictions/P-2")["actions"]] == ["decide", "release"]
     assert get("/predictions/P-4")["actions"] == []
 
 
@@ -181,7 +183,7 @@ def test_orders_return_the_envelope_sorted_by_due_date() -> None:
 
 
 def test_orders_filter_by_status_and_due_date() -> None:
-    assert get("/orders", status=["DONE"])["total"] == 1
+    assert get("/orders", status=["CLOSED_CONFIRMED"])["total"] == 1
     # Срок O-4 истёк 10-го, O-1 и O-2 наступают 11-го, O-3 — 12-го.
     assert get("/orders", dueBefore="2026-09-10")["total"] == 1
     assert get("/orders", dueBefore="2026-09-11")["total"] == 3
@@ -201,13 +203,13 @@ def test_close_form_asks_for_the_direction_reasons() -> None:
     cause = next(field for field in close["fields"] if field["name"] == "actualCause")
     # Заявка O-3 висит на прогнозе направления UNAUTHORIZED_ACCESS.
     assert cause["optionsRef"] == "UNAUTHORIZED_ACCESS"
-    confirmed = next(f for f in close["fields"] if f["name"] == "predictionConfirmed")
+    confirmed = next(f for f in close["fields"] if f["name"] == "factConfirmed")
     assert confirmed["type"] == "boolean" and confirmed["required"]
 
 
 def test_closed_order_carries_its_outcome() -> None:
     outcome = get("/orders/O-4")["outcome"]
-    assert outcome["predictionConfirmed"] is True
+    assert outcome["factConfirmed"] is True
     assert outcome["actualCause"] == "HOT_WORKS"
 
 

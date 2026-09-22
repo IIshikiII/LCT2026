@@ -21,6 +21,9 @@ def build_meta() -> AppMeta:
             ReasonOption(code=item.code, label=item.label) for item in catalog.REJECTION_REASONS
         ]
     }
+    reasons[catalog.RISK_LEVELS_REF] = [
+        ReasonOption(code=level.code, label=level.label) for level in catalog.RISK_LEVELS
+    ]
     for direction in active:
         reasons[direction.reasons_ref] = [
             ReasonOption(code=item.code, label=item.label) for item in direction.reasons

@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from app.meta import REJECTION_REASONS_REF, by_code
+from app.meta import REJECTION_REASONS_REF, RISK_LEVELS_REF, by_code
 from app.schemas import ActionDef, FieldDef
 
 
@@ -56,18 +56,10 @@ def _reject(scope_label: str) -> ActionDef:
                 required=True,
                 options_ref=REJECTION_REASONS_REF,
             ),
-            # Длина мьюта — решение по случаю. Диспетчер знает, что работы на
-            # объекте идут до пятницы, а конфиг не знает. Поле необязательное:
-            # без него срок берётся от причины отклонения.
             FieldDef(
                 name="suppressUntil",
                 label="Не предлагать до",
                 type="datetime",
-                help=(
-                    "Пока действует, новые заявки этого уровня не создаются. "
-                    "Без ответа: дубль — сутки, особенность объекта — месяц, "
-                    "остальное — неделя"
-                ),
             ),
             FieldDef(
                 name="comment",
@@ -80,41 +72,80 @@ def _reject(scope_label: str) -> ActionDef:
     )
 
 
-def prediction_actions(status: str) -> list[ActionDef]:
-    if status in ("NEW", "IN_REVIEW"):
+def prediction_actions(status: str, assignee: str | None = None) -> list[ActionDef]:
+    """Действия прогноза. ADR 0006.
+
+    Диспетчер отвечает на один вопрос: верен ли уровень критичности. Ответ
+    попадает в поля `verdict` и `dispatcher_level`, а нужен ли выезд, решает
+    итоговый уровень, а не согласие. Поэтому действие одно, а не два.
+    """
+    if status == "NEW":
         return [
             ActionDef(
-                code="confirm_order",
-                label="Подтвердить заявку",
-                kind="primary",
-                fields=[COMMENT],
-            ),
-            ActionDef(
-                code="inspect",
-                label="Назначить осмотр",
+                code="take",
+                label="Взять в работу",
                 kind="secondary",
-                fields=[
-                    FieldDef(
-                        name="plannedAt",
-                        label="Дата и время",
-                        type="datetime",
-                        required=True,
-                    ),
-                    FieldDef(
-                        name="crew",
-                        label="Бригада",
-                        type="text",
-                        required=True,
-                        min_length=2,
-                    ),
-                    COMMENT,
-                ],
+                fields=[],
             ),
-            _reject("Отклонить прогноз"),
+            _decide(),
         ]
-    if status == "ORDER_CONFIRMED":
-        return [_reject("Отклонить прогноз")]
+    if status == "IN_REVIEW":
+        return [
+            _decide(),
+            ActionDef(
+                code="release",
+                label="Вернуть в очередь",
+                kind="ghost",
+                help=(
+                    f"Сейчас за прогнозом закреплён {assignee}"
+                    if assignee
+                    else "Снять закрепление за собой"
+                ),
+                fields=[],
+            ),
+        ]
     return []
+
+
+def _decide() -> ActionDef:
+    """Единственное решение диспетчера по прогнозу.
+
+    Уровень обязателен и подставляется уровнем модели. Диспетчер либо
+    соглашается, либо ставит свой, и по итоговому уровню система сама решает,
+    нужна ли заявка. Отклонение без последствия стало невозможным.
+    """
+    return ActionDef(
+        code="decide",
+        label="Принять решение",
+        kind="primary",
+        fields=[
+            FieldDef(
+                name="dispatcherLevel",
+                label="Уровень по решению диспетчера",
+                type="select",
+                required=True,
+                options_ref=RISK_LEVELS_REF,
+                help=(
+                    "Уровни «Высокий» и «Критический» требуют выезда: система "
+                    "создаст заявку. На «Низком» и «Среднем» прогноз закрывается."
+                ),
+            ),
+            FieldDef(
+                name="reason",
+                label="Причина изменения уровня",
+                type="select",
+                options_ref=REJECTION_REASONS_REF,
+                help="Заполняется, когда уровень отличается от предложенного моделью",
+            ),
+            FieldDef(
+                name="comment",
+                label="Комментарий",
+                type="textarea",
+                required=True,
+                min_length=5,
+            ),
+        ],
+    )
 
 
 def order_actions(status: str, context: OrderContext | None = None) -> list[ActionDef]:
@@ -126,7 +157,7 @@ def order_actions(status: str, context: OrderContext | None = None) -> list[Acti
     context = context or OrderContext()
     direction = context.direction
 
-    if status == "AUTO_CREATED":
+    if status in ("AUTO_CREATED", "MANUAL_CREATED"):
         return [
             ActionDef(
                 code="confirm",
@@ -186,15 +217,15 @@ def order_actions(status: str, context: OrderContext | None = None) -> list[Acti
                         required=True,
                         options_ref=options_ref,
                     ),
-                    # Прогноз — это вероятность. Спросить «сбылась ли
-                    # вероятность» нельзя, поэтому вопрос о пользе заявки.
-                    # Формулировка временная, см. корневой TODO.md.
+                    # Итог бригады. Он закрывает и заявку, и связанный прогноз,
+                    # поэтому вопрос задан про факт на объекте, а не про пользу
+                    # выезда: пользу измерить нечем, факт бригада видела. ADR 0006.
                     FieldDef(
-                        name="predictionConfirmed",
-                        label="Заявка была целесообразна",
+                        name="factConfirmed",
+                        label="Факт подтверждён на объекте",
                         type="boolean",
                         required=True,
-                        help="Ответ обучает модель после ввода в эксплуатацию",
+                        help="Ответ закрывает прогноз и идёт в дообучение модели",
                     ),
                     FieldDef(
                         name="comment",

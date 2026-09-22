@@ -166,6 +166,17 @@ prediction = Table(
     Column("features", JSONB, nullable=False, default=dict),
     # Момент снятия мьюта. Ставит диспетчер при отклонении.
     _ts("suppress_until"),
+    # Решение диспетчера. Статус говорит, где прогноз в работе, а эти четыре
+    # поля — что о нём решил человек. Разделение обосновано в ADR 0006.
+    #
+    # `verdict` принимает AGREED или CORRECTED, `dispatcher_level` держит
+    # уровень, который диспетчер считает верным. Пара «уровень модели и уровень
+    # диспетчера» и есть ярлык для дообучения, и он ставится на каждом прогнозе,
+    # а не только там, где выехала бригада.
+    Column("assignee", Text),
+    Column("verdict", Text),
+    Column("dispatcher_level", Text),
+    _ts("decided_at"),
     Column("model_version", Text),
     Column("run_id", BigInteger),
 )

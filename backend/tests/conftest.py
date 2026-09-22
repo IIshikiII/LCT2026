@@ -41,9 +41,9 @@ PREDICTIONS = [
     # id, направление, объект, вероятность, уровень, статус, сдвиг в часах
     ("P-1", "SENSOR_FAILURE", "F-1", 0.91, "CRITICAL", "NEW", 0),
     ("P-2", "SENSOR_FAILURE", "F-1", 0.40, "MEDIUM", "IN_REVIEW", -1),
-    ("P-3", "FIRE_RISK", "F-2", 0.60, "HIGH", "ORDER_CONFIRMED", -30),
-    ("P-4", "UNAUTHORIZED_ACCESS", "F-3", 0.10, "LOW", "REJECTED", -60),
-    ("P-5", "FIRE_RISK", "F-3", 0.80, "CRITICAL", "CLOSED", -80),
+    ("P-3", "FIRE_RISK", "F-2", 0.60, "HIGH", "ORDER_OPEN", -30),
+    ("P-4", "UNAUTHORIZED_ACCESS", "F-3", 0.10, "LOW", "DECIDED", -60),
+    ("P-5", "FIRE_RISK", "F-3", 0.80, "CRITICAL", "CLOSED_CONFIRMED", -80),
 ]
 
 GOOD_BLOCKS = [
@@ -88,11 +88,11 @@ ORDERS = [
         "2026-0004",
         "P-5",
         "F-3",
-        "DONE",
+        "CLOSED_CONFIRMED",
         -6,
         {
             "actualCause": "HOT_WORKS",
-            "predictionConfirmed": True,
+            "factConfirmed": True,
             "comment": "подтвердилось при осмотре",
             "closedAt": "2026-09-09T10:00:00Z",
         },
@@ -280,6 +280,13 @@ def _insert(conn: object) -> None:
             }
             for code, number, prediction_id, facility_id, status, due_shift, outcome in ORDERS
         ],
+    )
+    # Номера заявок фикстура пишет руками, а настоящие берутся из
+    # последовательности. `TRUNCATE ... RESTART IDENTITY` сбрасывает её на
+    # единицу, и первая же заявка, созданная через API, натыкалась на
+    # `UniqueViolation` по номеру. Двигаем последовательность за фикстуру.
+    conn.execute(  # type: ignore[attr-defined]
+        text("SELECT setval('work_order_number_seq', :last)"), {"last": len(ORDERS)}
     )
 
 

@@ -19,9 +19,10 @@ from app.tables import prediction, work_order
 log = logging.getLogger(__name__)
 
 AUTO_CREATED = "AUTO_CREATED"
+MANUAL_CREATED = "MANUAL_CREATED"
 
 # Заявка считается открытой, пока работа по ней не кончилась.
-CLOSED_STATUSES = ("DONE", "REJECTED")
+CLOSED_STATUSES = ("CLOSED_CONFIRMED", "CLOSED_NOT_CONFIRMED", "REJECTED")
 
 
 @dataclass(frozen=True)
@@ -89,24 +90,37 @@ def suppressed_level(conn: Connection, facility_id: str, direction: str, at: dat
     return max((level_order(level) for level in rows), default=0)
 
 
-def create_for(conn: Connection, candidate: Candidate) -> str | None:
+def create_for(
+    conn: Connection, candidate: Candidate, status: str = AUTO_CREATED
+) -> str | None:
     """Создаёт заявку по прогнозу или отказывает.
 
     Отдаёт идентификатор заявки. Отдаёт None, когда заявка не нужна: уровень
     ниже порога, направление выключено или открытая заявка уже есть.
+
+    Довод `status` различает два происхождения заявки. Конвейер создаёт
+    `AUTO_CREATED` по порогу уровня. Диспетчер создаёт `MANUAL_CREATED`, когда
+    поднял уровень прогноза выше предложенного моделью, и тогда проверка порога
+    не нужна: решение уже принял человек. ADR 0006.
     """
     direction = by_code(candidate.direction)
     if direction is None:
         log.warning("направление вне реестра", extra={"direction": candidate.direction})
         return None
 
-    if candidate.level not in direction.order_levels:
+    by_dispatcher = status == MANUAL_CREATED
+    if not by_dispatcher and candidate.level not in direction.order_levels:
         return None
 
-    if has_open_order(conn, candidate.facility_id, candidate.direction):
+    # Правило «одна открытая заявка на объект и направление» бережёт диспетчера
+    # от потока автозаявок. К решению человека оно не применяется: диспетчер
+    # сказал, что выезд нужен, и статус прогноза обязан этому соответствовать.
+    # Иначе прогноз ушёл бы в ORDER_OPEN без заявки, и карточка показала бы
+    # «Заявка в работе» при пустой ссылке.
+    if not by_dispatcher and has_open_order(conn, candidate.facility_id, candidate.direction):
         return None
 
-    if level_order(candidate.level) <= suppressed_level(
+    if not by_dispatcher and level_order(candidate.level) <= suppressed_level(
         conn, candidate.facility_id, candidate.direction, candidate.computed_at
     ):
         return None
@@ -127,12 +141,12 @@ def create_for(conn: Connection, candidate: Candidate) -> str | None:
             facility_id=candidate.facility_id,
             work_type=direction.work_types[0],
             due_at=due_at,
-            status=AUTO_CREATED,
+            status=status,
             created_at=candidate.computed_at,
         )
     )
     log.info(
-        "заявка создана автоматически",
+        "заявка создана диспетчером" if by_dispatcher else "заявка создана автоматически",
         extra={
             "orderId": order_id,
             "predictionId": candidate.id,

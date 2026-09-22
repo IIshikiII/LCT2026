@@ -133,13 +133,19 @@ def act_on_order(
         extra["due_at"] = parse_moment(body["dueAt"], field="dueAt")
     if code == "close":
         extra["outcome"] = _outcome(body)
+        # Исход бригады выбирает терминальный статус. Таблица переходов знает
+        # только один из двух, потому что он зависит от ответа формы. ADR 0006.
+        new_status = transitions.CLOSE_OUTCOME[bool(body.get("factConfirmed"))]
 
     apply.set_status(conn, work_order, order_id, status, new_status, **extra)
 
     if code == "close":
-        # Терминальный статус заявки — DONE, связанного прогноза — CLOSED.
+        # Заявка закрывает прогноз. Своего поля исхода у прогноза нет: два поля
+        # с одним смыслом разошлись бы на первой же правке. ADR 0006.
         conn.execute(
-            update(prediction).where(prediction.c.id == row.prediction_id).values(status="CLOSED")
+            update(prediction)
+            .where(prediction.c.id == row.prediction_id)
+            .values(status=new_status)
         )
 
     if code == "reject":
@@ -164,10 +170,15 @@ def _mute_until(body: dict[str, Any], direction: str) -> datetime:
 
 
 def _outcome(body: dict[str, Any]) -> dict[str, Any]:
-    """Итог работ. Отсюда берутся честные Precision и Recall."""
+    """Итог работ на объекте. Второй ярлык для дообучения. ADR 0006.
+
+    Поле называется `factConfirmed`, а не `predictionConfirmed`: бригада видела
+    факт, а не пользу выезда. Пользу измерить нечем, и старое имя смешивало две
+    разные величины, что запрещает `docs/06-labels-and-metrics.md`.
+    """
     return {
         "actualCause": str(body.get("actualCause", "")),
-        "predictionConfirmed": body["predictionConfirmed"],
+        "factConfirmed": bool(body["factConfirmed"]),
         "comment": str(body.get("comment", "")),
         "closedAt": iso(datetime.now(UTC)),
     }

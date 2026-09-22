@@ -43,13 +43,26 @@ def test_every_status_carries_a_colour_and_marks_the_terminal_ones() -> None:
     for item in statuses:  # type: ignore[union-attr]
         assert item["colorVar"].startswith("--state-")
     terminal = {item["code"] for item in statuses if item.get("terminal")}  # type: ignore[union-attr]
-    assert terminal == {"REJECTED", "CLOSED", "DONE"}
+    # ADR 0006: у прогноза три терминальных статуса, у заявки три.
+    assert terminal == {"DECIDED", "CLOSED_CONFIRMED", "CLOSED_NOT_CONFIRMED", "REJECTED"}
 
 
-def test_rejected_appears_once_per_scope() -> None:
+def test_a_shared_code_appears_once_per_scope() -> None:
+    """Один код может жить в обеих областях, но не дважды в одной.
+
+    `CLOSED_CONFIRMED` есть и у прогноза, и у заявки: заявка закрывает прогноз
+    тем же исходом, и разные имена только путали бы. `REJECTED` остался лишь у
+    заявки: у прогноза отказ теперь всегда влечёт решение. ADR 0006.
+    """
     statuses = get_meta()["statuses"]
-    scopes = [item["scope"] for item in statuses if item["code"] == "REJECTED"]  # type: ignore[union-attr]
-    assert sorted(scopes) == ["order", "prediction"]
+    pairs = [(item["code"], item["scope"]) for item in statuses]  # type: ignore[union-attr]
+    assert len(pairs) == len(set(pairs))
+
+    shared = [item["scope"] for item in statuses if item["code"] == "CLOSED_CONFIRMED"]  # type: ignore[union-attr]
+    assert sorted(shared) == ["order", "prediction"]
+
+    rejected = [item["scope"] for item in statuses if item["code"] == "REJECTED"]  # type: ignore[union-attr]
+    assert rejected == ["order"]
 
 
 def test_every_direction_has_a_reason_list() -> None:

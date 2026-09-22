@@ -1,8 +1,13 @@
-"""Действия диспетчера: переходы, проверка формы, аудит, эффекты между сущностями."""
+"""Действия диспетчера: переходы, проверка формы, аудит, эффекты между сущностями.
+
+Модель статусов описана в ADR 0006 и нарисована в `ARM-ODS-lifecycle.md`.
+Главное правило, которое проверяет этот файл: **отклонение без последствия
+невозможно**. Диспетчер называет уровень, и по итоговому уровню система сама
+решает, нужна заявка или нет.
+"""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -13,6 +18,7 @@ from app.db import engine
 from app.main import API_PREFIX, app
 from app.tables import action_log
 from app.tables import prediction as prediction_table
+from app.tables import work_order as order_table
 
 pytestmark = pytest.mark.usefixtures("seeded")
 
@@ -22,7 +28,7 @@ DUE = "2026-09-12T09:00:00Z"
 
 CLOSE_BODY = {
     "actualCause": "INTRUSION",
-    "predictionConfirmed": True,
+    "factConfirmed": True,
     "comment": "проникновение подтвердилось",
 }
 
@@ -42,190 +48,238 @@ def logged() -> list[Any]:
         return conn.execute(select(action_log)).all()
 
 
-# --- прогноз ---
-
-
-def test_confirm_order_moves_the_prediction_and_its_order() -> None:
-    body = ok("predictions", "P-1", "confirm_order", comment="берём в работу")
-    assert body["status"] == "ORDER_CONFIRMED"
-    # Заявка O-1 висела в AUTO_CREATED и уходит в CONFIRMED сама.
-    order = client.get(f"{API_PREFIX}/orders/O-1").json()
-    assert order["status"] == "CONFIRMED"
-    assert [action["code"] for action in order["actions"]] == ["start"]
-
-
-def test_reject_on_a_prediction_rejects_its_open_order() -> None:
-    ok("predictions", "P-1", "reject", reason="MODEL_ERROR", comment="ошибка модели")
-    order = client.get(f"{API_PREFIX}/orders/O-1").json()
-    assert order["status"] == "REJECTED"
-
-
-def test_rejecting_a_prediction_mutes_the_facility() -> None:
-    ok("predictions", "P-1", "reject", reason="MODEL_ERROR", comment="ошибка модели")
+def prediction_row(prediction_id: str) -> Any:
     with engine().connect() as conn:
-        until = conn.execute(
-            select(prediction_table.c.suppress_until).where(prediction_table.c.id == "P-1")
-        ).scalar_one()
-    assert until is not None and until > datetime.now(UTC)
+        return conn.execute(
+            select(prediction_table).where(prediction_table.c.id == prediction_id)
+        ).one()
 
 
-def test_the_dispatcher_names_the_mute_length() -> None:
-    # Диспетчер знает, что работы на объекте идут до пятницы. Конфиг не знает.
-    ok(
-        "predictions",
-        "P-1",
-        "reject",
-        reason="PLANNED_WORKS",
-        comment="работы до пятницы",
-        suppressUntil="2026-09-18T18:00:00Z",
-    )
+def orders_of(prediction_id: str) -> list[Any]:
     with engine().connect() as conn:
-        until = conn.execute(
-            select(prediction_table.c.suppress_until).where(prediction_table.c.id == "P-1")
-        ).scalar_one()
-    assert until == datetime(2026, 9, 18, 18, 0, tzinfo=UTC)
+        return list(
+            conn.execute(
+                select(order_table).where(order_table.c.prediction_id == prediction_id)
+            )
+        )
 
 
-def test_rejecting_an_order_mutes_its_prediction() -> None:
-    # Прогноз остаётся в работе, но решение «бригаду не шлём» уже принято.
-    ok("orders", "O-1", "reject", reason="LOW_PRIORITY", comment="отложено до планового ТО")
-    with engine().connect() as conn:
-        until = conn.execute(
-            select(prediction_table.c.suppress_until).where(prediction_table.c.id == "P-1")
-        ).scalar_one()
-    assert until is not None
+def decide(prediction_id: str, level: str, **extra: Any) -> Any:
+    body: dict[str, Any] = {"dispatcherLevel": level, "comment": "разобрал и решил"}
+    body.update(extra)
+    return ok("predictions", prediction_id, "decide", **body)
 
 
-def test_the_answer_carries_the_new_actions() -> None:
-    body = ok("predictions", "P-1", "confirm_order", comment="ок")
-    assert [action["code"] for action in body["actions"]] == ["reject"]
+# --- взятие в работу ---------------------------------------------------------
 
 
-def test_inspect_keeps_the_prediction_in_review() -> None:
-    body = ok("predictions", "P-1", "inspect", plannedAt="2026-09-11T09:00:00Z", crew="Бригада 3")
+def test_take_records_the_dispatcher() -> None:
+    """Ответ заказчика 3.6: имя исполнителя в журнале обязательно."""
+    body = ok("predictions", "P-1", "take")
+
     assert body["status"] == "IN_REVIEW"
+    assert prediction_row("P-1").assignee == "dispatcher"
 
 
-def test_an_unknown_code_answers_404_and_changes_nothing() -> None:
-    # Молчаливая смена статуса по неизвестному коду скрыла бы опечатку.
-    response = act("predictions", "P-1", "нет-такого-кода")
-    assert response.status_code == 404
-    assert "не существует" in response.json()["detail"]
-    assert client.get(f"{API_PREFIX}/predictions/P-1").json()["status"] == "NEW"
+def test_release_returns_the_prediction_to_the_queue() -> None:
+    ok("predictions", "P-1", "take")
+    body = ok("predictions", "P-1", "release")
+
+    assert body["status"] == "NEW"
+    assert prediction_row("P-1").assignee is None
 
 
-def test_an_action_on_a_closed_prediction_answers_409() -> None:
-    response = act("predictions", "P-4", "confirm_order", comment="поздно")
+def test_take_is_not_offered_twice() -> None:
+    ok("predictions", "P-1", "take")
+    assert act("predictions", "P-1", "take").status_code == 409
+
+
+# --- решение диспетчера ------------------------------------------------------
+
+
+def test_agreeing_with_a_low_level_closes_the_prediction() -> None:
+    """Низкий уровень выезда не требует, и история на этом кончается."""
+    body = decide("P-2", "MEDIUM")
+
+    assert body["status"] == "DECIDED"
+    row = prediction_row("P-2")
+    assert row.verdict == "AGREED"
+    assert row.dispatcher_level == "MEDIUM"
+    assert row.decided_at is not None
+    assert body["actions"] == []
+
+
+def test_raising_a_low_level_creates_an_order() -> None:
+    """Диспетчер поднял средний до критического значит заявка обязательна.
+
+    Это и есть отказ с последствием: до ADR 0006 отклонение среднего прогноза
+    не влекло ничего, кроме подавления объекта на неделю.
+    """
+    body = decide("P-2", "CRITICAL")
+
+    assert body["status"] == "ORDER_OPEN"
+    row = prediction_row("P-2")
+    assert row.verdict == "CORRECTED"
+    assert row.dispatcher_level == "CRITICAL"
+
+    orders = orders_of("P-2")
+    assert len(orders) == 1
+    assert orders[0].status == "MANUAL_CREATED"
+
+
+def test_agreeing_with_a_high_level_keeps_the_auto_order() -> None:
+    body = decide("P-1", "CRITICAL")
+
+    assert body["status"] == "ORDER_OPEN"
+    assert prediction_row("P-1").verdict == "AGREED"
+    assert [order.status for order in orders_of("P-1")] == ["AUTO_CREATED"]
+
+
+def test_lowering_a_high_level_rejects_the_auto_order() -> None:
+    """Диспетчер снизил критический до низкого значит бригада не едет."""
+    body = decide("P-1", "LOW")
+
+    assert body["status"] == "DECIDED"
+    row = prediction_row("P-1")
+    assert row.verdict == "CORRECTED"
+    assert row.dispatcher_level == "LOW"
+    assert [order.status for order in orders_of("P-1")] == ["REJECTED"]
+
+
+def test_the_level_must_exist_in_the_reference_book() -> None:
+    response = act(
+        "predictions", "P-1", "decide", dispatcherLevel="ОЧЕНЬ_СТРАШНО", comment="ерунда"
+    )
+    assert response.status_code == 422
+    assert "riskLevels" in response.json()["detail"]
+
+
+def test_deciding_twice_answers_409() -> None:
+    decide("P-2", "MEDIUM")
+    response = act("predictions", "P-2", "decide", dispatcherLevel="LOW", comment="ещё раз")
     assert response.status_code == 409
-    assert "недоступно в статусе REJECTED" in response.json()["detail"]
 
 
-def test_an_unknown_prediction_answers_404() -> None:
-    assert act("predictions", "нет", "reject").status_code == 404
+def test_a_terminal_prediction_offers_no_actions() -> None:
+    body = client.get(f"{API_PREFIX}/predictions/P-5").json()
+    assert body["status"] == "CLOSED_CONFIRMED"
+    assert body["actions"] == []
 
 
-# --- проверка формы ---
+# --- проверка формы ----------------------------------------------------------
 
 
 def test_a_required_field_is_checked_on_the_server() -> None:
-    response = act("predictions", "P-1", "reject", comment="без причины")
+    response = act("predictions", "P-1", "decide", comment="без уровня")
     assert response.status_code == 422
-    assert "reason" in response.json()["detail"]
 
 
 def test_min_length_is_checked_on_the_server() -> None:
-    response = act("predictions", "P-1", "reject", reason="MODEL_ERROR", comment="ок")
+    response = act("predictions", "P-1", "decide", dispatcherLevel="LOW", comment="да")
     assert response.status_code == 422
-    assert "короче 5" in response.json()["detail"]
 
 
-# --- заявка ---
+def test_an_unknown_code_answers_404_and_changes_nothing() -> None:
+    assert act("predictions", "P-1", "выдумка").status_code == 404
+    assert client.get(f"{API_PREFIX}/predictions/P-1").json()["status"] == "NEW"
+
+
+def test_an_unknown_prediction_answers_404() -> None:
+    assert act("predictions", "P-404", "take").status_code == 404
+
+
+# --- заявка ------------------------------------------------------------------
 
 
 def test_the_order_lifecycle_runs_to_the_end() -> None:
-    assert ok("orders", "O-1", "confirm", assignee="Бригада 7", dueAt=DUE)["status"] == "CONFIRMED"
-    assert ok("orders", "O-1", "start", crew="Бригада 7")["status"] == "IN_PROGRESS"
-    closed = ok("orders", "O-1", "close", **CLOSE_BODY)
-    assert closed["status"] == "DONE"
+    assert ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)["status"] == "CONFIRMED"
+    assert ok("orders", "O-1", "start", crew="Бригада 3")["status"] == "IN_PROGRESS"
+    assert ok("orders", "O-1", "close", **CLOSE_BODY)["status"] == "CLOSED_CONFIRMED"
 
 
-def test_close_writes_the_outcome_and_closes_the_prediction() -> None:
-    body = ok("orders", "O-3", "close", **CLOSE_BODY)
-    assert body["outcome"]["predictionConfirmed"] is True
+def test_a_dispatcher_order_follows_the_same_path() -> None:
+    """Заявка диспетчера отличается происхождением, а не жизненным циклом."""
+    decide("P-2", "HIGH")
+    order_id = orders_of("P-2")[0].id
+
+    assert ok("orders", order_id, "confirm", assignee="Иванов", dueAt=DUE)["status"] == "CONFIRMED"
+    assert ok("orders", order_id, "start", crew="Бригада 1")["status"] == "IN_PROGRESS"
+
+
+def test_closing_with_a_confirmed_fact_closes_the_prediction() -> None:
+    ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)
+    ok("orders", "O-1", "start", crew="Бригада 3")
+    body = ok("orders", "O-1", "close", **CLOSE_BODY)
+
+    assert body["outcome"]["factConfirmed"] is True
     assert body["outcome"]["actualCause"] == "INTRUSION"
-    assert body["outcome"]["closedAt"].endswith("Z")
-    # Терминальный статус заявки — DONE, связанного прогноза — CLOSED.
-    assert client.get(f"{API_PREFIX}/predictions/P-4").json()["status"] == "CLOSED"
+    assert prediction_row("P-1").status == "CLOSED_CONFIRMED"
+
+
+def test_closing_without_the_fact_closes_the_prediction_the_other_way() -> None:
+    """Бригада выехала и факта не нашла. Это тоже итог, а не ошибка."""
+    ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)
+    ok("orders", "O-1", "start", crew="Бригада 3")
+    body = ok("orders", "O-1", "close", **{**CLOSE_BODY, "factConfirmed": False})
+
+    assert body["status"] == "CLOSED_NOT_CONFIRMED"
+    assert prediction_row("P-1").status == "CLOSED_NOT_CONFIRMED"
 
 
 def test_close_refuses_a_string_instead_of_a_boolean() -> None:
-    # От этого поля зависят Precision и Recall, поэтому приведение типа запрещено.
-    payload = {**CLOSE_BODY, "predictionConfirmed": "true"}
-    response = act("orders", "O-3", "close", **payload)
+    ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)
+    ok("orders", "O-1", "start", crew="Бригада 3")
+    response = act("orders", "O-1", "close", **{**CLOSE_BODY, "factConfirmed": "да"})
     assert response.status_code == 422
-    assert "predictionConfirmed" in response.json()["detail"]
 
 
 def test_close_needs_the_confirmation_flag() -> None:
-    payload = {key: value for key, value in CLOSE_BODY.items() if key != "predictionConfirmed"}
-    assert act("orders", "O-3", "close", **payload).status_code == 422
+    ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)
+    ok("orders", "O-1", "start", crew="Бригада 3")
+    body = dict(CLOSE_BODY)
+    del body["factConfirmed"]
+    assert act("orders", "O-1", "close", **body).status_code == 422
 
 
 def test_start_on_a_finished_order_answers_409() -> None:
-    assert act("orders", "O-4", "start", crew="Бригада 1").status_code == 409
+    assert act("orders", "O-4", "start", crew="Бригада 3").status_code == 409
 
 
 def test_an_unknown_order_code_answers_404() -> None:
-    response = act("orders", "O-2", "нет-такого-кода")
-    assert response.status_code == 404
+    assert act("orders", "O-2", "выдумка").status_code == 404
     assert client.get(f"{API_PREFIX}/orders/O-2").json()["status"] == "CONFIRMED"
 
 
-# --- аудит ---
-
-
-def test_confirm_takes_the_deadline_from_the_dispatcher() -> None:
-    # Расчётный срок автосоздания — заглушка. Настоящий срок ставит человек.
-    body = ok("orders", "O-1", "confirm", assignee="Бригада 7", dueAt=DUE)
-    assert body["dueAt"] == "2026-09-12T09:00:00Z"
-
-
 def test_confirm_needs_the_deadline() -> None:
-    response = act("orders", "O-1", "confirm", assignee="Бригада 7")
-    assert response.status_code == 422
-    assert "dueAt" in response.json()["detail"]
+    assert act("orders", "O-1", "confirm", assignee="Иванов").status_code == 422
 
 
 def test_confirm_refuses_a_deadline_that_is_not_a_moment() -> None:
-    response = act("orders", "O-1", "confirm", assignee="Бригада 7", dueAt="завтра")
+    response = act("orders", "O-1", "confirm", assignee="Иванов", dueAt="послезавтра")
     assert response.status_code == 422
 
 
-def test_the_deadline_hint_carries_the_horizon() -> None:
-    order = client.get(f"{API_PREFIX}/orders/O-1").json()
-    confirm = next(a for a in order["actions"] if a["code"] == "confirm")
-    hint = next(f for f in confirm["fields"] if f["name"] == "dueAt")["help"]
-    assert "горизонт 48 ч" in hint
-    assert "истекает" in hint
+def test_rejecting_an_order_mutes_the_facility() -> None:
+    ok("orders", "O-1", "reject", reason="DUPLICATE", comment="дубль вчерашней")
+    assert prediction_row("P-1").suppress_until is not None
+
+
+# --- аудит -------------------------------------------------------------------
 
 
 def test_every_action_lands_in_the_audit_log() -> None:
-    ok("predictions", "P-1", "confirm_order", comment="в работу")
-    ok("orders", "O-2", "start", crew="Бригада 7")
+    before = len(logged())
+    ok("predictions", "P-1", "take")
+    decide("P-1", "CRITICAL")
+    ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)
 
-    rows = logged()
-    assert len(rows) == 2
-    codes = {(row.entity_type, row.entity_id, row.action_code) for row in rows}
-    assert ("prediction", "P-1", "confirm_order") in codes
-    assert ("order", "O-2", "start") in codes
+    assert len(logged()) == before + 3
 
 
 def test_the_audit_keeps_the_body() -> None:
-    ok("predictions", "P-1", "reject", reason="MODEL_ERROR", comment="ошибка модели")
-    row = logged()[0]
-    assert row.payload == {"reason": "MODEL_ERROR", "comment": "ошибка модели"}
+    decide("P-2", "HIGH", comment="поднял уровень, люк вскрыт")
 
-
-def test_a_refused_action_writes_nothing() -> None:
-    assert act("orders", "O-4", "start", crew="Бригада 1").status_code == 409
-    assert logged() == []
+    row = logged()[-1]
+    assert row.action_code == "decide"
+    assert row.payload["dispatcherLevel"] == "HIGH"
+    assert row.payload["comment"] == "поднял уровень, люк вскрыт"

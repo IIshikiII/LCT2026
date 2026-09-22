@@ -50,18 +50,61 @@ RISK_LEVELS: tuple[RiskLevel, ...] = (
 # Цвет статуса назначает сервер. Гамма читается по стадии работы: внимание —
 # ждёт диспетчера, прогресс — идёт, done — закончено, muted — снято. Брать
 # токен из палитры состояний, а не из палитры риска.
+# Статус отвечает на вопрос «где прогноз в работе», а не «что решил диспетчер».
+# Решение лежит полями `verdict` и `dispatcher_level`, разбор — ADR 0006.
 STATUSES: tuple[Status, ...] = (
     Status("NEW", "Новый", PREDICTION_SCOPE, "--state-attention"),
-    Status("IN_REVIEW", "На рассмотрении", PREDICTION_SCOPE, "--state-progress"),
-    Status("ORDER_CONFIRMED", "Заявка подтверждена", PREDICTION_SCOPE, "--state-progress"),
-    Status("REJECTED", "Отклонён", PREDICTION_SCOPE, "--state-muted", terminal=True),
-    Status("CLOSED", "Закрыт", PREDICTION_SCOPE, "--state-done", terminal=True),
+    Status("IN_REVIEW", "В работе", PREDICTION_SCOPE, "--state-progress"),
+    Status("DECIDED", "Решение принято", PREDICTION_SCOPE, "--state-done", terminal=True),
+    Status("ORDER_OPEN", "Заявка в работе", PREDICTION_SCOPE, "--state-progress"),
+    Status(
+        "CLOSED_CONFIRMED",
+        "Закрыт: факт подтверждён",
+        PREDICTION_SCOPE,
+        "--state-done",
+        terminal=True,
+    ),
+    Status(
+        "CLOSED_NOT_CONFIRMED",
+        "Закрыт: факт не подтверждён",
+        PREDICTION_SCOPE,
+        "--state-muted",
+        terminal=True,
+    ),
     Status("AUTO_CREATED", "Создана автоматически", ORDER_SCOPE, "--state-attention"),
+    Status("MANUAL_CREATED", "Создана диспетчером", ORDER_SCOPE, "--state-attention"),
     Status("CONFIRMED", "Подтверждена", ORDER_SCOPE, "--state-progress"),
     Status("IN_PROGRESS", "В работе", ORDER_SCOPE, "--state-progress"),
     Status("REJECTED", "Отклонена", ORDER_SCOPE, "--state-muted", terminal=True),
-    Status("DONE", "Выполнена", ORDER_SCOPE, "--state-done", terminal=True),
+    Status(
+        "CLOSED_CONFIRMED",
+        "Закрыта: факт подтверждён",
+        ORDER_SCOPE,
+        "--state-done",
+        terminal=True,
+    ),
+    Status(
+        "CLOSED_NOT_CONFIRMED",
+        "Закрыта: факт не подтверждён",
+        ORDER_SCOPE,
+        "--state-muted",
+        terminal=True,
+    ),
 )
+
+# Уровни, требующие выезда. Заявка появляется ровно на них, и это же правило
+# решает судьбу прогноза после решения диспетчера. ADR 0006.
+ORDER_LEVELS: frozenset[str] = frozenset({"HIGH", "CRITICAL"})
+
+
+def needs_order(level: str) -> bool:
+    """Требует ли уровень выезда бригады."""
+    return level in ORDER_LEVELS
+
+
+def level_exists(level: str) -> bool:
+    """Есть ли такой уровень в справочнике. Проверка входа от диспетчера."""
+    return any(item.code == level for item in RISK_LEVELS)
 
 DISTRICTS: tuple[District, ...] = (
     District("CAO", "Центральный"),
@@ -106,6 +149,11 @@ DASHBOARD_WIDGETS: tuple[str, ...] = (
 )
 
 REJECTION_REASONS_REF = "rejection"
+
+# Справочник уровней риска для формы решения диспетчера. Лежит там же, где
+# причины, потому что фронт резолвит любой `optionsRef` через `meta.reasons`.
+# Отдельный механизм ради одного списка не нужен.
+RISK_LEVELS_REF = "riskLevels"
 
 REJECTION_REASONS: tuple[Reason, ...] = (
     Reason("KNOWN_ISSUE", "Известная особенность объекта"),

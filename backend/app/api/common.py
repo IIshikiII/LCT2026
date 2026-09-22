@@ -97,3 +97,13 @@ def parse_bbox(raw: str | None) -> BBox | None:
 
 def clamp_page(page: int, page_size: int) -> tuple[int, int]:
     return max(page, 1), min(max(page_size, 1), MAX_PAGE_SIZE)
+
+
+def current_actor() -> str:
+    """Имя того, кто выполняет действие.
+
+    Пока аутентификации нет, отдаётся константа. Ролевая модель заменит её на
+    имя из токена, и остальной код менять не придётся: он зовёт эту функцию, а
+    не пишет строку. ADR 0007.
+    """
+    return "dispatcher"
