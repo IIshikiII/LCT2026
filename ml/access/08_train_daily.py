@@ -45,6 +45,7 @@ import pathlib
 import time
 
 import duckdb
+import joblib
 import lightgbm as lgb
 import numpy as np
 
@@ -339,6 +340,41 @@ def main() -> None:
     if gap > 1e-6:
         raise ValueError(f"SHAP не аддитивен: расхождение {gap}")
 
+    # Решение о порогах пишется в том же виде, что у часовой модели: публикация
+    # замера и сторож шкалы в бэкенде читают ключ `decision`, а не форму замера.
+    # Граница HIGH равна порогу заявки, то есть точке равной полноты с планкой.
+    # CRITICAL берётся как ближайший кандидат выше HIGH.
+    high = float(equal_recall["threshold"])
+    critical = next((c for c in (0.3, 0.4, 0.5, 0.6, 0.8) if c > high), high * 2)
+    levels = {
+        "MEDIUM": round(float(y.mean()), 6),
+        "HIGH": round(high, 6),
+        "CRITICAL": round(critical, 6),
+    }
+    order = ["MEDIUM", "HIGH", "CRITICAL"]
+    values = [levels[name] for name in order]
+    if values != sorted(values) or len(set(values)) != len(values):
+        raise ValueError(f"границы уровней не возрастают: {levels}")
+    result["decision"] = {
+        "rule": (
+            "порог держит полноту наивной планки при вдвое меньшем числе нарядов: "
+            "равная полнота, выше точность"
+        ),
+        "threshold": levels["HIGH"],
+        "levels": levels,
+        "scale": "raw",
+        "level_note": "границы стоят на сырой шкале бустера, калибратор отклонён",
+        "chosen": {
+            "cell_precision": equal_recall["precision"],
+            "cell_recall": equal_recall["recall"],
+            "alerts": equal_recall["alerts"],
+            "alerts_per_day": round(equal_recall["alerts"] / days, 2),
+        },
+        "naive": naive,
+    }
+    result["calibration"] = {"kept": False, "method": None}
+
+    joblib.dump(booster, str(MODEL.with_suffix(".joblib")))
     booster.save_model(str(MODEL))
     METRICS.write_text(
         json.dumps(result, ensure_ascii=False, indent=2, default=float), encoding="utf-8"

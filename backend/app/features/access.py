@@ -64,6 +64,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from app.features import registry
 from app.ml.protocol import FeatureContext, FeatureVector
 
 ACCESS_ALARM_TYPES = ("DOOR_OPEN", "VOLUMETRIC", "MOTION")
@@ -325,10 +326,37 @@ def _hours_since_last_armed_alarm(conn: Connection, facility_id: str, at: dateti
     return int((at - last).total_seconds() // 3600)
 
 
-def build_features(ctx: FeatureContext) -> FeatureVector:
-    """Строит признаки направления доступа на момент `ctx.at`.
+HOURLY_BUILDERS: dict[str, registry.Builder] = {
+    "n_alarms_1h": lambda c, f, a: _n_access_alarms(c, f, a, 1),
+    "n_alarms_24h": lambda c, f, a: _n_access_alarms(c, f, a, 24),
+    "n_alarms_168h": lambda c, f, a: _n_access_alarms(c, f, a, 168),
+    "n_alarms_720h": lambda c, f, a: _n_access_alarms(c, f, a, 720),
+    "alarm_hour_share_720h": _alarm_hour_share_720h,
+    "hours_since_last_alarm": _hours_since_last_access_alarm,
+    "night_share": _night_share,
+    "hour_of_day": lambda _c, _f, a: a.hour,
+    "month": lambda _c, _f, a: a.month,
+    "is_weekend": lambda _c, _f, a: 1 if (a.weekday() + 1) % 7 in (0, 6) else 0,
+    "neighbor_channels_1h": _neighbor_channels_1h,
+    "is_disarmed": lambda c, f, a: int(_is_disarmed(c, f, a)),
+    "has_access_sequence": lambda c, f, a: int(_has_access_sequence(c, f, a)),
+    "n_armed_alarms_24h": lambda c, f, a: _n_armed_alarms(c, f, a, 24),
+    "n_armed_alarms_168h": lambda c, f, a: _n_armed_alarms(c, f, a, 168),
+    "hours_since_last_armed_alarm": _hours_since_last_armed_alarm,
+}
 
-    Порядок и имена ключей совпадают с `ml/access/features.py::FEATURE_COLUMNS`.
+# Признак живёт в обоих наборах и считается одинаково, поэтому объявлен один
+# раз: реестр запрещает два построителя на одно имя.
+SHARED_BUILDERS: dict[str, registry.Builder] = {
+    "day_of_week": lambda _c, _f, a: (a.weekday() + 1) % 7,
+}
+
+
+def build_features(ctx: FeatureContext) -> FeatureVector:
+    """Строит часовой набор признаков. Оставлен для прямых вызовов и тестов.
+
+    Конвейер этой функцией не пользуется: он спрашивает у модели её список
+    признаков и берёт их из реестра `app.features.registry`.
     """
     conn = ctx.conn
     facility_id = ctx.facility_id

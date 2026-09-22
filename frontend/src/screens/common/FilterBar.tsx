@@ -28,6 +28,33 @@ export interface FilterBarProps {
   actions?: ReactNode
 }
 
+/**
+ * Группа фильтров с видимым заголовком.
+ *
+ * Раньше три группы стояли одной лентой и различались только цветом точки.
+ * Диспетчер видел пятнадцать одинаковых меток подряд и не мог сказать, где
+ * кончается уровень риска и начинается статус. Подписи в `sr-only` читал
+ * только экранный диктор.
+ *
+ * Заголовок отвечает на вопрос «что это» до того, как диспетчер начнёт читать
+ * сами метки. Вертикальная черта отделяет группу от соседней; у первой группы
+ * её нет, поэтому лента не начинается с висящей линии.
+ */
+function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <fieldset className="flex flex-wrap items-center gap-1.5 border-l border-line pl-3 first:border-l-0 first:pl-0">
+      <legend className="sr-only">{title}</legend>
+      <span
+        aria-hidden="true"
+        className="text-[10px] font-medium tracking-wide text-text-mute uppercase"
+      >
+        {title}
+      </span>
+      {children}
+    </fieldset>
+  )
+}
+
 export function FilterBar({
   api,
   seenDirections = [],
@@ -39,9 +66,8 @@ export function FilterBar({
   const { filters } = api
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-panel px-3 py-2">
-      <fieldset className="flex flex-wrap items-center gap-1.5">
-        <legend className="sr-only">Направление прогнозирования</legend>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-panel px-3 py-2">
+      <FilterGroup title="Подсистема">
         {directionOptions(meta, seenDirections).map((direction) => (
           <Chip
             key={direction.code}
@@ -52,10 +78,9 @@ export function FilterBar({
             onToggle={() => api.toggle('direction', direction.code)}
           />
         ))}
-      </fieldset>
+      </FilterGroup>
 
-      <fieldset className="flex flex-wrap items-center gap-1.5">
-        <legend className="sr-only">Уровень риска</legend>
+      <FilterGroup title="Риск">
         {levelsBySeverity(meta).map((level) => (
           <Chip
             key={level.code}
@@ -65,11 +90,10 @@ export function FilterBar({
             onToggle={() => api.toggle('level', level.code)}
           />
         ))}
-      </fieldset>
+      </FilterGroup>
 
       {withStatus ? (
-        <fieldset className="flex flex-wrap items-center gap-1.5">
-          <legend className="sr-only">Статус прогноза</legend>
+        <FilterGroup title="Статус">
           {statusOptions('prediction', meta).map((status) => (
             <Chip
               key={status.code}
@@ -79,11 +103,11 @@ export function FilterBar({
               onToggle={() => api.toggle('status', status.code)}
             />
           ))}
-        </fieldset>
+        </FilterGroup>
       ) : null}
 
       {meta.districts.length > 0 ? (
-        <label className="flex items-center gap-1.5 text-[12px] text-text-mute">
+        <label className="flex items-center gap-1.5 pl-4 text-[12px] text-text-mute">
           Район
           <Select
             className="h-6 w-40 py-0 text-[12px]"
@@ -101,7 +125,7 @@ export function FilterBar({
       ) : null}
 
       {withPeriod ? (
-        <label className="flex items-center gap-1.5 text-[12px] text-text-mute">
+        <label className="flex items-center gap-1.5 pl-4 text-[12px] text-text-mute">
           С
           <TextInput
             type="date"

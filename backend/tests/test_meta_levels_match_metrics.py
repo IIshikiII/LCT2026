@@ -20,7 +20,13 @@ import pytest
 
 from app.meta import directions
 
-METRICS = Path(__file__).resolve().parents[2] / "ml" / "access" / "out" / "metrics.json"
+# Замер берётся рядом с работающей моделью: именно её числа видит диспетчер.
+METRICS = (
+    Path(__file__).resolve().parents[1]
+    / "artifacts"
+    / "unauthorized_access"
+    / "metrics.json"
+)
 
 
 def _decision() -> dict[str, object]:

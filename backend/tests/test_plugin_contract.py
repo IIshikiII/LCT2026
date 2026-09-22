@@ -36,6 +36,8 @@ FACILITY_ID = "F-CONTRACT-TEST"
 # Направление без записи здесь проверяется только на структуру словаря: тип
 # ключей и значений, а не конкретный набор имён.
 def _known_names(code: str) -> frozenset[str] | None:
+    """Подписи признаков направления. Надмножество: словарь держит подписи для
+    всех наборов, а модель просит только свой."""
     if code != "UNAUTHORIZED_ACCESS":
         return None
     from app.ml.plugins.unauthorized_access import FEATURE_LABELS
@@ -132,9 +134,15 @@ class TestPredictorContract:
             assert isinstance(name, str) and name
             assert isinstance(value, float)
 
-        expected = _known_names(direction.code)
-        if expected is not None:
-            assert set(features) == expected
+        # Набор задаёт модель, а не этот файл: замена модели на модель с
+        # другим набором признаков не должна ронять контракт. Требование
+        # осталось одно — у каждого посчитанного признака есть подпись для
+        # карточки диспетчера, иначе диспетчер увидит техническое имя.
+        labelled = _known_names(direction.code)
+        if labelled is not None:
+            assert set(features) <= labelled, (
+                f"признаки без подписи: {sorted(set(features) - labelled)}"
+            )
 
     def test_suggest_work_type_is_a_known_work_type(
         self, direction: Direction, predictor: Any

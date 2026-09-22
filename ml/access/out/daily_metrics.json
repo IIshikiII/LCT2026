@@ -181,5 +181,33 @@
     "max_additivity_gap": 8.215650382226158e-15,
     "tolerance": 1e-06,
     "rows_checked": 20000
+  },
+  "decision": {
+    "rule": "порог держит полноту наивной планки при вдвое меньшем числе нарядов: равная полнота, выше точность",
+    "threshold": 0.202105,
+    "levels": {
+      "MEDIUM": 0.00937,
+      "HIGH": 0.202105,
+      "CRITICAL": 0.3
+    },
+    "scale": "raw",
+    "level_note": "границы стоят на сырой шкале бустера, калибратор отклонён",
+    "chosen": {
+      "cell_precision": 0.297735,
+      "cell_recall": 0.098133,
+      "alerts": 618,
+      "alerts_per_day": 3.41
+    },
+    "naive": {
+      "precision": 0.106236,
+      "recall": 0.098133,
+      "alerts": 1732,
+      "hits": 184,
+      "alerts_per_day": 9.57
+    }
+  },
+  "calibration": {
+    "kept": false,
+    "method": null
   }
 }

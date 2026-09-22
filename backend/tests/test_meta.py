@@ -73,15 +73,16 @@ def test_level_for_uses_the_direction_bands() -> None:
     """Направление со своими границами считает уровень по ним. ADR 0004.
 
     Числа стоят на сырой шкале бустера: калибратор отклонён, он проигрывал по
-    счёту Брайера на отложенной выборке.
+    счёту Брайера на отложенной выборке. Сейчас работает суточная модель, и
+    границы взяты из её замера.
     """
     access = directions.UNAUTHORIZED_ACCESS
     assert catalog.level_for(0.009, access) == "LOW"
-    assert catalog.level_for(0.009438, access) == "MEDIUM"
-    assert catalog.level_for(0.15, access) == "MEDIUM"
-    assert catalog.level_for(0.156089, access) == "HIGH"
-    assert catalog.level_for(0.19, access) == "HIGH"
-    assert catalog.level_for(0.2, access) == "CRITICAL"
+    assert catalog.level_for(0.00937, access) == "MEDIUM"
+    assert catalog.level_for(0.2, access) == "MEDIUM"
+    assert catalog.level_for(0.202105, access) == "HIGH"
+    assert catalog.level_for(0.29, access) == "HIGH"
+    assert catalog.level_for(0.3, access) == "CRITICAL"
     # Число из находки T31: общие пороги давали этому прогнозу уровень LOW.
     assert catalog.level_for(0.30, access) == "CRITICAL"
 
@@ -115,4 +116,4 @@ def test_the_access_band_of_high_equals_the_order_threshold() -> None:
     access = directions.UNAUTHORIZED_ACCESS
     bands = dict(access.level_thresholds)
     assert access.order_levels == ("HIGH", "CRITICAL")
-    assert bands["HIGH"] == 0.156089
+    assert bands["HIGH"] == 0.202105

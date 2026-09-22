@@ -76,6 +76,27 @@ DIRECTION = "UNAUTHORIZED_ACCESS"
 # Человеческая подпись признака для блока `factors`. Признак без записи здесь
 # показывается своим программным именем — это деградация, а не ошибка.
 FEATURE_LABELS: dict[str, str] = {
+    # Суточный набор.
+    "days_since_last_armed": "Суток с последней тревоги вне режима охраны",
+    "days_since_last_alarm": "Суток с последней тревоги доступа",
+    "armed_day_share_30d": "Доля суток с тревогой вне охраны за 30 суток",
+    "alarm_day_share_7d": "Доля суток с тревогой за неделю",
+    "alarm_day_share_365d": "Доля суток с тревогой за год",
+    "n_alarms_7d": "Срабатываний за неделю",
+    "n_armed_90d": "Тревог вне охраны за квартал",
+    "obj_alarms_1d": "Тревог на соседних пикетах за сутки",
+    "obj_alarms_7d": "Тревог на соседних пикетах за неделю",
+    "obj_units_alarmed_7d": "Соседних пикетов с тревогой за неделю",
+    "disarm_hours_7d": "Часов без охраны за неделю",
+    "disarm_share_30d": "Доля времени без охраны за 30 суток",
+    "armed_same_weekday_1w": "Тревога была ровно неделю назад",
+    "n_channels": "Каналов доступа на объекте",
+    "day_of_year": "День года",
+    "day_of_month": "День месяца",
+    "week_of_year": "Неделя года",
+    "is_day_off": "Нерабочий день",
+    "day_off_chain": "Длина цепочки нерабочих дней",
+    # Часовой набор.
     "n_alarms_1h": "Срабатываний за последний час",
     "n_alarms_24h": "Срабатываний за 24 часа",
     "n_alarms_168h": "Срабатываний за 7 суток",
@@ -370,9 +391,21 @@ class UnauthorizedAccess:
     code = DIRECTION
 
     def build_features(self, ctx: FeatureContext) -> FeatureVector:
-        from app.features.access import build_features
+        """Считает ровно те признаки, которые назвала модель.
 
-        return build_features(ctx)
+        Список берётся у модели, а не задаётся здесь. Поэтому замена файла
+        модели на модель с другим набором признаков не требует правки кода:
+        достаточно, чтобы все её имена были в реестре `app.features.registry`.
+        Модели нет значит признаки считать не для чего.
+        """
+        from app.features import registry
+
+        model = _model()
+        if model is None:
+            return {}
+        return registry.build(
+            DIRECTION, ctx.conn, ctx.facility_id, ctx.at, list(model.feature_name())
+        )
 
     def predict(self, features: FeatureVector) -> float:
         """Отдаёт вероятность события, откалиброванную, если калибратор есть.

@@ -117,10 +117,13 @@ UNAUTHORIZED_ACCESS = Direction(
     # базой 0,9438 % (счёт Брайера 0,009171 против 0,009127). Файла
     # `calibration.joblib` больше нет, `predict` отдаёт сырую вероятность.
     #
-    # Источник чисел один: `ml/access/out/metrics.json`, ключ
-    # `decision.levels`. Ключ `decision.scale` называет шкалу, и она обязана
-    # совпадать с этой. Разбор — ADR 0002 и ADR 0004.
-    level_thresholds=(("MEDIUM", 0.009438), ("HIGH", 0.156089), ("CRITICAL", 0.2)),
+    # Источник чисел один: замер работающей модели рядом с ней,
+    # `ARTIFACTS_DIR/unauthorized_access/metrics.json`, ключ `decision.levels`.
+    # Ключ `decision.scale` называет шкалу, и она обязана совпадать с этой.
+    # Сейчас работает суточная модель (`ml/access/out/daily_metrics.json`):
+    # граница HIGH равна порогу равной полноты с наивной планкой, 3,41 наряда в
+    # сутки при точности 0,298. Разбор — ADR 0002 и ADR 0004.
+    level_thresholds=(("MEDIUM", 0.00937), ("HIGH", 0.202105), ("CRITICAL", 0.3)),
 )
 
 # Пятое направление. Выключено по умолчанию: это тест на гибкость с обеих
