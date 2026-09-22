@@ -137,7 +137,8 @@ def create_for(conn: Connection, candidate: Candidate) -> str | None:
             "orderId": order_id,
             "predictionId": candidate.id,
             "direction": candidate.direction,
-            "level": candidate.level,
+            # Не `level`: это имя занимает серьёзность самой записи.
+            "riskLevel": candidate.level,
         },
     )
     return order_id
