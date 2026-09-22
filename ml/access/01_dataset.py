@@ -12,6 +12,7 @@
 import pathlib
 import time
 
+import commissioning
 import duckdb
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -29,6 +30,9 @@ con = duckdb.connect()
 con.execute("PRAGMA threads=8")
 con.execute("PRAGMA memory_limit='6GB'")
 
+# Период ввода объекта в работу. Разбор и числа лежат в commissioning.py.
+con.execute(commissioning.table_sql(EVENTS.as_posix(), CHANNELS.as_posix()))
+
 t = time.time()
 con.execute(
     f"""
@@ -42,8 +46,10 @@ con.execute(
         ev.t AS sec
     FROM read_parquet('{EVENTS.as_posix()}') ev
     JOIN read_parquet('{CHANNELS.as_posix()}') ch ON ch.cid = ev.channel_id
+    JOIN commissioning cm ON cm.object_id = ch.oid
     WHERE ev.alarm
       AND ev.value IN {ACCESS_VALUES}
+      AND ev.d >= cm.ready_day
       AND NOT (ch.oid = {ARTIFACT_OID} AND year(ev.d) IN {ARTIFACT_YEARS})
     """
 )
@@ -77,9 +83,13 @@ con.execute(
     f"""
     COPY (
         WITH life AS (
-            SELECT channel_id, min(d) AS d_from, max(d) AS d_to
-            FROM read_parquet('{EVENTS.as_posix()}')
-            WHERE channel_id IN (SELECT DISTINCT channel_id FROM access)
+            SELECT ev.channel_id,
+                   greatest(min(ev.d), max(cm.ready_day)) AS d_from,
+                   max(ev.d) AS d_to
+            FROM read_parquet('{EVENTS.as_posix()}') ev
+            JOIN read_parquet('{CHANNELS.as_posix()}') ch ON ch.cid = ev.channel_id
+            JOIN commissioning cm ON cm.object_id = ch.oid
+            WHERE ev.channel_id IN (SELECT DISTINCT channel_id FROM access)
             GROUP BY 1
         )
         SELECT

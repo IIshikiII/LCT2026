@@ -20,6 +20,7 @@ import json
 import pathlib
 import time
 
+import commissioning
 import duckdb
 import target_stats
 
@@ -44,6 +45,9 @@ con = duckdb.connect()
 con.execute("PRAGMA threads=8")
 con.execute("PRAGMA memory_limit='6GB'")
 
+# Период ввода объекта в работу. Отбор обязан совпадать с 01_dataset.py.
+con.execute(commissioning.table_sql(EVENTS.as_posix(), CHANNELS.as_posix()))
+
 # Моменты тревоги доступа. Отбор повторяет `01_dataset.py`: те же значения, тот
 # же артефакт, те же единицы с пикетом. Момент это тройка «канал, дата,
 # секунда», поэтому пачка тревог в одну секунду весит как одна.
@@ -60,9 +64,11 @@ con.execute(
         count(*) AS n_rows
     FROM read_parquet('{EVENTS.as_posix()}') ev
     JOIN read_parquet('{CHANNELS.as_posix()}') ch ON ch.cid = ev.channel_id
+    JOIN commissioning cm ON cm.object_id = ch.oid
     WHERE ev.alarm
       AND ev.value IN {ACCESS_VALUES}
       AND ch.picket IS NOT NULL
+      AND ev.d >= cm.ready_day
       AND NOT (ch.oid = {ARTIFACT_OID} AND year(ev.d) IN {ARTIFACT_YEARS})
     GROUP BY 1, 2, 3, 4, 5
     """
