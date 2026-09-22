@@ -197,8 +197,9 @@ export const handlers = [
       record.status = needsOrder ? 'ORDER_OPEN' : 'DECIDED'
 
       const order = record.orderId ? db().orderById.get(record.orderId) : undefined
-      if (!needsOrder && order && (order.status === 'AUTO_CREATED' || order.status === 'MANUAL_CREATED')) {
-        order.status = 'REJECTED'
+      if (order && (order.status === 'AUTO_CREATED' || order.status === 'CONFIRMED')) {
+        // Решение по прогнозу и подтверждает заявку, и отклоняет её.
+        order.status = needsOrder ? 'CONFIRMED' : 'REJECTED'
         order.actions = orderActions(order.status, order.causesRef)
       }
     } else {
@@ -298,10 +299,11 @@ export const handlers = [
     const code = String(params['code'])
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
 
-    if (code === 'confirm') {
-      order.status = 'CONFIRMED'
-    } else if (code === 'start') {
+    if (code === 'assign') {
+      // Бригада и срок называются одним действием. Раньше «исполнителя»
+      // спрашивали при подтверждении, а «бригаду» при начале работ.
       order.status = 'IN_PROGRESS'
+      order.dueAt = String(body['dueAt'] ?? order.dueAt)
     } else if (code === 'reject') {
       order.status = 'REJECTED'
     } else if (code === 'close') {

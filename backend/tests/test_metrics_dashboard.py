@@ -142,7 +142,6 @@ def test_summary_counts_orders_separately_from_predictions() -> None:
         "AUTO_CREATED": 1,
         "CONFIRMED": 1,
         "IN_PROGRESS": 1,
-        "MANUAL_CREATED": 0,
         "REJECTED": 0,
         "CLOSED_CONFIRMED": 1,
         "CLOSED_NOT_CONFIRMED": 0,

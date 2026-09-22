@@ -249,9 +249,13 @@ def _settle_order(conn: Connection, row: Any, level: str) -> None:
 
     if catalog.needs_order(level):
         if order is None:
-            # Диспетчер поднял уровень: заявки не было, её создаёт он.
-            auto_orders.create_for(conn, row, status="MANUAL_CREATED")
+            # Диспетчер поднял уровень: заявки не было, её создаёт решение.
+            auto_orders.create_for(conn, row, created_by=auto_orders.BY_DISPATCHER)
+        elif order.status == "AUTO_CREATED":
+            # Заявка ждала решения и дождалась. Отдельного подтверждения нет:
+            # диспетчер только что сказал, что выезд нужен.
+            apply.set_status(conn, work_order, order.id, order.status, "CONFIRMED")
         return
 
-    if order is not None and order.status in ("AUTO_CREATED", "MANUAL_CREATED"):
+    if order is not None and order.status in ("AUTO_CREATED", "CONFIRMED"):
         apply.set_status(conn, work_order, order.id, order.status, "REJECTED")

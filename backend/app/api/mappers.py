@@ -105,6 +105,7 @@ def work_order(row: Any, facility: FacilityRef, actions: list[Any]) -> WorkOrder
         work_type=row.work_type,
         due_at=iso(row.due_at),
         status=row.status,
+        created_by=getattr(row, "created_by", "PIPELINE"),
         created_at=iso(row.created_at),
         actions=actions,
         outcome=outcome_of(row.outcome),

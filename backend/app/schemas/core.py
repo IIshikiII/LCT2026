@@ -107,6 +107,9 @@ class WorkOrder(Dto):
     work_type: str
     due_at: str
     status: str
+    # `PIPELINE` или `DISPATCHER`. Происхождение, а не состояние: обе заявки
+    # живут одинаково, различает их только то, кто их породил. ADR 0006.
+    created_by: str = "PIPELINE"
     created_at: str
     actions: list[ActionDef] = []
     outcome: WorkOrderOutcome | None = None

@@ -124,15 +124,18 @@ def test_raising_a_low_level_creates_an_order() -> None:
 
     orders = orders_of("P-2")
     assert len(orders) == 1
-    assert orders[0].status == "MANUAL_CREATED"
+    # Заявка рождается подтверждённой: диспетчер только что решил, что выезд
+    # нужен, и спрашивать его об этом второй раз незачем.
+    assert orders[0].status == "CONFIRMED"
+    assert orders[0].created_by == "DISPATCHER"
 
 
-def test_agreeing_with_a_high_level_keeps_the_auto_order() -> None:
+def test_agreeing_with_a_high_level_confirms_the_auto_order() -> None:
     body = decide("P-1", "CRITICAL")
 
     assert body["status"] == "ORDER_OPEN"
     assert prediction_row("P-1").verdict == "AGREED"
-    assert [order.status for order in orders_of("P-1")] == ["AUTO_CREATED"]
+    assert [order.status for order in orders_of("P-1")] == ["CONFIRMED"]
 
 
 def test_lowering_a_high_level_rejects_the_auto_order() -> None:
@@ -192,23 +195,39 @@ def test_an_unknown_prediction_answers_404() -> None:
 
 
 def test_the_order_lifecycle_runs_to_the_end() -> None:
-    assert ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)["status"] == "CONFIRMED"
-    assert ok("orders", "O-1", "start", crew="Бригада 3")["status"] == "IN_PROGRESS"
+    """Заявку подтверждает решение по прогнозу, а не отдельное действие.
+
+    Раньше диспетчер называл исполнителя при подтверждении и бригаду при начале
+    работ — одно и то же поле дважды. Теперь бригада и срок называются один раз.
+    """
+    decide("P-1", "CRITICAL")
+    assert ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)["status"] == "IN_PROGRESS"
     assert ok("orders", "O-1", "close", **CLOSE_BODY)["status"] == "CLOSED_CONFIRMED"
 
 
-def test_a_dispatcher_order_follows_the_same_path() -> None:
-    """Заявка диспетчера отличается происхождением, а не жизненным циклом."""
+def test_a_dispatcher_order_is_born_confirmed() -> None:
+    """Заявка диспетчера рождается подтверждённой: он только что это решил."""
     decide("P-2", "HIGH")
-    order_id = orders_of("P-2")[0].id
+    order = orders_of("P-2")[0]
 
-    assert ok("orders", order_id, "confirm", assignee="Иванов", dueAt=DUE)["status"] == "CONFIRMED"
-    assert ok("orders", order_id, "start", crew="Бригада 1")["status"] == "IN_PROGRESS"
+    assert order.status == "CONFIRMED"
+    assert order.created_by == "DISPATCHER"
+    assert ok("orders", order.id, "assign", crew="Бригада 1", dueAt=DUE)["status"] == "IN_PROGRESS"
+
+
+def test_deciding_a_high_level_confirms_the_waiting_order() -> None:
+    """Автозаявка ждала решения и дождалась, второго подтверждения нет."""
+    assert orders_of("P-1")[0].status == "AUTO_CREATED"
+    decide("P-1", "CRITICAL")
+
+    order = orders_of("P-1")[0]
+    assert order.status == "CONFIRMED"
+    assert order.created_by == "PIPELINE"
 
 
 def test_closing_with_a_confirmed_fact_closes_the_prediction() -> None:
-    ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)
-    ok("orders", "O-1", "start", crew="Бригада 3")
+    decide("P-1", "CRITICAL")
+    ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
     body = ok("orders", "O-1", "close", **CLOSE_BODY)
 
     assert body["outcome"]["factConfirmed"] is True
@@ -218,8 +237,8 @@ def test_closing_with_a_confirmed_fact_closes_the_prediction() -> None:
 
 def test_closing_without_the_fact_closes_the_prediction_the_other_way() -> None:
     """Бригада выехала и факта не нашла. Это тоже итог, а не ошибка."""
-    ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)
-    ok("orders", "O-1", "start", crew="Бригада 3")
+    decide("P-1", "CRITICAL")
+    ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
     body = ok("orders", "O-1", "close", **{**CLOSE_BODY, "factConfirmed": False})
 
     assert body["status"] == "CLOSED_NOT_CONFIRMED"
@@ -227,22 +246,22 @@ def test_closing_without_the_fact_closes_the_prediction_the_other_way() -> None:
 
 
 def test_close_refuses_a_string_instead_of_a_boolean() -> None:
-    ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)
-    ok("orders", "O-1", "start", crew="Бригада 3")
+    decide("P-1", "CRITICAL")
+    ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
     response = act("orders", "O-1", "close", **{**CLOSE_BODY, "factConfirmed": "да"})
     assert response.status_code == 422
 
 
 def test_close_needs_the_confirmation_flag() -> None:
-    ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)
-    ok("orders", "O-1", "start", crew="Бригада 3")
+    decide("P-1", "CRITICAL")
+    ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
     body = dict(CLOSE_BODY)
     del body["factConfirmed"]
     assert act("orders", "O-1", "close", **body).status_code == 422
 
 
-def test_start_on_a_finished_order_answers_409() -> None:
-    assert act("orders", "O-4", "start", crew="Бригада 3").status_code == 409
+def test_assign_on_a_finished_order_answers_409() -> None:
+    assert act("orders", "O-4", "assign", crew="Бригада 3", dueAt=DUE).status_code == 409
 
 
 def test_an_unknown_order_code_answers_404() -> None:
@@ -250,12 +269,12 @@ def test_an_unknown_order_code_answers_404() -> None:
     assert client.get(f"{API_PREFIX}/orders/O-2").json()["status"] == "CONFIRMED"
 
 
-def test_confirm_needs_the_deadline() -> None:
-    assert act("orders", "O-1", "confirm", assignee="Иванов").status_code == 422
+def test_assign_needs_the_deadline() -> None:
+    assert act("orders", "O-2", "assign", crew="Бригада 3").status_code == 422
 
 
-def test_confirm_refuses_a_deadline_that_is_not_a_moment() -> None:
-    response = act("orders", "O-1", "confirm", assignee="Иванов", dueAt="послезавтра")
+def test_assign_refuses_a_deadline_that_is_not_a_moment() -> None:
+    response = act("orders", "O-2", "assign", crew="Бригада 3", dueAt="послезавтра")
     assert response.status_code == 422
 
 
@@ -271,7 +290,7 @@ def test_every_action_lands_in_the_audit_log() -> None:
     before = len(logged())
     ok("predictions", "P-1", "take")
     decide("P-1", "CRITICAL")
-    ok("orders", "O-1", "confirm", assignee="Иванов", dueAt=DUE)
+    ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
 
     assert len(logged()) == before + 3
 

@@ -154,7 +154,6 @@ describe('заявки', () => {
     const statuses = new Set(db().orders.map((o) => o.status))
     for (const code of [
       'AUTO_CREATED',
-      'MANUAL_CREATED',
       'CONFIRMED',
       'IN_PROGRESS',
       'CLOSED_CONFIRMED',

@@ -20,8 +20,7 @@ export const TOTAL_ORDERS = 90
 
 const STATUS_WEIGHTS: [string, number][] = [
   ['AUTO_CREATED', 0.25],
-  ['MANUAL_CREATED', 0.1],
-  ['CONFIRMED', 0.2],
+  ['CONFIRMED', 0.3],
   ['IN_PROGRESS', 0.2],
   ['CLOSED_CONFIRMED', 0.18],
   ['CLOSED_NOT_CONFIRMED', 0.05],
@@ -81,6 +80,10 @@ export function buildOrders(predictions: PredictionRecord[]): OrderRecord[] {
           }
         : undefined
 
+    // Происхождение заявки: конвейер по порогу или решение диспетчера.
+    // Состояние у обеих одно, различает их только это поле (ADR 0006).
+    const createdBy = rnd.bool(0.25) ? 'DISPATCHER' : 'PIPELINE'
+
     prediction.orderId = id
     // Заявка закрывает прогноз своим исходом. ADR 0006.
     if (status === 'CLOSED_CONFIRMED' || status === 'CLOSED_NOT_CONFIRMED') {
@@ -91,6 +94,7 @@ export function buildOrders(predictions: PredictionRecord[]): OrderRecord[] {
 
     orders.push({
       id,
+      createdBy,
       number: `${String(2026)}-${String(i + 1).padStart(4, '0')}`,
       predictionId: prediction.id,
       facility: toFacilityRef(prediction.facilityRecord),

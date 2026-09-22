@@ -71,10 +71,9 @@ STATUSES: tuple[Status, ...] = (
         "--state-muted",
         terminal=True,
     ),
-    Status("AUTO_CREATED", "Создана автоматически", ORDER_SCOPE, "--state-attention"),
-    Status("MANUAL_CREATED", "Создана диспетчером", ORDER_SCOPE, "--state-attention"),
-    Status("CONFIRMED", "Подтверждена", ORDER_SCOPE, "--state-progress"),
-    Status("IN_PROGRESS", "В работе", ORDER_SCOPE, "--state-progress"),
+    Status("AUTO_CREATED", "Ждёт решения диспетчера", ORDER_SCOPE, "--state-attention"),
+    Status("CONFIRMED", "Ждёт бригаду", ORDER_SCOPE, "--state-attention"),
+    Status("IN_PROGRESS", "Бригада назначена", ORDER_SCOPE, "--state-progress"),
     Status("REJECTED", "Отклонена", ORDER_SCOPE, "--state-muted", terminal=True),
     Status(
         "CLOSED_CONFIRMED",

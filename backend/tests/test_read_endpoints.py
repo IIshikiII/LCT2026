@@ -191,8 +191,10 @@ def test_orders_filter_by_status_and_due_date() -> None:
 
 def test_order_actions_follow_the_lifecycle() -> None:
     items = {item["id"]: item for item in get("/orders")["items"]}
-    assert [a["code"] for a in items["O-1"]["actions"]] == ["confirm", "reject"]
-    assert [a["code"] for a in items["O-2"]["actions"]] == ["start"]
+    # O-1 ждёт решения по своему прогнозу: подтверждать её отдельно нечем,
+    # диспетчер работает с прогнозом. ADR 0006, поправка о назначении бригады.
+    assert [a["code"] for a in items["O-1"]["actions"]] == ["reject"]
+    assert [a["code"] for a in items["O-2"]["actions"]] == ["assign", "reject"]
     assert [a["code"] for a in items["O-3"]["actions"]] == ["close"]
     assert items["O-4"]["actions"] == []
 

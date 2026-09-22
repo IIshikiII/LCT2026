@@ -157,22 +157,29 @@ def order_actions(status: str, context: OrderContext | None = None) -> list[Acti
     context = context or OrderContext()
     direction = context.direction
 
-    if status in ("AUTO_CREATED", "MANUAL_CREATED"):
+    if status == "AUTO_CREATED":
+        # Заявка обогнала человека: конвейер создал её по порогу, а решения по
+        # прогнозу ещё нет. Диспетчер работает с прогнозом, а не с заявкой,
+        # поэтому здесь предлагается только отказ.
+        return [_reject("Отклонить заявку")]
+
+    if status == "CONFIRMED":
         return [
             ActionDef(
-                code="confirm",
-                label="Подтвердить",
+                code="assign",
+                label="Назначить бригаду",
                 kind="primary",
+                help="Заявка подтверждена решением по прогнозу, осталось назначить выезд",
                 fields=[
                     FieldDef(
-                        name="assignee",
-                        label="Исполнитель",
+                        name="crew",
+                        label="Бригада",
                         type="text",
                         required=True,
                         min_length=2,
                     ),
-                    # Срок при автосоздании — заглушка от горизонта. Настоящий
-                    # срок назначает человек: он один знает загрузку бригад.
+                    # Срок автосоздания был заглушкой от горизонта. Настоящий
+                    # срок называет человек: он один знает загрузку бригад.
                     FieldDef(
                         name="dueAt",
                         label="Закончить работы к",
@@ -185,23 +192,7 @@ def order_actions(status: str, context: OrderContext | None = None) -> list[Acti
             ),
             _reject("Отклонить заявку"),
         ]
-    if status == "CONFIRMED":
-        return [
-            ActionDef(
-                code="start",
-                label="Начать работы",
-                kind="primary",
-                fields=[
-                    FieldDef(
-                        name="crew",
-                        label="Бригада",
-                        type="text",
-                        required=True,
-                        min_length=2,
-                    )
-                ],
-            )
-        ]
+
     if status == "IN_PROGRESS":
         options_ref = direction if direction and by_code(direction) else None
         return [

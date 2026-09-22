@@ -128,8 +128,9 @@ def act_on_order(
     new_status = apply.next_status(transitions.ORDER, code, status)
 
     extra: dict[str, Any] = {}
-    if code == "confirm":
-        # Срок назначает диспетчер. Расчётный срок автосоздания был заглушкой.
+    if code == "assign":
+        # Срок называет диспетчер вместе с бригадой, одним действием. Расчётный
+        # срок автосоздания был заглушкой от горизонта.
         extra["due_at"] = parse_moment(body["dueAt"], field="dueAt")
     if code == "close":
         extra["outcome"] = _outcome(body)

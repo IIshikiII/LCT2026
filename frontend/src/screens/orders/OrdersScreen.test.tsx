@@ -52,26 +52,24 @@ describe('экран заявок', () => {
 describe('полный цикл: подтверждение, работа, закрытие с разметкой', () => {
   it('проводит заявку от автосоздания до закрытия', async () => {
     const user = userEvent.setup()
-    const order = db().orders.find((o) => o.status === 'AUTO_CREATED')!
+    // Берём подтверждённую заявку: подтверждать её отдельно больше нечем,
+    // это делает решение по прогнозу. Диспетчеру остаётся назначить бригаду.
+    const order = db().orders.find((o) => o.status === 'CONFIRMED')!
 
     renderWithProviders(<AppShell />, { route: `/orders?order=${order.id}` })
 
     const panel = await screen.findByRole('complementary', { name: 'Карточка заявки' })
-    expect(await within(panel).findByText('Создана автоматически')).toBeInTheDocument()
+    expect(await within(panel).findByText('Ждёт бригаду')).toBeInTheDocument()
 
-    /* 1. Диспетчер подтверждает автоматически созданную заявку. */
-    await user.click(within(panel).getByRole('button', { name: 'Подтвердить заявку' }))
-    await user.type(screen.getByLabelText(/Ответственный/), 'Иванов')
-    await user.click(submitIn('Подтвердить заявку'))
-
-    expect(await within(panel).findByText('Подтверждена')).toBeInTheDocument()
-
-    /* 2. Бригада берёт заявку в работу. */
-    await user.click(within(panel).getByRole('button', { name: 'Взять в работу' }))
+    /* 1. Диспетчер назначает бригаду и срок одним действием.
+       Подтверждения заявки больше нет: его сделало решение по прогнозу, и
+       спрашивать бригаду дважды незачем (ADR 0006). */
+    await user.click(within(panel).getByRole('button', { name: 'Назначить бригаду' }))
     await user.type(screen.getByLabelText(/Бригада/), 'Бригада 7')
-    await user.click(submitIn('Взять в работу'))
+    await user.type(screen.getByLabelText(/Закончить работы к/), '2026-09-12T09:00')
+    await user.click(submitIn('Назначить бригаду'))
 
-    expect(await within(panel).findByText('В работе')).toBeInTheDocument()
+    expect(await within(panel).findByText('Бригада назначена')).toBeInTheDocument()
 
     /* 3. Закрытие — единственная форма со своим UI. */
     await user.click(within(panel).getByRole('button', { name: 'Закрыть заявку' }))

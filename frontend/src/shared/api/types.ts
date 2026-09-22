@@ -181,6 +181,8 @@ export interface WorkOrderOutcome {
 export interface WorkOrder {
   id: string
   number: string
+  /** 'PIPELINE' | 'DISPATCHER' — кто породил заявку */
+  createdBy?: string
   predictionId: string
   facility: FacilityRef
   workType: string

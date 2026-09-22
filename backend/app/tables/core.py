@@ -193,6 +193,9 @@ work_order = Table(
     Column("work_type", Text, nullable=False),
     _ts("due_at", nullable=False),
     Column("status", Text, nullable=False),
+    # Кто породил заявку: `PIPELINE` по порогу уровня или `DISPATCHER` решением
+    # по прогнозу. Это происхождение, а не состояние, поэтому поле, а не статус.
+    Column("created_by", Text, nullable=False, default="PIPELINE"),
     _ts("created_at", nullable=False),
     Column("outcome", JSONB),
 )

@@ -30,9 +30,11 @@ TRANSITIONS: tuple[Transition, ...] = (
     Transition("take", PREDICTION, ("NEW",), "IN_REVIEW"),
     Transition("release", PREDICTION, ("IN_REVIEW",), "NEW"),
     Transition("decide", PREDICTION, OPEN, "ORDER_OPEN"),
-    Transition("confirm", ORDER, ("AUTO_CREATED", "MANUAL_CREATED"), "CONFIRMED"),
-    Transition("reject", ORDER, ("AUTO_CREATED", "MANUAL_CREATED"), "REJECTED"),
-    Transition("start", ORDER, ("CONFIRMED",), "IN_PROGRESS"),
+    # Подтверждения заявки нет: его заменило решение диспетчера по прогнозу.
+    # Раньше диспетчер подтверждал дважды и дважды называл бригаду — сначала
+    # «исполнителем» при подтверждении, потом «бригадой» при начале работ.
+    Transition("assign", ORDER, ("CONFIRMED",), "IN_PROGRESS"),
+    Transition("reject", ORDER, ("AUTO_CREATED", "CONFIRMED"), "REJECTED"),
     Transition("close", ORDER, ("IN_PROGRESS",), "CLOSED_CONFIRMED"),
 )
 

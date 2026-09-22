@@ -145,6 +145,7 @@ export const WorkOrderOutcomeSchema = dto({
 
 export const WorkOrderSchema = dto({
   id: z.string(),
+  createdBy: opt(z.string()),
   number: z.string(),
   predictionId: z.string(),
   facility: FacilityRefSchema,

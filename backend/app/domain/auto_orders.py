@@ -19,7 +19,10 @@ from app.tables import prediction, work_order
 log = logging.getLogger(__name__)
 
 AUTO_CREATED = "AUTO_CREATED"
-MANUAL_CREATED = "MANUAL_CREATED"
+CONFIRMED = "CONFIRMED"
+
+BY_PIPELINE = "PIPELINE"
+BY_DISPATCHER = "DISPATCHER"
 
 # Заявка считается открытой, пока работа по ней не кончилась.
 CLOSED_STATUSES = ("CLOSED_CONFIRMED", "CLOSED_NOT_CONFIRMED", "REJECTED")
@@ -91,24 +94,26 @@ def suppressed_level(conn: Connection, facility_id: str, direction: str, at: dat
 
 
 def create_for(
-    conn: Connection, candidate: Candidate, status: str = AUTO_CREATED
+    conn: Connection, candidate: Candidate, created_by: str = BY_PIPELINE
 ) -> str | None:
     """Создаёт заявку по прогнозу или отказывает.
 
     Отдаёт идентификатор заявки. Отдаёт None, когда заявка не нужна: уровень
     ниже порога, направление выключено или открытая заявка уже есть.
 
-    Довод `status` различает два происхождения заявки. Конвейер создаёт
-    `AUTO_CREATED` по порогу уровня. Диспетчер создаёт `MANUAL_CREATED`, когда
-    поднял уровень прогноза выше предложенного моделью, и тогда проверка порога
-    не нужна: решение уже принял человек. ADR 0006.
+    Довод `created_by` различает происхождение. Конвейер создаёт заявку по
+    порогу уровня, и она ждёт решения диспетчера в статусе `AUTO_CREATED`.
+    Диспетчер создаёт заявку своим решением по прогнозу, и она рождается уже
+    подтверждённой: подтверждать её второй раз значило бы спрашивать человека
+    о том, что он только что решил. ADR 0006.
     """
     direction = by_code(candidate.direction)
     if direction is None:
         log.warning("направление вне реестра", extra={"direction": candidate.direction})
         return None
 
-    by_dispatcher = status == MANUAL_CREATED
+    by_dispatcher = created_by == BY_DISPATCHER
+    status = CONFIRMED if by_dispatcher else AUTO_CREATED
     if not by_dispatcher and candidate.level not in direction.order_levels:
         return None
 
@@ -142,6 +147,7 @@ def create_for(
             work_type=direction.work_types[0],
             due_at=due_at,
             status=status,
+            created_by=created_by,
             created_at=candidate.computed_at,
         )
     )

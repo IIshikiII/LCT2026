@@ -100,45 +100,27 @@ function decideAction(): ActionDef {
   }
 }
 
-export function orderActions(status: string, causesRef: string): ActionDef[] {
+export function orderActions(status: string, causesRef?: string): ActionDef[] {
   if (status === 'AUTO_CREATED') {
-    return [
-      {
-        code: 'confirm',
-        label: 'Подтвердить заявку',
-        kind: 'primary',
-        fields: [
-          { name: 'assignee', label: 'Ответственный', type: 'text', required: true, minLength: 2 },
-          { name: 'comment', label: 'Комментарий', type: 'textarea' },
-        ],
-      },
-      {
-        code: 'reject',
-        label: 'Отклонить заявку',
-        kind: 'danger',
-        confirm: 'Заявка будет отклонена.',
-        fields: [
-          {
-            name: 'reason',
-            label: 'Причина',
-            type: 'select',
-            required: true,
-            optionsRef: REJECTION_REASONS_REF,
-          },
-          { name: 'comment', label: 'Комментарий', type: 'textarea', required: true, minLength: 5 },
-        ],
-      },
-    ]
+    // Заявка обогнала человека: решения по прогнозу ещё нет. Диспетчер
+    // работает с прогнозом, поэтому здесь только отказ (ADR 0006).
+    return [rejectOrder()]
   }
 
   if (status === 'CONFIRMED') {
     return [
       {
-        code: 'start',
-        label: 'Взять в работу',
+        code: 'assign',
+        label: 'Назначить бригаду',
         kind: 'primary',
-        fields: [{ name: 'crew', label: 'Бригада', type: 'text', required: true, minLength: 2 }],
+        help: 'Заявка подтверждена решением по прогнозу, осталось назначить выезд',
+        fields: [
+          { name: 'crew', label: 'Бригада', type: 'text', required: true, minLength: 2 },
+          { name: 'dueAt', label: 'Закончить работы к', type: 'datetime', required: true },
+          { name: 'comment', label: 'Комментарий', type: 'textarea' },
+        ],
       },
+      rejectOrder(),
     ]
   }
 
@@ -146,9 +128,6 @@ export function orderActions(status: string, causesRef: string): ActionDef[] {
     return [
       {
         code: 'close',
-        // Единственное действие с нестандартной формой (CloseOrderForm):
-        // отметка «прогноз подтвердился» обязана быть радиовыбором, а не
-        // чекбоксом. Из неё считается качество модели на реальных данных.
         label: 'Закрыть заявку',
         kind: 'primary',
         fields: [
@@ -161,9 +140,10 @@ export function orderActions(status: string, causesRef: string): ActionDef[] {
           },
           {
             name: 'factConfirmed',
-            label: 'Прогноз подтвердился',
+            label: 'Факт подтверждён на объекте',
             type: 'boolean',
             required: true,
+            help: 'Ответ закрывает прогноз и идёт в дообучение модели',
           },
           {
             name: 'comment',
@@ -178,4 +158,22 @@ export function orderActions(status: string, causesRef: string): ActionDef[] {
   }
 
   return []
+}
+
+function rejectOrder(): ActionDef {
+  return {
+    code: 'reject',
+    label: 'Отклонить заявку',
+    kind: 'danger',
+    fields: [
+      {
+        name: 'reason',
+        label: 'Причина',
+        type: 'select',
+        required: true,
+        optionsRef: REJECTION_REASONS_REF,
+      },
+      { name: 'comment', label: 'Комментарий', type: 'textarea', required: true, minLength: 5 },
+    ],
+  }
 }
