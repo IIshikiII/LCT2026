@@ -64,7 +64,9 @@ const MOCK_TOTP_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP'
 
 const DIGITS = /^\d+$/
 
-const ISSUER = 'АРМ ОДС'
+// Латиница ради размера QR: кириллица в ссылке кодируется по шесть знаков на
+// букву и раздувает код с 45 модулей до 57. То же значение у сервера.
+const ISSUER = 'ARM ODS'
 
 /** Ссылка для аутентификатора. Формат тот же, что у сервера. */
 function otpauthUrl(username: string): string {

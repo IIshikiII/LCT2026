@@ -66,7 +66,8 @@ describe('вход в систему', () => {
     await user.type(screen.getByLabelText(/Пароль/), 'не тот')
     await user.click(screen.getByRole('button', { name: 'Войти' }))
 
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    // Человеку нужен текст сервера, а не код ответа: он объясняет, что делать.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Логин или пароль не подошли/)
     expect(screen.queryByLabelText(/Код из приложения/)).toBeNull()
   })
 
@@ -78,11 +79,22 @@ describe('вход в систему', () => {
     await user.type(await screen.findByLabelText(/Код из приложения/), 'абвгде')
     await user.click(screen.getByRole('button', { name: 'Подтвердить' }))
 
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Код не подошёл/)
     expect(screen.queryByRole('table')).toBeNull()
   })
 
-  it('записи без ключа показывает секрет и ссылку для аутентификатора', async () => {
+  it('записи без ключа показывает QR для сканирования', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<AppShell />, { route: '/journal' })
+
+    await fillPassword(user, 'crew')
+
+    expect(
+      await screen.findByRole('img', { name: /QR-код для приложения/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('оставляет запасной путь: ключ руками и ссылку', async () => {
     const user = userEvent.setup()
     renderWithProviders(<AppShell />, { route: '/journal' })
 

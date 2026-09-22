@@ -70,6 +70,26 @@ export function parseTolerant<T>(schema: ZodType, raw: unknown, url: string): T 
   return raw as T
 }
 
+/**
+ * Текст ошибки для человека.
+ *
+ * Сервер объясняет отказ полем `detail`: «Логин или пароль не подошли», «роль
+ * не выполняет действие», «горизонт уже истёк». Показывать вместо этого код
+ * ответа значит прятать единственное, что помогает исправить ситуацию.
+ *
+ * Тело не разобралось — остаётся код. Так бывает на ответе прокси или
+ * шлюза, который про наш формат ничего не знает.
+ */
+function errorMessage(text: string, status: number): string {
+  try {
+    const body = JSON.parse(text) as { detail?: unknown }
+    if (typeof body.detail === 'string' && body.detail.trim()) return body.detail
+  } catch {
+    // Не JSON. Ниже вернётся код ответа.
+  }
+  return `Запрос завершился с кодом ${status}`
+}
+
 /** Заголовки запроса: тип тела и токен сессии, если он есть. */
 function authHeaders(hasBody: boolean): Record<string, string> | undefined {
   const headers: Record<string, string> = {}
@@ -101,7 +121,7 @@ async function request<T>(
 
   if (!response.ok) {
     if (response.status === 401) clearSession()
-    throw new ApiError(`Запрос завершился с кодом ${response.status}`, response.status, url)
+    throw new ApiError(errorMessage(text, response.status), response.status, url)
   }
 
   if (!text) return parseTolerant<T>(schema, null, url)

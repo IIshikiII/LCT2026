@@ -9,9 +9,9 @@
  * между ними: у записи без заведённого ключа сервер отдаёт секрет, и тот же
  * второй шаг подтверждает его.
  *
- * QR-кода здесь нет намеренно. Кодировщик QR — это отдельная зависимость ради
- * одного экрана, а ручной ввод ключа принимают все аутентификаторы. Ссылка
- * `otpauth://` рядом: на телефоне она открывает приложение сама.
+ * Ключ заводится сканированием QR. Ручной ввод и ссылка `otpauth://` остались
+ * запасными путями и свёрнуты: камера берёт код не с каждого экрана, а ключ
+ * читается всегда.
  *
  * Поле статуса из ответа сервера — строка, и ветвления по её значениям здесь
  * нет: экран смотрит только на то, пришёл секрет или нет.
@@ -23,6 +23,7 @@ import type { LoginChallenge } from '@/shared/api/types'
 import { useAuth } from '@/shared/auth/context'
 import { Button } from '@/shared/ui/Button'
 import { Field, TextInput } from '@/shared/ui/Field'
+import { QrCode } from '@/shared/ui/QrCode'
 
 /** Длина одноразового кода. Та же, что у сервера и у аутентификаторов. */
 const CODE_LENGTH = 6
@@ -160,26 +161,48 @@ export function LoginScreen() {
 /**
  * Регистрация ключа. Секрет приходит один раз и в базу попадает только после
  * верного кода, поэтому уйти с этого экрана, не заведя ключ, безопасно.
+ *
+ * Три пути завести ключ, по убыванию удобства: навести камеру на QR, открыть
+ * ссылку с самого телефона, ввести ключ руками. Последний остаётся запасным:
+ * камера не всегда берёт экран, а ключ читается всегда.
  */
 function EnrollKey({ challenge }: { challenge: LoginChallenge }) {
   return (
-    <div className="flex flex-col gap-2 rounded border border-line bg-sunken p-3">
+    <div className="flex flex-col gap-3 rounded border border-line bg-sunken p-3">
       <p className="text-[12px] text-text-dim">
-        Ключ второго фактора ещё не заведён. Добавьте его в приложение-аутентификатор
-        и подтвердите кодом.
+        Ключ второго фактора ещё не заведён. Наведите камеру аутентификатора на код
+        и подтвердите кодом из приложения.
       </p>
-      <div>
-        <span className="text-[11px] text-text-mute">Ключ для ручного ввода</span>
-        <p className="mono break-all text-[12px] text-text select-all">{challenge.secret}</p>
-      </div>
+
       {challenge.otpauthUrl ? (
-        <a
-          href={challenge.otpauthUrl}
-          className="text-[12px] text-text-dim underline underline-offset-2 hover:text-text"
-        >
-          Открыть в приложении на телефоне
-        </a>
+        <div className="flex justify-center">
+          <QrCode
+            value={challenge.otpauthUrl}
+            size={200}
+            label="QR-код для приложения-аутентификатора"
+          />
+        </div>
       ) : null}
+
+      <details>
+        <summary className="cursor-pointer list-none text-[12px] text-text-dim hover:text-text">
+          Камера не берёт код
+        </summary>
+        <div className="mt-2 flex flex-col gap-2">
+          <div>
+            <span className="text-[11px] text-text-mute">Ключ для ручного ввода</span>
+            <p className="mono break-all text-[12px] text-text select-all">{challenge.secret}</p>
+          </div>
+          {challenge.otpauthUrl ? (
+            <a
+              href={challenge.otpauthUrl}
+              className="text-[12px] text-text-dim underline underline-offset-2 hover:text-text"
+            >
+              Открыть в приложении на телефоне
+            </a>
+          ) : null}
+        </div>
+      </details>
     </div>
   )
 }
