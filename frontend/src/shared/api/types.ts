@@ -325,3 +325,28 @@ export interface SessionResponse {
   expiresIn: number
   user: CurrentUser
 }
+
+/** Учётная запись тестового стенда. Пароль общий и лежит в `TestStand`. */
+export interface TestAccount {
+  username: string
+  fullName: string
+  role: string
+  roleLabel: string
+  scopeKind: string
+  scopeValue?: string
+  /** Заведён ли ключ второго фактора. Занятый набор брать не надо. */
+  mfaEnrolled: boolean
+}
+
+/** Набор: по одной записи на каждую роль. */
+export interface TestAccountSet {
+  set: number
+  accounts: TestAccount[]
+}
+
+/** Состояние тестового стенда. Выключенный отдаёт `enabled: false`. */
+export interface TestStand {
+  enabled: boolean
+  password: string
+  sets: TestAccountSet[]
+}

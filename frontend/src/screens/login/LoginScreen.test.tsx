@@ -3,22 +3,33 @@
  *
  * Проверяется то, что видит человек, а не то, как устроен токен. Главное
  * свойство: пароль один в систему не пускает.
+ *
+ * Код считается, а не выдумывается: заглушка проверяет TOTP по-настоящему, и
+ * строка `123456` ей не подходит.
  */
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { AppShell } from '@/app/AppShell'
+import { mockCodeFor } from '@/mocks/handlers'
 import { DEMO_PASSWORD } from '@/mocks/db/users'
 import { renderWithProviders } from '@/test/renderWithProviders'
 import { signOut } from '@/test/session'
-
-/** Любые шесть цифр: заглушка не считает код по алгоритму TOTP. */
-const CODE = '123456'
 
 async function fillPassword(user: ReturnType<typeof userEvent.setup>, username: string) {
   await user.type(screen.getByLabelText(/Логин/), username)
   await user.type(screen.getByLabelText(/Пароль/), DEMO_PASSWORD)
   await user.click(screen.getByRole('button', { name: 'Войти' }))
+}
+
+/**
+ * Вводит настоящий код. Заглушка считает TOTP по-честному, поэтому выдумать
+ * шесть цифр нельзя — их надо посчитать по тому же секрету, что ушёл в QR.
+ */
+async function fillCode(user: ReturnType<typeof userEvent.setup>, username: string) {
+  const field = await screen.findByLabelText(/Код из приложения/)
+  await user.type(field, await mockCodeFor(username))
+  await user.click(screen.getByRole('button', { name: 'Подтвердить' }))
 }
 
 describe('вход в систему', () => {
@@ -49,8 +60,7 @@ describe('вход в систему', () => {
     renderWithProviders(<AppShell />, { route: '/journal' })
 
     await fillPassword(user, 'ods')
-    await user.type(await screen.findByLabelText(/Код из приложения/), CODE)
-    await user.click(screen.getByRole('button', { name: 'Подтвердить' }))
+    await fillCode(user, 'ods')
 
     const header = await screen.findByRole('banner')
     expect(await within(header).findByText('Иванов И. И.')).toBeInTheDocument()
@@ -110,8 +120,7 @@ describe('вход в систему', () => {
     renderWithProviders(<AppShell />, { route: '/journal' })
 
     await fillPassword(user, 'ods')
-    await user.type(await screen.findByLabelText(/Код из приложения/), CODE)
-    await user.click(screen.getByRole('button', { name: 'Подтвердить' }))
+    await fillCode(user, 'ods')
     await screen.findByRole('table')
 
     await user.click(screen.getByRole('button', { name: 'Выйти' }))

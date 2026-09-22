@@ -14,10 +14,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api import auth, dashboard, facilities, meta, metrics, orders, predictions
+from app.api import auth, dashboard, facilities, meta, metrics, orders, predictions, test_stand
 
 ROUTERS: tuple[APIRouter, ...] = (
     auth.router,
+    test_stand.router,
     meta.router,
     predictions.router,
     facilities.router,
@@ -37,6 +38,11 @@ PUBLIC_PATHS: frozenset[str] = frozenset(
         "/api/v1/docs",
         "/api/v1/docs/oauth2-redirect",
         "/api/v1/openapi.json",
+        # Панель тестового стенда. Она рисуется на экране входа, и человек без
+        # токена обязан увидеть, чем войти. Наполняется только при флаге
+        # `TEST_STAND`, иначе отдаёт пустой список. ADR 0007.
+        "/api/v1/auth/test-accounts",
+        "/api/v1/auth/test-accounts/{demo_set}",
     }
 )
 

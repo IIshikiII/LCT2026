@@ -223,6 +223,9 @@ def _insert(conn: object) -> None:
                 "mfa_enrolled": enrolled,
                 "is_active": True,
                 "directory": "LOCAL",
+                # Первые четыре записи составляют набор тестового стенда,
+                # запись `fresh` изображает настоящую и номера не имеет.
+                "demo_set": None if username == "fresh" else 1,
                 "created_at": NOW,
             }
             for username, full_name, role, scope_value, enrolled in roles.USERS

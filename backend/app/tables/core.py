@@ -215,6 +215,8 @@ app_user = Table(
     Column("mfa_enrolled", Boolean, nullable=False, default=False),
     Column("is_active", Boolean, nullable=False, default=True),
     Column("directory", Text, nullable=False, default="LOCAL"),
+    # Номер набора тестового стенда. Пусто у настоящих записей. ADR 0007.
+    Column("demo_set", Integer),
     _ts("created_at"),
     _ts("last_login_at"),
 )

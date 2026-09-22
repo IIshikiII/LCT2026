@@ -18,10 +18,16 @@ import { orderActions } from './db/actions'
 import { COLLECTORS, collectorLabel } from './db/catalog'
 import { toWorkOrder } from './db/orders'
 import { buildDetail, buildSeries } from './db/predictions'
+import { codeAt as totpCodeAt, verify as totpVerify } from './db/totp'
 import {
   CODE_LENGTH,
   DEMO_PASSWORD,
+  MOCK_USERS,
+  createSet,
+  deleteSet,
+  generateSecret,
   resetUsers,
+  setNumbers,
   userByName,
   visibleTo,
   type MockUser,
@@ -59,22 +65,50 @@ async function fail(status: number, message: string): Promise<Response> {
 const tokenFor = (username: string) => `mock.access.${username}`
 const mfaTokenFor = (username: string) => `mock.mfa.${username}`
 
-/** Постоянный ключ для демонстрации регистрации второго фактора. */
-const MOCK_TOTP_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP'
-
-const DIGITS = /^\d+$/
-
 // Латиница ради размера QR: кириллица в ссылке кодируется по шесть знаков на
 // букву и раздувает код с 45 модулей до 57. То же значение у сервера.
 const ISSUER = 'ARM ODS'
 
 /** Ссылка для аутентификатора. Формат тот же, что у сервера. */
-function otpauthUrl(username: string): string {
+function otpauthUrl(username: string, secret: string): string {
   const label = encodeURIComponent(`${ISSUER}:${username}`)
   return (
-    `otpauth://totp/${label}?secret=${MOCK_TOTP_SECRET}` +
+    `otpauth://totp/${label}?secret=${secret}` +
     `&issuer=${encodeURIComponent(ISSUER)}&algorithm=SHA1&digits=${CODE_LENGTH}&period=30`
   )
+}
+
+/**
+ * Текущий код учётной записи заглушки.
+ *
+ * Нужен тестам: они не умеют держать телефон. Приложение этой функцией не
+ * пользуется, и в браузере её никто не зовёт.
+ */
+export async function mockCodeFor(username: string): Promise<string> {
+  const user = userByName(username)
+  const secret = user?.pendingSecret ?? user?.secret
+  if (!secret) throw new Error(`у записи ${username} нет ключа второго фактора`)
+  return totpCodeAt(secret)
+}
+
+/** Наборы учётных записей в том виде, в каком их отдаёт сервер. */
+function testStand() {
+  return {
+    enabled: true,
+    password: DEMO_PASSWORD,
+    sets: setNumbers().map((set) => ({
+      set,
+      accounts: MOCK_USERS.filter((user) => user.demoSet === set).map((user) => ({
+        username: user.username,
+        fullName: user.fullName,
+        role: user.role,
+        roleLabel: user.roleLabel,
+        scopeKind: user.scopeKind,
+        scopeValue: user.scopeValue,
+        mfaEnrolled: Boolean(user.secret),
+      })),
+    })),
+  }
 }
 
 function toCurrentUser(user: MockUser): CurrentUser {
@@ -262,12 +296,15 @@ export const handlers = [
       return fail(401, 'Логин или пароль не подошли')
     }
 
-    if (!user.enrolled) {
+    if (!user.secret) {
+      // Ключ ещё не заведён. Секрет живёт до подтверждения кодом и в запись не
+      // попадает: запись с непроверенным ключом заперла бы человека снаружи.
+      user.pendingSecret = generateSecret()
       return ok({
         status: 'ENROLL_REQUIRED',
         mfaToken: mfaTokenFor(user.username),
-        secret: MOCK_TOTP_SECRET,
-        otpauthUrl: otpauthUrl(user.username),
+        secret: user.pendingSecret,
+        otpauthUrl: otpauthUrl(user.username, user.pendingSecret),
       })
     }
 
@@ -275,8 +312,11 @@ export const handlers = [
   }),
 
   /**
-   * Второй шаг. Код не считается: общего секрета с настоящим аутентификатором
-   * у заглушки нет. Подходят любые шесть цифр, всё остальное — отказ.
+   * Второй шаг. Код считается по-настоящему, по RFC 6238.
+   *
+   * Секрет заглушка выдала сама, значит и проверить код она может. Режима
+   * «подойдут любые шесть цифр» здесь нет: он превращал бы второй фактор на
+   * стенде в декорацию.
    */
   http.post(url('/auth/mfa'), async ({ request }) => {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
@@ -284,13 +324,19 @@ export const handlers = [
     const user = username ? userByName(username) : undefined
     if (!user) return fail(401, 'Время на ввод кода истекло, войдите заново')
 
-    const code = String(body['code'] ?? '').trim()
-    if (code.length !== CODE_LENGTH || !DIGITS.test(code)) {
+    const secret = user.pendingSecret ?? user.secret
+    if (!secret) return fail(401, 'Ключ второго фактора не заведён')
+
+    const code = String(body['code'] ?? '')
+    if (!(await totpVerify(secret, code))) {
       return fail(401, 'Код не подошёл. Проверьте время на телефоне и повторите')
     }
 
-    // Ключ заведён: следующий вход этой записи пойдёт сразу к коду.
-    user.enrolled = true
+    if (user.pendingSecret) {
+      // Код подошёл: ключ записан, следующий вход пойдёт сразу к коду.
+      user.secret = user.pendingSecret
+      user.pendingSecret = undefined
+    }
 
     return ok({
       accessToken: tokenFor(user.username),
@@ -298,6 +344,24 @@ export const handlers = [
       expiresIn: 8 * 60 * 60,
       user: toCurrentUser(user),
     })
+  }),
+
+  /**
+   * Панель тестового стенда. Открыта без токена: она рисуется на экране входа.
+   *
+   * В заглушках стенд включён всегда. Настоящий сервер смотрит на флаг
+   * `TEST_STAND` и без него отдаёт пустой список.
+   */
+  http.get(url('/auth/test-accounts'), async () => ok(testStand())),
+
+  http.post(url('/auth/test-accounts'), async () => {
+    createSet()
+    return ok(testStand())
+  }),
+
+  http.delete(url('/auth/test-accounts/:set'), async ({ params }) => {
+    if (!deleteSet(Number(params['set']))) return fail(404, 'Набора нет')
+    return ok(testStand())
   }),
 
   http.get(url('/auth/me'), guarded(async (user) => ok(toCurrentUser(user)))),

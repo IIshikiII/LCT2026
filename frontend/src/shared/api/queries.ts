@@ -8,7 +8,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { FALLBACK_META } from '@/shared/config/fallbacks'
-import { apiGet, apiPost } from './client'
+import { apiDelete, apiGet, apiPost } from './client'
 import { endpoints } from './endpoints'
 import {
   facilityParams,
@@ -30,6 +30,7 @@ import {
   PredictionListSchema,
   PredictionPageSchema,
   SessionResponseSchema,
+  TestStandSchema,
   TimeSeriesResponseSchema,
   WorkOrderPageSchema,
   WorkOrderSchema,
@@ -46,6 +47,7 @@ import type {
   Prediction,
   PredictionDetail,
   SessionResponse,
+  TestStand,
   TimeSeriesResponse,
   WorkOrder,
 } from './types'
@@ -297,5 +299,43 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => apiPost<unknown>(endpoints.logout(), z.unknown(), {}),
     onSettled: () => qc.clear(),
+  })
+}
+
+/* --------------------------------------------------------- тестовый стенд */
+
+/**
+ * Наборы учёток для жюри. Эндпоинт открыт и отвечает всегда, но при
+ * выключенном флаге отдаёт `enabled: false`, и панель не рисуется.
+ *
+ * Опрос по времени здесь не нужен: список меняется только кнопками рядом.
+ */
+export function useTestStand() {
+  return useQuery({
+    queryKey: queryKeys.testStand(),
+    queryFn: ({ signal }) =>
+      apiGet<TestStand>(endpoints.testAccounts(), TestStandSchema, { signal }),
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
+    retry: false,
+  })
+}
+
+/** Заводит следующий набор. Ответ — список целиком, его и кладём в кэш. */
+export function useCreateTestSet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiPost<TestStand>(endpoints.testAccounts(), TestStandSchema, {}),
+    onSuccess: (stand) => qc.setQueryData(queryKeys.testStand(), stand),
+  })
+}
+
+export function useDeleteTestSet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (set: number) =>
+      apiDelete<TestStand>(endpoints.testAccountSet(set), TestStandSchema),
+    onSuccess: (stand) => qc.setQueryData(queryKeys.testStand(), stand),
   })
 }

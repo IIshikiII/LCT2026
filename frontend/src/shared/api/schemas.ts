@@ -250,3 +250,19 @@ export const SessionResponseSchema = dto({
   expiresIn: z.number(),
   user: CurrentUserSchema,
 })
+
+export const TestAccountSchema = dto({
+  username: z.string(),
+  fullName: z.string(),
+  role: z.string(),
+  roleLabel: z.string(),
+  scopeKind: z.string(),
+  scopeValue: opt(z.string()),
+  mfaEnrolled: z.boolean(),
+})
+
+export const TestStandSchema = dto({
+  enabled: z.boolean(),
+  password: z.string(),
+  sets: z.array(dto({ set: z.number(), accounts: z.array(TestAccountSchema) })),
+})

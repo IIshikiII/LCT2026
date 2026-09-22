@@ -1,49 +1,63 @@
-"""Демонстрационные учётные записи. По одной на каждую роль.
+"""Наборы демонстрационных учётных записей. По одной записи на каждую роль.
 
 Стенд обязан подниматься одной командой, иначе проверяющий не увидит ни одного
 экрана: без входа в систему не открывается ничего. Поэтому `python -m app.cli
-seed` заводит четыре записи, по одной на роль из ответа заказчика 4.1.
+seed` заводит первый набор — четыре записи, по одной на роль из ответа
+заказчика 4.1.
 
-Пароль у всех четырёх один и приходит из переменной `SEED_PASSWORD`. Это демо,
-и скрывать здесь нечего: настоящие записи заводит команда `create-user`, а в
-проде записи приходят из каталога.
+**Набор, а не четыре записи навсегда.** Второй фактор привязан к телефону, и
+один набор на всех означает, что первый же проверяющий заведёт ключ себе, а
+остальные в систему не войдут. Панель тестового стенда заводит следующий набор
+кнопкой, и каждый берёт свой.
 
-Второй фактор у демонстрационных записей не заведён намеренно. Первый вход
-каждой роли проходит регистрацию ключа, и проверяющий видит весь путь: секрет,
-ссылку `otpauth://`, ввод кода из своего аутентификатора.
+Логины первого набора идут без суффикса: `ods`, `district`, `tech`, `crew`.
+Следующие получают номер: `ods-2`, `district-2` и так далее.
 
-Область видимости привязана к данным посева. Техник получает первый коллектор,
-диспетчер района — район этого коллектора. Если посев данных ещё не прошёл,
-границы остаются пустыми, и обе роли не видят ничего: это верно, потому что
-техник без комплекса заведён с ошибкой.
+Пароль у всех один и приходит из переменной `SEED_PASSWORD`. Это демо, и
+скрывать здесь нечего: панель стенда всё равно показывает его на экране.
+Настоящие записи заводит команда `create-user`, а в проде они приходят из
+каталога.
+
+Второй фактор у новых записей не заведён намеренно. Первый вход каждой роли
+проходит регистрацию ключа, и проверяющий видит весь путь: QR, сканирование,
+подтверждение кодом.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.engine import Connection
 
 from app.auth import directory
 from app.auth.roles import SCOPE_COMPLEX, SCOPE_DISTRICT, require
 from app.config import config
-from app.tables import collector
+from app.tables import app_user, collector
+
+FIRST_SET = 1
 
 
 @dataclass(frozen=True)
-class DemoUser:
-    username: str
+class DemoRole:
+    """Роль набора. Логин строится из основы и номера набора."""
+
+    base: str
     full_name: str
     role: str
 
 
-DEMO_USERS: tuple[DemoUser, ...] = (
-    DemoUser("ods", "Иванов И. И.", "ODS_DISPATCHER"),
-    DemoUser("district", "Петров П. П.", "DISTRICT_DISPATCHER"),
-    DemoUser("tech", "Сидоров С. С.", "TECHNICIAN"),
-    DemoUser("crew", "Бригада 1", "RESPONSE_TEAM"),
+DEMO_ROLES: tuple[DemoRole, ...] = (
+    DemoRole("ods", "Иванов И. И.", "ODS_DISPATCHER"),
+    DemoRole("district", "Петров П. П.", "DISTRICT_DISPATCHER"),
+    DemoRole("tech", "Сидоров С. С.", "TECHNICIAN"),
+    DemoRole("crew", "Бригада 1", "RESPONSE_TEAM"),
 )
+
+
+def username_for(base: str, demo_set: int) -> str:
+    """Логин набора. Первый идёт без суффикса: он же путь из README."""
+    return base if demo_set == FIRST_SET else f"{base}-{demo_set}"
 
 
 def _first_collector(conn: Connection) -> tuple[str | None, str | None]:
@@ -64,16 +78,69 @@ def scope_for(role_code: str, complex_code: str | None, district: str | None) ->
     return None
 
 
-def seed_users(conn: Connection) -> list[str]:
-    """Заводит демонстрационные записи. Повторный вызов обновляет их."""
+def set_numbers(conn: Connection) -> list[int]:
+    """Номера существующих наборов по возрастанию."""
+    rows = conn.execute(
+        select(app_user.c.demo_set)
+        .where(app_user.c.demo_set.isnot(None))
+        .distinct()
+        .order_by(app_user.c.demo_set)
+    ).scalars()
+    return [int(number) for number in rows]
+
+
+def create_set(conn: Connection, demo_set: int | None = None) -> int:
+    """Заводит набор и отдаёт его номер.
+
+    Номер не назван значит берётся следующий свободный. Повторный вызов с тем
+    же номером обновляет записи, а не плодит их.
+    """
+    if demo_set is None:
+        highest = conn.execute(select(func.max(app_user.c.demo_set))).scalar()
+        demo_set = int(highest or 0) + 1
+
     complex_code, district = _first_collector(conn)
-    for user in DEMO_USERS:
+    for item in DEMO_ROLES:
+        username = username_for(item.base, demo_set)
+        suffix = "" if demo_set == FIRST_SET else f" ({demo_set})"
         directory.upsert(
             conn,
-            username=user.username,
-            full_name=user.full_name,
-            role=user.role,
+            username=username,
+            full_name=f"{item.full_name}{suffix}",
+            role=item.role,
             password=config.seed_password,
-            scope_value=scope_for(user.role, complex_code, district),
+            scope_value=scope_for(item.role, complex_code, district),
         )
-    return [user.username for user in DEMO_USERS]
+        conn.execute(
+            update(app_user).where(app_user.c.username == username).values(demo_set=demo_set)
+        )
+    return demo_set
+
+
+def delete_set(conn: Connection, demo_set: int) -> int:
+    """Удаляет набор целиком. Отдаёт число удалённых записей.
+
+    Настоящие записи не трогаются: условие идёт по `demo_set`, а у них оно
+    пустое.
+    """
+    result = conn.execute(delete(app_user).where(app_user.c.demo_set == demo_set))
+    return int(result.rowcount)
+
+
+def reset_keys(conn: Connection, demo_set: int | None = None) -> int:
+    """Снимает заведённые ключи второго фактора у демонстрационных записей.
+
+    Нужно, когда телефон проверяющего ушёл вместе с проверяющим. Следующий вход
+    начнёт регистрацию заново.
+    """
+    statement = update(app_user).values(totp_secret=None, mfa_enrolled=False)
+    statement = statement.where(
+        app_user.c.demo_set == demo_set if demo_set is not None else app_user.c.demo_set.isnot(None)
+    )
+    return int(conn.execute(statement).rowcount)
+
+
+def seed_users(conn: Connection) -> list[str]:
+    """Заводит первый набор. Повторный вызов обновляет его."""
+    create_set(conn, FIRST_SET)
+    return [username_for(item.base, FIRST_SET) for item in DEMO_ROLES]

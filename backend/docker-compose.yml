@@ -38,6 +38,12 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arm}:${POSTGRES_PASSWORD:-arm}@db:5432/${POSTGRES_DB:-arm}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      AUTH_TOKEN_TTL_MINUTES: ${AUTH_TOKEN_TTL_MINUTES:-480}
+      SEED_PASSWORD: ${SEED_PASSWORD:-collector}
+      # Панель тестовых учёток на экране входа. Раздаёт логины и пароли без
+      # входа в систему, поэтому по умолчанию выключена. ADR 0007.
+      TEST_STAND: ${TEST_STAND:-}
     ports:
       - "${BIND_HOST:-127.0.0.1}:8000:8000"
     volumes:

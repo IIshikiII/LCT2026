@@ -5,6 +5,10 @@
  * показывает данных и не живёт в рельсе. Это ворота перед периметром, поэтому
  * и лежит отдельно, и в `router.tsx` его нет.
  *
+ * Справа от формы может появиться панель тестового стенда. Она рисуется только
+ * тогда, когда сервер поднят с флагом `TEST_STAND`, и в промышленной установке
+ * её не бывает.
+ *
  * Шаг первый — логин и пароль. Шаг второй — код из аутентификатора. Развилка
  * между ними: у записи без заведённого ключа сервер отдаёт секрет, и тот же
  * второй шаг подтверждает его.
@@ -24,6 +28,7 @@ import { useAuth } from '@/shared/auth/context'
 import { Button } from '@/shared/ui/Button'
 import { Field, TextInput } from '@/shared/ui/Field'
 import { QrCode } from '@/shared/ui/QrCode'
+import { TestStandPanel } from './TestStandPanel'
 
 /** Длина одноразового кода. Та же, что у сервера и у аутентификаторов. */
 const CODE_LENGTH = 6
@@ -75,7 +80,7 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="flex h-full items-center justify-center bg-bg px-4">
+    <div className="flex h-full items-center justify-center gap-4 overflow-auto bg-bg p-4">
       <div className="w-full max-w-sm rounded border border-line bg-panel p-5">
         <h1 className="text-[15px] font-medium text-text">АРМ диспетчера ОДС</h1>
         <p className="mt-1 text-[12px] text-text-mute">
@@ -154,6 +159,8 @@ export function LoginScreen() {
           </form>
         )}
       </div>
+
+      <TestStandPanel />
     </div>
   )
 }

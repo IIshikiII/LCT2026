@@ -100,7 +100,7 @@ function authHeaders(hasBody: boolean): Record<string, string> | undefined {
 }
 
 async function request<T>(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   schema: ZodType,
   options: { params?: QueryParams; body?: unknown; signal?: AbortSignal } = {},
@@ -151,4 +151,18 @@ export function apiPost<T>(
   options: { signal?: AbortSignal } = {},
 ): Promise<T> {
   return request<T>('POST', path, schema, { ...options, body })
+}
+
+/**
+ * Удаление. Одна ручка на весь проект: набор учёток тестового стенда.
+ *
+ * Действия над прогнозом и заявкой удаления не знают: там один эндпоинт
+ * действий и смена статуса, а не снятие строки (ADR 0004).
+ */
+export function apiDelete<T>(
+  path: string,
+  schema: ZodType,
+  options: { signal?: AbortSignal } = {},
+): Promise<T> {
+  return request<T>('DELETE', path, schema, options)
 }

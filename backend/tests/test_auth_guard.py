@@ -44,17 +44,28 @@ def test_every_route_is_guarded_or_listed_as_public() -> None:
 
 
 def test_the_open_list_stays_short() -> None:
-    """Открытый маршрут добавляется осознанно, поэтому список записан здесь."""
-    assert frozenset(
-        {
-            "/healthz",
-            "/api/v1/auth/login",
-            "/api/v1/auth/mfa",
-            "/api/v1/docs",
-            "/api/v1/docs/oauth2-redirect",
-            "/api/v1/openapi.json",
-        }
-    ) == PUBLIC_PATHS
+    """Открытый маршрут добавляется осознанно, поэтому список записан здесь.
+
+    Два последних пути раздают логины тестового стенда, и они открыты
+    намеренно: панель рисуется на экране входа, где токена ещё нет.
+    Наполняются они только при флаге `TEST_STAND`, иначе отдают пустой
+    список. ADR 0007.
+    """
+    assert (
+        frozenset(
+            {
+                "/healthz",
+                "/api/v1/auth/login",
+                "/api/v1/auth/mfa",
+                "/api/v1/docs",
+                "/api/v1/docs/oauth2-redirect",
+                "/api/v1/openapi.json",
+                "/api/v1/auth/test-accounts",
+                "/api/v1/auth/test-accounts/{demo_set}",
+            }
+        )
+        == PUBLIC_PATHS
+    )
 
 
 def test_the_check_itself_sees_routes() -> None:

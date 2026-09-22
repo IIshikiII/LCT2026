@@ -109,6 +109,40 @@ interface CurrentUser {
 действие», ответ 404 на существующий объект значит «он вне области видимости
 роли». Разбор — `backend/docs/adr/0007-roles-and-auth.md`.
 
+### Тестовый стенд
+
+```
+GET    /auth/test-accounts         → TestStand   (открыт)
+POST   /auth/test-accounts         → TestStand   (открыт)
+DELETE /auth/test-accounts/{set}   → TestStand   (открыт)
+```
+
+```ts
+interface TestStand {
+  enabled: boolean          // false — панель не рисуется
+  password: string          // общий пароль всех наборов
+  sets: {
+    set: number
+    accounts: {
+      username: string
+      fullName: string
+      role: string
+      roleLabel: string
+      scopeKind: string
+      scopeValue?: string
+      mfaEnrolled: boolean  // ключ второго фактора уже заведён
+    }[]
+  }[]
+}
+```
+
+Ручки открыты намеренно: панель рисуется на экране входа. Наполняет их флаг
+`TEST_STAND` на сервере, и без него `enabled` равен `false`, а создание и
+удаление отвечают 404. Разбор — `backend/docs/adr/0007-roles-and-auth.md`.
+
+Ответ каждой из трёх ручек — список целиком, поэтому фронт не угадывает, что
+изменилось, а кладёт ответ в кэш.
+
 ### Метаданные
 
 ```

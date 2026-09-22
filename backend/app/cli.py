@@ -13,6 +13,8 @@ COMMANDS = (
     "migrate",
     "seed",
     "create-user",
+    "reset-demo",
+    "reset-keys",
     "run-pipeline",
     "publish-metrics",
     "train",
@@ -42,6 +44,12 @@ def main(argv: list[str] | None = None) -> int:
         "--password",
         default=None,
         help="пароль для create-user, по умолчанию берётся из переменной SEED_PASSWORD",
+    )
+    parser.add_argument(
+        "--set",
+        type=int,
+        default=None,
+        help="номер набора тестовых учёток для reset-keys, по умолчанию все наборы",
     )
     args = parser.parse_args(argv)
 
@@ -77,6 +85,29 @@ def main(argv: list[str] | None = None) -> int:
             f"{seeded.alarm_event_count} событий доступа, "
             f"учётные записи {', '.join(users)} с паролем из SEED_PASSWORD"
         )
+        return 0
+
+    if args.command == "reset-demo":
+        from app.db import engine
+        from app.domain.reset import reset_demo
+
+        with engine().begin() as conn:
+            done = reset_demo(conn)
+        print(
+            f"сброс: {done.predictions} прогнозов снова новые, "
+            f"{done.orders} заявок вернулись в начало, "
+            f"{done.log_entries} записей журнала удалено"
+        )
+        return 0
+
+    if args.command == "reset-keys":
+        from app.auth.seed import reset_keys
+        from app.db import engine
+
+        with engine().begin() as conn:
+            count = reset_keys(conn, args.set)
+        where = f"набора {args.set}" if args.set is not None else "всех наборов"
+        print(f"ключи второго фактора сняты у {count} записей {where}")
         return 0
 
     if args.command == "create-user":

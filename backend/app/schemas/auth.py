@@ -47,3 +47,32 @@ class SessionResponse(Dto):
     token_type: str = "Bearer"
     expires_in: int
     user: CurrentUser
+
+
+class TestAccount(Dto):
+    """Учётная запись тестового стенда. Пароль общий и лежит в `TestStand`."""
+
+    username: str
+    full_name: str
+    role: str
+    role_label: str
+    scope_kind: str
+    scope_value: str | None = None
+    # Заведён ли ключ второго фактора. Панель показывает это рядом с логином,
+    # чтобы проверяющий не брал набор, занятый чужим телефоном.
+    mfa_enrolled: bool
+
+
+class TestAccountSet(Dto):
+    """Набор: по одной записи на каждую роль."""
+
+    set: int
+    accounts: list[TestAccount]
+
+
+class TestStand(Dto):
+    """Состояние тестового стенда. Выключенный отдаёт `enabled: false`."""
+
+    enabled: bool
+    password: str
+    sets: list[TestAccountSet]

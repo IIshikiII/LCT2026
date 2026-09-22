@@ -49,6 +49,14 @@ class Config:
     # Пароль демонстрационных учётных записей. Команда `seed` ставит его всем
     # четырём ролям, чтобы стенд поднимался одной командой.
     seed_password: str
+    # Режим тестового стенда. Открывает панель учётных записей на экране входа
+    # и три эндпоинта под ней: список наборов, создание, удаление.
+    #
+    # **Флаг раздаёт логины и пароли без входа в систему.** Он существует ради
+    # жюри: каждый проверяющий берёт свой набор и заводит второй фактор в своём
+    # телефоне. В промышленной установке он выключен, и это не рекомендация, а
+    # условие: включённый флаг делает вход бессмысленным. Разбор в ADR 0007.
+    test_stand: bool
 
     @staticmethod
     def from_environ() -> Config:
@@ -71,6 +79,7 @@ class Config:
             auth_token_ttl_minutes=int(os.environ.get("AUTH_TOKEN_TTL_MINUTES", "480")),
             auth_mfa_ttl_seconds=int(os.environ.get("AUTH_MFA_TTL_SECONDS", "300")),
             seed_password=os.environ.get("SEED_PASSWORD", "collector"),
+            test_stand=os.environ.get("TEST_STAND", "").lower() in {"1", "true", "yes"},
         )
 
 

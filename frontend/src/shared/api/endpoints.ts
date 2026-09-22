@@ -11,6 +11,9 @@ export const endpoints = {
   mfa: () => '/auth/mfa',
   me: () => '/auth/me',
   logout: () => '/auth/logout',
+  /** Наборы учёток тестового стенда. Открыты, наполняются только при флаге. */
+  testAccounts: () => '/auth/test-accounts',
+  testAccountSet: (set: number) => `/auth/test-accounts/${set}`,
 
   /** Описание предметной области. Грузится один раз при старте. */
   meta: () => '/meta',
