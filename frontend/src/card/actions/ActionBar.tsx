@@ -1,9 +1,17 @@
 /**
  * Липкая панель действий внизу карточки.
  *
- * Кнопки — из `actions` сущности. Нажатие раскрывает форму; после успеха
- * карточка перерисовывается ответом сервера, а панель остаётся открытой, чтобы
- * диспетчер увидел новый статус (spec §9).
+ * Кнопки — из `actions` сущности. После успеха карточка перерисовывается
+ * ответом сервера, а панель остаётся открытой, чтобы диспетчер увидел новый
+ * статус (spec §9).
+ *
+ * **Действие без полей выполняется сразу.** «Взять в работу» и «Вернуть в
+ * очередь» ничего не спрашивают, и раскрывать под ними пустую форму с кнопками
+ * «Взять в работу» и «Отмена» значило бы требовать два нажатия там, где хватает
+ * одного. Форма раскрывается только тогда, когда есть что заполнять.
+ *
+ * Действие с полем `confirm` остаётся с формой даже без полей: подтверждение и
+ * есть тот вопрос, ради которого форма нужна.
  */
 import { useState } from 'react'
 import type { ActionDef, AppMeta } from '@/shared/api/types'
@@ -38,6 +46,22 @@ export function ActionBar({ actions, meta, onRun, pending, error }: ActionBarPro
 
   const open = actions.find((a) => a.code === openCode)
 
+  /** Нужно ли что-то спрашивать перед выполнением. */
+  function asksAnything(action: ActionDef): boolean {
+    return action.fields.length > 0 || Boolean(action.confirm)
+  }
+
+  function run(action: ActionDef) {
+    if (asksAnything(action)) {
+      setOpenCode(openCode === action.code ? null : action.code)
+      return
+    }
+    void onRun(action.code, {}).then(() => {
+      setOpenCode(null)
+      setDone(action.label)
+    })
+  }
+
   return (
     <div className="sticky bottom-0 border-t border-line bg-panel px-3 py-2.5">
       <div className="flex flex-wrap gap-1.5">
@@ -46,8 +70,9 @@ export function ActionBar({ actions, meta, onRun, pending, error }: ActionBarPro
             key={action.code}
             kind={openCode === action.code ? 'secondary' : toButtonKind(action.kind)}
             size="sm"
-            aria-expanded={openCode === action.code}
-            onClick={() => setOpenCode(openCode === action.code ? null : action.code)}
+            disabled={pending}
+            {...(asksAnything(action) ? { 'aria-expanded': openCode === action.code } : {})}
+            onClick={() => run(action)}
           >
             {action.label}
           </Button>
