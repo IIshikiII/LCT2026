@@ -33,6 +33,26 @@ import { TestStandPanel } from './TestStandPanel'
 /** Длина одноразового кода. Та же, что у сервера и у аутентификаторов. */
 const CODE_LENGTH = 6
 
+/**
+ * Приложения, которые заведомо читают наш ключ.
+ *
+ * Список не исчерпывающий и не является требованием: формат стандартный
+ * (RFC 6238, HMAC-SHA1, шаг 30 секунд, шесть цифр), и подходит любой
+ * аутентификатор. Имена нужны тем, у кого ни одного ещё не стоит.
+ *
+ * В списке есть и настольные приложения: ключ живёт в приложении, а не в
+ * телефоне, и заводить его можно там, где удобно.
+ */
+const AUTHENTICATORS = [
+  'Яндекс Ключ',
+  'Google Authenticator',
+  'Microsoft Authenticator',
+  '1Password',
+  'Bitwarden',
+  'Aegis',
+  'KeePassXC',
+]
+
 function errorText(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
@@ -177,8 +197,11 @@ function EnrollKey({ challenge }: { challenge: LoginChallenge }) {
   return (
     <div className="flex flex-col gap-3 rounded border border-line bg-sunken p-3">
       <p className="text-[12px] text-text-dim">
-        Ключ второго фактора ещё не заведён. Наведите камеру аутентификатора на код
-        и подтвердите кодом из приложения.
+        Ключ второго фактора ещё не заведён. Наведите на код камеру
+        аутентификатора и подтвердите кодом из него.
+      </p>
+      <p className="text-[11px] text-text-mute">
+        Подойдёт любое: {AUTHENTICATORS.join(', ')}.
       </p>
 
       {challenge.otpauthUrl ? (

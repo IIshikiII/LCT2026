@@ -104,6 +104,17 @@ describe('вход в систему', () => {
     ).toBeInTheDocument()
   })
 
+  it('называет приложения, которыми можно завести ключ', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<AppShell />, { route: '/journal' })
+
+    await fillPassword(user, 'crew')
+
+    // Тому, у кого аутентификатора ещё нет, нужен список, а не термин.
+    expect(await screen.findByText(/Яндекс Ключ/)).toBeInTheDocument()
+    expect(screen.getByText(/Google Authenticator/)).toBeInTheDocument()
+  })
+
   it('оставляет запасной путь: ключ руками и ссылку', async () => {
     const user = userEvent.setup()
     renderWithProviders(<AppShell />, { route: '/journal' })
