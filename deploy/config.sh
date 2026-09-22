@@ -28,6 +28,20 @@ FALLBACK=nipio
 BASIC_AUTH_USER=
 BASIC_AUTH_PASS=
 
+# Разворачивать ли бэкенд: Postgres и API в Docker плюс /api/v1 через nginx.
+#   yes — полный сервис: настоящие прогнозы, вход, роли, заявки;
+#   no  — только фронтенд на заглушках, как было до появления бэкенда.
+DEPLOY_BACKEND=yes
+API_PORT=8000
+
+# Панель тестовых учёток на экране входа. Раздаёт логины и пароли любому, кто
+# открыл страницу, поэтому включается осознанно и только на стенде для жюри.
+TEST_STAND=true
+SEED_PASSWORD=collector
+
+# Сколько объектов сеять. 200 дают полсотни прогнозов и считаются за минуту.
+SEED_FACILITIES=200
+
 #######################################################################
 
 NGINX_SITE_FILE="/etc/nginx/sites-available/$SITE"
@@ -41,7 +55,12 @@ preflight() {
     [ "$(id -u)" != 0 ] || die "Запускать обычным пользователем, не root: sudo используется точечно."
     sudo -n true 2>/dev/null || sudo -v || die "Нужен sudo."
     [ -d "$REPO/frontend" ] || die "Не найден $REPO/frontend — поправьте REPO в deploy/config.sh."
+    [ "$DEPLOY_BACKEND" != yes ] || [ -d "$REPO/backend" ]         || die "Не найден $REPO/backend, а DEPLOY_BACKEND=yes."
 }
+
+# Имя, которое сайт обслуживает снаружи. Нужно и конфигу nginx, и CORS.
+# Пусто до того, как install.sh разберётся с DNS.
+PRIMARY_HOST=${PRIMARY_HOST:-$DOMAIN}
 
 ensure_dig() { command -v dig >/dev/null || sudo apt-get install -y -qq dnsutils; }
 
@@ -98,5 +117,38 @@ probe() {
     else
         curl -s -o /dev/null -w '%{http_code}' \
             --resolve "$host:443:127.0.0.1" "https://$host$path" || echo "---"
+    fi
+}
+
+# Готовит frontend/.env под выбранный режим.
+#
+# Значения Vite вшивает в бандл на этапе сборки, поэтому правка после
+# `npm run build` ничего не меняет. Отсюда и место вызова: прямо перед сборкой.
+#
+# С бэкендом фронт ходит на /api/v1 того же адреса, и заглушки не поднимаются.
+# Без бэкенда всё наоборот.
+frontend_env() {
+    local file="$REPO/frontend/.env"
+    [ -f "$file" ] || cp "$REPO/frontend/.env.example" "$file"
+
+    if [ "$DEPLOY_BACKEND" = yes ]; then
+        set_env_line "$file" VITE_USE_MOCKS false
+        set_env_line "$file" VITE_API_BASE_URL /api/v1
+        set_env_line "$file" VITE_API_DOCS_URL /api/v1/docs
+        echo "    сборка под настоящий бэкенд: VITE_USE_MOCKS=false"
+    else
+        set_env_line "$file" VITE_USE_MOCKS true
+        echo "    сборка на заглушках: VITE_USE_MOCKS=true"
+    fi
+}
+
+# Проверяет, что собралось то, что нужно режиму.
+#
+# Без бэкенда воркер заглушек обязателен: без него приложение молча остаётся
+# без данных. С бэкендом он в бандле не нужен, и его отсутствие не ошибка.
+check_bundle() {
+    [ -f "$REPO/frontend/dist/index.html" ] || die "В dist/ нет index.html — сборка не удалась."
+    if [ "$DEPLOY_BACKEND" != yes ] && [ ! -f "$REPO/frontend/dist/mockServiceWorker.js" ]; then
+        die "В dist/ нет mockServiceWorker.js — заглушки не поднимутся."
     fi
 }

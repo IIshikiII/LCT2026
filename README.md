@@ -190,6 +190,20 @@ VITE_API_BASE_URL=http://localhost:8000/api/v1
 
 ---
 
+## Развёртывание
+
+Стенд: <https://utility-monitor.ru>.
+
+```bash
+bash deploy/install.sh        # первый раз
+bash deploy/update.sh --pull  # выложить новую версию
+```
+
+Скрипты ставят сервис целиком: Postgres и API в Docker, статику фронтенда,
+nginx с сертификатом Let's Encrypt. Путь `/api/v1` проксируется на API, поэтому
+фронт и сервер живут на одном адресе. Порядок и настройки — в
+[deploy/README.md](deploy/README.md).
+
 ## Документация
 
 - **[frontend/docs/README.md](frontend/docs/README.md)** — точка входа: архитектура,

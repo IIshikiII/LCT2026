@@ -2,6 +2,13 @@
 #
 # Развёртывание АРМ диспетчера ОДС на Ubuntu 22.04.
 #
+# Ставит сервис целиком: Postgres и API в Docker, статику фронтенда, nginx с
+# сертификатом. Путь /api/v1 проксируется на API, поэтому фронт и сервер живут
+# на одном адресе и CORS не участвует.
+#
+# Бэкенд отключается строкой DEPLOY_BACKEND=no в config.sh: тогда собирается
+# только фронтенд и работает на заглушках.
+#
 # Идемпотентен: запускать сколько угодно раз. Сам решает, что делать с TLS:
 #   - A-запись $DOMAIN указывает на этот сервер -> сертификат на домен;
 #   - записи нет или она чужая         -> запасной вариант, см. FALLBACK.
@@ -16,6 +23,8 @@ DEPLOY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 [ -f "$DEPLOY_DIR/config.sh" ] || { echo "Не найден $DEPLOY_DIR/config.sh" >&2; exit 1; }
 # shellcheck source=config.sh
 source "$DEPLOY_DIR/config.sh"
+# shellcheck source=backend.sh
+source "$DEPLOY_DIR/backend.sh"
 
 # --- проверки окружения ------------------------------------------------
 
@@ -68,6 +77,21 @@ if [ "$USE_TLS" = yes ]; then
     sudo apt-get install -y -qq certbot python3-certbot-nginx
 fi
 
+# --- бэкенд ------------------------------------------------------------
+
+# Поднимается до nginx: конфиг будет проксировать на него, и пустой upstream
+# дал бы 502 на первом же запросе после перезагрузки конфига.
+if [ "$DEPLOY_BACKEND" = yes ]; then
+    ensure_docker
+    ensure_backend_env
+    publish_model
+    backend_up
+    backend_migrate
+    backend_seed
+else
+    warn "DEPLOY_BACKEND=no: фронтенд будет работать на заглушках."
+fi
+
 # --- сборка ------------------------------------------------------------
 
 if [ "$SERVE_MODE" = static ]; then
@@ -80,14 +104,14 @@ if [ "$SERVE_MODE" = static ]; then
 
     cd "$REPO/frontend"
 
-    # .env лежит в .gitignore, после клона его нет. Без него VITE_USE_MOCKS не
-    # попадёт в бандл — соберётся молча, но приложение окажется без данных.
+    # .env лежит в .gitignore, после клона его нет. Значения из него Vite
+    # вшивает в бандл на этапе сборки, поэтому править его надо до npm run build.
     [ -f .env ] || { cp .env.example .env; echo "    создан .env из .env.example"; }
-    grep -q '^VITE_USE_MOCKS=true' .env || warn ".env без VITE_USE_MOCKS=true — сборка будет ждать реальный бэкенд."
+    frontend_env
 
     npm ci --no-audit --no-fund
     npm run build
-    [ -f dist/mockServiceWorker.js ] || die "В dist/ нет mockServiceWorker.js — заглушки не поднимутся."
+    check_bundle
 
     log "Раскладываю в $WEBROOT"
     sudo mkdir -p "$WEBROOT"
@@ -118,6 +142,34 @@ fi
 # --- конфиг nginx ------------------------------------------------------
 
 log "Пишу конфиг nginx"
+
+# Проксирование API. Фронт ходит на /api/v1 того же адреса, поэтому CORS не
+# участвует вовсе, а порт 8000 остаётся закрытым снаружи: он опубликован
+# только на петле (правило 2 из CLAUDE.md).
+#
+# basic-auth сюда не ставится намеренно. У сервиса свой вход с ролями и вторым
+# фактором, и второе окно поверх него только мешает.
+API_LOCATION=""
+if [ "$DEPLOY_BACKEND" = yes ]; then
+    read -r -d '' API_LOCATION <<NGINX || true
+
+    location /api/v1 {
+        proxy_pass http://127.0.0.1:$API_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        # Прогон конвейера через API не идёт, но выгрузка журнала бывает
+        # долгой. Минуты хватает с запасом.
+        proxy_read_timeout 60s;
+    }
+
+    location = /healthz {
+        proxy_pass http://127.0.0.1:$API_PORT;
+        access_log off;
+    }
+NGINX
+fi
 
 if [ "$SERVE_MODE" = static ]; then
     read -r -d '' LOCATION_ROOT <<NGINX || true
@@ -159,9 +211,11 @@ if [ "$SERVE_MODE" = static ]; then
         $AUTH_SNIPPET
         try_files \$uri /index.html;
     }
+$API_LOCATION
 NGINX
 else
     read -r -d '' LOCATION_ROOT <<NGINX || true
+$API_LOCATION
     location / {
         $AUTH_SNIPPET
         proxy_pass http://127.0.0.1:$DEV_PORT;
@@ -254,7 +308,14 @@ log "Проверяю, что отдаётся"
 # поставил certbot. Поэтому в режиме TLS стучимся сразу по https, --resolve
 # заворачивает запрос на локальный nginx, но имя в сертификате всё равно
 # проверяется по-настоящему.
-for path in / /mockServiceWorker.js; do
+CHECK_PATHS=(/)
+if [ "$DEPLOY_BACKEND" = yes ]; then
+    CHECK_PATHS+=(/healthz /api/v1/meta)
+else
+    CHECK_PATHS+=(/mockServiceWorker.js)
+fi
+
+for path in "${CHECK_PATHS[@]}"; do
     if [ "$USE_TLS" = yes ]; then
         code=$(curl -s -o /dev/null -w '%{http_code}' \
             --resolve "$PRIMARY_HOST:443:127.0.0.1" "https://$PRIMARY_HOST$path" || echo "---")
@@ -278,5 +339,14 @@ else
     warn "в chrome://flags/#unsafely-treat-insecure-origin-as-secure и перезапустите Chrome."
 fi
 echo
-echo "    Логи: sudo tail -f /var/log/nginx/{access,error}.log"
-echo "    Передеплой после правок: bash deploy/install.sh"
+if [ "$DEPLOY_BACKEND" = yes ]; then
+    backend_status
+    echo
+    echo "    Учётные записи стенда: панель справа на экране входа."
+    echo "    Логи API:   cd $REPO/backend && sudo docker compose logs -f api"
+    echo "    Сброс демо: cd $REPO/backend && sudo docker compose run --rm pipeline \\"
+    echo "                  uv run --no-sync python -m app.cli reset-demo"
+fi
+echo
+echo "    Логи nginx: sudo tail -f /var/log/nginx/{access,error}.log"
+echo "    Передеплой после правок: bash deploy/update.sh --pull"
