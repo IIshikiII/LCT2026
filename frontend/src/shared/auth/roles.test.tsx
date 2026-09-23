@@ -51,13 +51,49 @@ describe('роль режет выборку', () => {
     await waitFor(async () => expect(await rowCount()).toBe(Math.min(narrow, 50)))
   })
 
-  it('шапка называет границу видимости', async () => {
+  it('шапка называет роль и границу видимости', async () => {
+    // Прежде слева стояло «АРМ диспетчера ОДС» при любой роли, и диспетчер
+    // района читал чужую должность.
     signInAs('district')
     renderWithProviders(<AppShell />, { route: '/journal' })
 
     const header = await screen.findByRole('banner')
-    const scope = userNamed('district').scopeValue as string
-    expect(await within(header).findByText(new RegExp(scope))).toBeInTheDocument()
+    expect(await within(header).findByText(/Диспетчер района/)).toBeInTheDocument()
+    expect(within(header).queryByText(/АРМ диспетчера ОДС/)).toBeNull()
+  })
+
+  it('шапка диспетчера ОДС говорит, что видно всё предприятие', async () => {
+    signInAs('ods')
+    renderWithProviders(<AppShell />, { route: '/journal' })
+
+    const header = await screen.findByRole('banner')
+    expect(await within(header).findByText(/всё предприятие/)).toBeInTheDocument()
+  })
+})
+
+describe('фильтр по району показывается только тому, кто видит всё', () => {
+  it('диспетчер ОДС фильтр получает', async () => {
+    signInAs('ods')
+    renderWithProviders(<AppShell />, { route: '/journal' })
+
+    expect(await screen.findByLabelText(/Район/)).toBeInTheDocument()
+  })
+
+  it('диспетчер района фильтра не получает', async () => {
+    // Сузить нечего, а расширить нельзя: границу ставит сервер.
+    signInAs('district')
+    renderWithProviders(<AppShell />, { route: '/journal' })
+
+    await screen.findByRole('table')
+    expect(screen.queryByLabelText(/Район/)).toBeNull()
+  })
+
+  it('техник фильтра не получает', async () => {
+    signInAs('tech')
+    renderWithProviders(<AppShell />, { route: '/journal' })
+
+    await screen.findByRole('table')
+    expect(screen.queryByLabelText(/Район/)).toBeNull()
   })
 })
 

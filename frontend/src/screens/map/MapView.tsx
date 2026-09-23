@@ -85,9 +85,32 @@ export interface MapViewProps {
   onSelect: (predictionId: string) => void
   /** Сообщает границы видимой области после того, как карта остановилась. */
   onBoundsChange?: (bbox: string) => void
+  /**
+   * Район роли, если она ограничена одним районом.
+   *
+   * Карта оставляет на подложке только его: девять округов тому, кто работает
+   * в одном, рисуют сеть, к которой его не допустили.
+   */
+  scopeDistrict?: string
+  /**
+   * Подвести камеру под пришедшие объекты один раз.
+   *
+   * Нужно узким ролям: на обзоре всей Москвы их десяток точек выглядит как
+   * пустая карта. Роль, которая видит предприятие, остаётся на общем плане.
+   */
+  fitToData?: boolean
 }
 
-export function MapView({ data, lines, meta, selectedId, onSelect, onBoundsChange }: MapViewProps) {
+export function MapView({
+  data,
+  lines,
+  meta,
+  selectedId,
+  onSelect,
+  onBoundsChange,
+  scopeDistrict,
+  fitToData,
+}: MapViewProps) {
   const { theme } = useTheme()
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<InstanceType<typeof MapLibreMap> | null>(null)
@@ -97,6 +120,12 @@ export function MapView({ data, lines, meta, selectedId, onSelect, onBoundsChang
   selectRef.current = onSelect
   const boundsRef = useRef(onBoundsChange)
   boundsRef.current = onBoundsChange
+  // Карта создаётся один раз, а район приходит вместе с сессией. Ссылка даёт
+  // обработчику загрузки актуальное значение, не пересоздавая карту.
+  const districtRef = useRef(scopeDistrict)
+  districtRef.current = scopeDistrict
+  // Камера подводится к объектам один раз за сессию карты.
+  const fitted = useRef(false)
 
   useEffect(() => {
     if (!container.current || map.current) return
@@ -124,16 +153,24 @@ export function MapView({ data, lines, meta, selectedId, onSelect, onBoundsChang
         data: env.mapDistrictsUrl,
         attribution: '© OpenStreetMap contributors',
       })
+      // Роль, ограниченная районом, видит на подложке только его округ.
+      // Код округа лежит в свойствах того же файла, что рисует границы.
+      const okrugFilter = districtRef.current
+        ? (['==', ['get', 'code'], districtRef.current] as never)
+        : undefined
+
       instance.addLayer({
         id: `${OKRUGS}-fill`,
         type: 'fill',
         source: OKRUGS,
+        ...(okrugFilter ? { filter: okrugFilter } : {}),
         paint: { 'fill-color': colors.districtFill },
       })
       instance.addLayer({
         id: `${OKRUGS}-line`,
         type: 'line',
         source: OKRUGS,
+        ...(okrugFilter ? { filter: okrugFilter } : {}),
         paint: { 'line-color': colors.districtLine, 'line-width': 1 },
       })
 
@@ -229,6 +266,33 @@ export function MapView({ data, lines, meta, selectedId, onSelect, onBoundsChang
     // её обновление обрабатывается отдельным эффектом ниже.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  /*
+   * Первая подгонка камеры под объекты роли.
+   *
+   * Только один раз: дальше человек двигает карту сам, и перехватывать у него
+   * управление на каждом опросе нельзя. Отступ оставляет объекты у края видимыми.
+   */
+  useEffect(() => {
+    const instance = map.current
+    if (!instance || !fitToData || fitted.current) return
+
+    const points = (data?.features ?? [])
+      .map((feature) => feature.geometry?.coordinates)
+      .filter((pair): pair is [number, number] => Array.isArray(pair) && pair.length === 2)
+    if (points.length === 0) return
+
+    const lons = points.map((pair) => pair[0])
+    const lats = points.map((pair) => pair[1])
+    fitted.current = true
+    instance.fitBounds(
+      [
+        [Math.min(...lons), Math.min(...lats)],
+        [Math.max(...lons), Math.max(...lats)],
+      ],
+      { padding: 64, maxZoom: 13, duration: 0 },
+    )
+  }, [data, fitToData])
 
   /* Точки объектов. Меняются при каждом опросе и при сдвиге карты. */
   useEffect(() => {

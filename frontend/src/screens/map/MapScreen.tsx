@@ -4,10 +4,15 @@
  * Использует ту же панель фильтров и те же параметры URL, что и журнал, —
  * поэтому переход между экранами сохраняет выборку, а ссылка на карту с
  * открытой карточкой восстанавливает то же состояние.
+ *
+ * Карта держится в границах роли. Точки и трассы режет сервер, подложку
+ * округов и первую посадку камеры — эти два свойства.
  */
 import { useState } from 'react'
 import { useFacilities, useFacilityLines } from '@/shared/api/queries'
 import type { AppMeta } from '@/shared/api/types'
+import { useAuth } from '@/shared/auth/context'
+import { scopeDistrict, seesWholeCompany } from '@/shared/auth/scope'
 import { usePredictionFilters, useSelected } from '@/shared/lib/urlState'
 import { ErrorState, Spinner } from '@/shared/ui/states'
 import { FilterBar } from '../common/FilterBar'
@@ -16,6 +21,7 @@ import { MapView } from './MapView'
 
 export function MapScreen({ meta }: { meta: AppMeta }) {
   const api = usePredictionFilters()
+  const { session } = useAuth()
   const [selected, select] = useSelected('prediction')
   /*
    * Границы видимой области. До первого сообщения от карты запрос уходит без
@@ -54,6 +60,8 @@ export function MapScreen({ meta }: { meta: AppMeta }) {
               selectedId={selected}
               onSelect={select}
               onBoundsChange={setBbox}
+              scopeDistrict={scopeDistrict(session?.user)}
+              fitToData={!seesWholeCompany(session?.user)}
             />
             <MapLegend meta={meta} total={features.length} />
             {query.isPending ? (

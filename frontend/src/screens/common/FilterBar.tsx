@@ -7,6 +7,9 @@
  * Списка направлений в этом файле нет — он приходит из `/meta` и достраивается
  * кодами, встреченными в данных (ADR 0002).
  *
+ * Фильтр по району виден только тому, кто видит всё предприятие. Остальным
+ * сужать нечего: их выборку уже сузил сервер.
+ *
  * **Плашек в панели нет.** Их было двенадцать в ряд, и панель читалась как
  * сплошная лента. Каждая группа свёрнута в выпадающий список и занимает одну
  * позицию независимо от числа вариантов. Цвет уровня и подсистемы не потерялся:
@@ -14,6 +17,8 @@
  */
 import type { ReactNode } from 'react'
 import { useMeta } from '@/shared/api/queries'
+import { useAuth } from '@/shared/auth/context'
+import { seesWholeCompany } from '@/shared/auth/scope'
 import {
   directionOptions,
   levelColor,
@@ -59,7 +64,13 @@ export function FilterBar({
   actions,
 }: FilterBarProps) {
   const meta = useMeta()
+  const { session } = useAuth()
   const { filters } = api
+
+  // Роль, ограниченная одним районом или одним комплексом, фильтр по району не
+  // получает: сузить нечего, а расширить нельзя. Границу ставит сервер
+  // условием запроса, и плашка здесь только притворялась бы рычагом.
+  const showDistrict = meta.districts.length > 0 && seesWholeCompany(session?.user)
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-panel px-3 py-2">
@@ -118,7 +129,7 @@ export function FilterBar({
         </Labelled>
       ) : null}
 
-      {meta.districts.length > 0 ? (
+      {showDistrict ? (
         <Labelled title="Район">
           <Select
             className="h-6 w-36 py-0 text-[12px]"

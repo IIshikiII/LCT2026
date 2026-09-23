@@ -7,13 +7,17 @@
  * Ссылка на Swagger — четвёртый пункт итогового продукта по ТЗ (REST API);
  * пусть жюри найдёт её, не спрашивая.
  *
- * Имя и роль стоят в шапке не для красоты. Ответ заказчика 3.6: запись
- * остаётся за тем, кто отработал прогноз, и человек обязан видеть, под кем он
- * сейчас работает. Границу видимости шапка называет там же: пустой журнал у
- * техника объясняется ролью, а не поломкой.
+ * Роль и область видимости стоят слева, в названии рабочего места. Прежде там
+ * стояло «АРМ диспетчера ОДС» при любой роли, и диспетчер района читал чужую
+ * должность. Теперь надпись отвечает на вопрос «где я и что мне видно»:
+ * пустой журнал у техника объясняется областью, а не поломкой.
+ *
+ * Имя справа — ответ заказчика 3.6: запись остаётся за тем, кто отработал
+ * прогноз, и человек обязан видеть, под кем он работает.
  */
-import { useLogout, useMetaIsFallback, usePipelineHealth } from '@/shared/api/queries'
+import { useLogout, useMeta, useMetaIsFallback, usePipelineHealth } from '@/shared/api/queries'
 import { useAuth } from '@/shared/auth/context'
+import { scopeLabel } from '@/shared/auth/scope'
 import { env } from '@/shared/config/env'
 import { fmtFreshness } from '@/shared/lib/format'
 import { Button } from '@/shared/ui/Button'
@@ -22,6 +26,7 @@ import { Icon } from '@/shared/ui/Icon'
 export function Header() {
   const pipeline = usePipelineHealth()
   const onFallback = useMetaIsFallback()
+  const meta = useMeta()
   const { session, signOut } = useAuth()
   const logout = useLogout()
 
@@ -34,8 +39,18 @@ export function Header() {
   return (
     <header className="flex h-12 shrink-0 items-center gap-4 border-b border-line bg-panel px-3">
       <div className="flex min-w-0 items-baseline gap-2">
-        <span className="truncate text-[14px] font-medium text-text">АРМ диспетчера ОДС</span>
-        <span className="hidden truncate text-[12px] text-text-mute sm:inline">
+        <span className="shrink-0 text-[14px] font-medium text-text">
+          АРМ{session ? ` · ${session.user.roleLabel}` : ''}
+        </span>
+        {session ? (
+          <span
+            className="shrink-0 rounded border border-line bg-sunken px-2 py-0.5 text-[12px] text-text-dim"
+            title="Что вам видно"
+          >
+            {scopeLabel(session.user, meta)}
+          </span>
+        ) : null}
+        <span className="hidden truncate text-[12px] text-text-mute lg:inline">
           прогнозирование аварий инженерных коллекторов
         </span>
       </div>
@@ -70,13 +85,7 @@ export function Header() {
 
         {session ? (
           <div className="flex items-center gap-2 border-l border-line pl-4">
-            <div className="flex flex-col items-end leading-tight">
-              <span className="text-[12px] text-text">{session.user.fullName}</span>
-              <span className="text-[11px] text-text-mute">
-                {session.user.roleLabel}
-                {session.user.scopeValue ? ` · ${session.user.scopeValue}` : ''}
-              </span>
-            </div>
+            <span className="text-[12px] text-text">{session.user.fullName}</span>
             <Button size="sm" kind="ghost" onClick={leave} disabled={logout.isPending}>
               Выйти
             </Button>
