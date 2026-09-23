@@ -112,7 +112,9 @@ echo "    версия: $(git -C "$REPO" log -1 --format='%h %s' 2>/dev/null || 
 
 # --- режим proxy: собирать нечего --------------------------------------
 
-if grep -q 'proxy_pass' "$NGINX_SITE_FILE" 2>/dev/null; then
+# Проверка идёт по адресу dev-сервера, а не по слову proxy_pass: с тех пор как
+# появился бэкенд, proxy_pass есть в конфиге всегда — им проксируется /api/v1.
+if grep -q "proxy_pass http://127.0.0.1:$DEV_PORT" "$NGINX_SITE_FILE" 2>/dev/null; then
     log "Сайт настроен на проксирование к dev-серверу Vite"
     if ss -tln | grep -q ":$DEV_PORT "; then
         echo "    Vite слушает $DEV_PORT и подхватывает правки сам через HMR — выкладывать нечего."
