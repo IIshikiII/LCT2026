@@ -4,18 +4,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="color-scheme" content="light dark" />
     <!--
-      Тема применяется до загрузки бандла: иначе при выбранной светлой теме
-      первый кадр моргнёт тёмным. Ключ обязан совпадать с THEME_STORAGE_KEY
-      из src/shared/lib/theme.ts. См. ADR 0009.
+      Тема применяется до загрузки бандла: иначе при светлой теме первый кадр
+      моргнёт тёмным. Светлая тема основная, но лежит она в tokens.css под
+      атрибутом, поэтому атрибут ставится всегда, а не только под выбор
+      пользователя. Ключ обязан совпадать с THEME_STORAGE_KEY из
+      src/shared/lib/theme.ts. См. ADR 0009.
     -->
     <script>
       try {
         document.documentElement.dataset.theme =
-          localStorage.getItem('arm-theme') === 'light' ? 'light' : 'dark'
+          localStorage.getItem('arm-theme') === 'dark' ? 'dark' : 'light'
       } catch (error) {
-        document.documentElement.dataset.theme = 'dark'
+        document.documentElement.dataset.theme = 'light'
       }
     </script>
     <title>АРМ диспетчера ОДС — прогнозирование аварий коллекторов</title>
