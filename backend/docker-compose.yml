@@ -98,7 +98,12 @@ services:
     profiles: ["tools"]
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arm}:${POSTGRES_PASSWORD:-arm}@db:5432/${POSTGRES_DB:-arm}
-      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      # Двоеточия в подстановке нет намеренно. С `:-` пустое значение в .env
+      # считается незаданным, и compose подставлял адрес реестра. Процесс
+      # конвейера уходил к несуществующей службе и висел на ней пять минут,
+      # прежде чем взять модель файлом. Форма `-` уважает пустое значение:
+      # оно означает «реестра нет, читать из ARTIFACTS_DIR».
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI-http://mlflow:5000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # В образе нет git, и MLflow пишет об этом три абзаца на каждый вызов.
       # Логи автономного цикла от этого становятся нечитаемыми.
