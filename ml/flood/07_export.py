@@ -38,6 +38,11 @@ metrics.setdefault(
 
 TARGET.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(OUT / "model.joblib", TARGET / "latest.joblib")
+# Замер с дописанными полями возвращается и в `out/`: выкладка на сервер
+# (`deploy/backend.sh`) копирует его оттуда без Python.
+(OUT / "metrics.json").write_text(
+    json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8"
+)
 (TARGET / "metrics.json").write_text(
     json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8"
 )

@@ -126,8 +126,7 @@ UNAUTHORIZED_ACCESS = Direction(
     level_thresholds=(("MEDIUM", 0.00937), ("HIGH", 0.202105), ("CRITICAL", 0.3)),
 )
 
-# Пятое направление. Выключено по умолчанию: это тест на гибкость с обеих
-# сторон. Включается переменной ENABLED_DIRECTIONS.
+# Работает по умолчанию с 24 сентября: у направления обученная модель (ADR 0009).
 FLOOD_RISK = Direction(
     code="FLOOD_RISK",
     label="Риск подтопления",
@@ -141,7 +140,6 @@ FLOOD_RISK = Direction(
         Reason("NO_DEFECT", "Подтопления не выявлено"),
     ),
     work_types=("Проверка приямка и насоса", "Гидроизоляция", "Откачка воды"),
-    enabled_by_default=False,
     # База события на проверочном отрезке 2,12 %, поэтому общие пороги 0,3,
     # 0,55 и 0,78 держали бы почти всё направление в уровне LOW.
     #
@@ -153,11 +151,32 @@ FLOOD_RISK = Direction(
     level_thresholds=(("MEDIUM", 0.021203), ("HIGH", 0.143891), ("CRITICAL", 0.3)),
 )
 
+# Пятое направление. Выключено по умолчанию: это тест на гибкость с обеих
+# сторон. Включается переменной ENABLED_DIRECTIONS. Роль перешла сюда от
+# подтопления, когда у того появилась модель. Данные направление держат:
+# «Температура ниже 3ºC» дала 8 841 запись на 383 каналах (`INSIGHTS.md` §2.6).
+COLD_RISK = Direction(
+    code="COLD_RISK",
+    label="Переохлаждение участка",
+    short_label="ПО",
+    accent="#5aa6a6",
+    min_horizon_hours=24,
+    reasons=(
+        Reason("VENTILATION", "Избыточная вентиляция вентшахты"),
+        Reason("HATCH_OPEN", "Открытый люк или дверь"),
+        Reason("HEATING_LOSS", "Потеря тепла теплотрассы"),
+        Reason("NO_DEFECT", "Переохлаждения не выявлено"),
+    ),
+    work_types=("Проверка вентшахты", "Закрытие люка", "Осмотр теплотрассы"),
+    enabled_by_default=False,
+)
+
 REGISTRY: tuple[Direction, ...] = (
     SENSOR_FAILURE,
     FIRE_RISK,
     UNAUTHORIZED_ACCESS,
     FLOOD_RISK,
+    COLD_RISK,
 )
 
 

@@ -154,14 +154,14 @@ def test_a_direction_without_predictions_still_gets_a_key(
 ) -> None:
     """Иначе направление пропало бы с дашборда до первого прогноза.
 
-    FLOOD_RISK выключен по умолчанию и прогнозов в наборе не имеет. Включаем
+    COLD_RISK выключен по умолчанию и прогнозов в наборе не имеет. Включаем
     его только здесь, чтобы проверить именно пустое направление.
     """
     import app.api.dashboard as dash
     from app.meta.directions import REGISTRY
 
     monkeypatch.setattr(dash, "active", lambda: REGISTRY)
-    assert get("/dashboard/summary")["byDirection"]["FLOOD_RISK"] == 0
+    assert get("/dashboard/summary")["byDirection"]["COLD_RISK"] == 0
 
 
 # --- верх списка риска ---
