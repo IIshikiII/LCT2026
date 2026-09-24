@@ -15,11 +15,9 @@ import {
   AttributionControl,
   Map as MapLibreMap,
   NavigationControl,
-  setWorkerUrl,
   type GeoJSONSource,
   type MapLayerMouseEvent,
 } from 'maplibre-gl'
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { useEffect, useRef } from 'react'
 import { env } from '@/shared/config/env'
 import { useTheme } from '@/shared/lib/theme'
@@ -32,42 +30,6 @@ import {
   pointStrokeExpression,
   radiusExpression,
 } from './mapStyle'
-
-/**
- * Адрес воркера MapLibre задаётся явно, и это не перестраховка.
- *
- * Разбор тайлов идёт в веб-воркере, который MapLibre по умолчанию ищет рядом
- * с собой — `new Worker(new URL('./maplibre-gl-worker.mjs', import.meta.url))`.
- * Соседний файл туда не попадает: в деве предбандлер Vite кладёт в
- * `.vite/deps/` только сам `maplibre-gl.js`, в сборке воркер тоже не
- * эмитится. Запрос уходит в 404 — и карта молча остаётся пустой: источники
- * навсегда числятся незагруженными, `queryRenderedFeatures` отдаёт нули, а в
- * `map.on('error')` не приходит ничего. Единственный след — 404 во вкладке
- * «Сеть».
- *
- * Подключается он через `?worker&url`, и это не то же самое, что `?url`.
- * Файл воркера в пакете не самодостаточен: он импортирует соседний
- * `maplibre-gl-shared.mjs`. `?url` копирует в сборку только сам воркер, сосед
- * остаётся в node_modules, и модульный воркер не стартует — не может
- * разрешить импорт. В деве это не всплывает, потому что Vite отдаёт файл
- * прямо из пакета, где сосед на месте: поломка видна только на собранной
- * версии. `?worker&url` собирает воркер вместе с зависимостями в один ассет.
- *
- * **Формат воркера — обычный скрипт, не модуль.** Это стоило пустой карты и
- * на стенде, и в деве. MapLibre 6 создаёт воркер как `new Worker(url)`, то
- * есть классическим. Сборка с `worker.format: 'es'` отдавала ES-модуль, и
- * такой воркер не стартовал вовсе.
- *
- * Симптом коварный: ошибки нет ни в консоли, ни в `map.on('error')`. Стиль
- * навсегда остаётся незагруженным (`isStyleLoaded()` отдаёт `false`, список
- * слоёв пуст), потому что `Style` ждёт ответа воркера, а его некому дать.
- * Карта выглядит как чёрный прямоугольник, и единственный след — запрос за
- * `maplibre-gl-worker-*.js`, навсегда застрявший в состоянии pending.
- *
- * Обычный скрипт годится в обоих случаях: его примет и классический воркер, и
- * модульный. Поэтому `vite.config.ts` держит `worker.format: 'iife'`.
- */
-setWorkerUrl(maplibreWorkerUrl)
 
 const POINTS = 'facilities'
 const LINES = 'collector-lines'
