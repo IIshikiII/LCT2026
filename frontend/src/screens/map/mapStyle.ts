@@ -36,6 +36,14 @@ export function mapColors() {
     cluster: resolveCssColor('--raised', '#252e36'),
     clusterLine: resolveCssColor('--line-strong', '#3e4a55'),
     label: resolveCssColor('--text', '#e4e9ed'),
+    /*
+     * Подсветка под курсором. Берётся из управляющего цвета, а не из шкалы
+     * риска: наведение это обратная связь интерфейса, и путать его с уровнем
+     * опасности нельзя. Округ подсвечивается заливкой поверх подложки,
+     * кружок — обводкой.
+     */
+    hover: resolveCssColor('--accent', '#2f5f8a'),
+    hoverStrong: resolveCssColor('--accent-strong', '#3d729f'),
     /* Обводка точки: невыбранная сливается с фоном, выбранная — цвета текста. */
     pointLine: resolveCssColor('--sunken', '#10151a'),
     pointLineSelected: resolveCssColor('--text', '#e4e9ed'),
@@ -92,3 +100,60 @@ export const radiusExpression: unknown[] = [
 ]
 
 export const MOSCOW_CENTER: [number, number] = [37.6173, 55.7558]
+
+/* ----------------------------------------------------------- подсветка */
+
+/*
+ * Наведение проставляется выражениями раскраски, а не feature-state.
+ *
+ * Причина в кружках: их собирает supercluster, и при каждом сдвиге карты
+ * идентификаторы кружков выдаются заново. Состояние, привязанное к
+ * идентификатору, после такой пересборки указывает в пустоту, и подсветка
+ * залипает на кружке, которого больше нет. Выражение читает свойство прямо из
+ * отрисованного объекта, поэтому пересборка ему безразлична.
+ *
+ * Округам feature-state подошёл бы, но два механизма на одну задачу дороже
+ * одного: эффект перекраски в MapView и без того проставляет все эти
+ * свойства заново при смене темы.
+ *
+ * Пустая строка вместо undefined не случайна. Выражение обязано оставаться
+ * валидным и когда курсор вне карты, а `['==', ['get', 'code'], null]` в
+ * MapLibre не сравнение, а ошибка стиля.
+ */
+const NOTHING = ''
+
+/** Прозрачность слоя подсветки округа: виден только тот, что под курсором. */
+export function districtHoverExpression(code: string | undefined): unknown[] {
+  return ['case', ['==', ['get', 'code'], code ?? NOTHING], 0.18, 0]
+}
+
+/** Граница округа под курсором становится толще — подсветки заливкой мало. */
+export function districtLineWidthExpression(code: string | undefined): unknown[] {
+  return ['case', ['==', ['get', 'code'], code ?? NOTHING], 2, 1]
+}
+
+/*
+ * Кружок под курсором. Идентификатор числовой, поэтому пары для «ничего не
+ * наведено» здесь нет: -1 кружку не достаётся никогда.
+ */
+const NO_CLUSTER = -1
+
+export function clusterStrokeExpression(clusterId: number | undefined): unknown[] {
+  const { hoverStrong, clusterLine } = mapColors()
+  return ['case', ['==', ['get', 'cluster_id'], clusterId ?? NO_CLUSTER], hoverStrong, clusterLine]
+}
+
+export function clusterStrokeWidthExpression(clusterId: number | undefined): unknown[] {
+  return ['case', ['==', ['get', 'cluster_id'], clusterId ?? NO_CLUSTER], 3, 1]
+}
+
+/** Кружок под курсором подрастает: обводки одной мало на плотной карте. */
+export function clusterRadiusExpression(clusterId: number | undefined): unknown[] {
+  const base: unknown[] = ['interpolate', ['linear'], ['get', 'point_count'], 2, 12, 60, 24]
+  return [
+    'case',
+    ['==', ['get', 'cluster_id'], clusterId ?? NO_CLUSTER],
+    ['*', base, 1.15],
+    base,
+  ]
+}

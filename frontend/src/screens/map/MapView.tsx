@@ -21,9 +21,19 @@ import {
 import { useEffect, useRef } from 'react'
 import { env } from '@/shared/config/env'
 import { useTheme } from '@/shared/lib/theme'
-import type { AppMeta, FacilityCollection, LineCollection } from '@/shared/api/types'
+import type {
+  AppMeta,
+  FacilityCollection,
+  FacilityFeature,
+  LineCollection,
+} from '@/shared/api/types'
 import {
   MOSCOW_CENTER,
+  clusterRadiusExpression,
+  clusterStrokeExpression,
+  clusterStrokeWidthExpression,
+  districtHoverExpression,
+  districtLineWidthExpression,
   levelColorExpression,
   mapColors,
   mapStyle,
@@ -72,6 +82,20 @@ export interface MapViewProps {
    * пустая карта. Роль, которая видит предприятие, остаётся на общем плане.
    */
   fitToData?: boolean
+  /**
+   * Объекты кружка, по которому нажали.
+   *
+   * Разбирает кружок сама карта: список его объектов знает только источник
+   * MapLibre. Экран получает готовый список и решает, что с ним делать.
+   */
+  onClusterOpen?: (items: FacilityFeature[]) => void
+  /**
+   * Объект, к которому надо подвести камеру.
+   *
+   * Наезд делается на каждую смену `key`, а не координат: два нажатия подряд
+   * по одной и той же строке списка обязаны сработать оба раза.
+   */
+  focus?: { key: string; center: [number, number] }
 }
 
 export function MapView({
@@ -83,6 +107,8 @@ export function MapView({
   onBoundsChange,
   scopeDistrict,
   fitToData,
+  onClusterOpen,
+  focus,
 }: MapViewProps) {
   const { theme } = useTheme()
   const container = useRef<HTMLDivElement>(null)
@@ -99,6 +125,15 @@ export function MapView({
   districtRef.current = scopeDistrict
   // Камера подводится к объектам один раз за сессию карты.
   const fitted = useRef(false)
+  const clusterRef = useRef(onClusterOpen)
+  clusterRef.current = onClusterOpen
+  /*
+   * Что сейчас под курсором. В ссылках, а не в состоянии React: перерисовка на
+   * каждое движение мыши по карте не нужна и стоила бы кадров. Слои
+   * перекрашиваются точечно, прямо из обработчика.
+   */
+  const hoveredDistrict = useRef<string | undefined>(undefined)
+  const hoveredCluster = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     if (!container.current || map.current) return
@@ -139,12 +174,31 @@ export function MapView({
         ...(okrugFilter ? { filter: okrugFilter } : {}),
         paint: { 'fill-color': colors.districtFill },
       })
+      /*
+       * Подсветка округа отдельным слоем поверх заливки, а не сменой её цвета.
+       * Заливка непрозрачная и служит подложкой: перекрасить её значило бы
+       * подобрать второй цвет суши, который в обеих темах остаётся сушей.
+       * Полупрозрачный слой поверх решает это одним значением.
+       */
+      instance.addLayer({
+        id: `${OKRUGS}-hover`,
+        type: 'fill',
+        source: OKRUGS,
+        ...(okrugFilter ? { filter: okrugFilter } : {}),
+        paint: {
+          'fill-color': colors.hover,
+          'fill-opacity': districtHoverExpression(undefined) as never,
+        },
+      })
       instance.addLayer({
         id: `${OKRUGS}-line`,
         type: 'line',
         source: OKRUGS,
         ...(okrugFilter ? { filter: okrugFilter } : {}),
-        paint: { 'line-color': colors.districtLine, 'line-width': 1 },
+        paint: {
+          'line-color': colors.districtLine,
+          'line-width': districtLineWidthExpression(undefined) as never,
+        },
       })
 
       instance.addSource(LINES, {
@@ -173,9 +227,9 @@ export function MapView({
         filter: ['has', 'point_count'],
         paint: {
           'circle-color': colors.cluster,
-          'circle-stroke-color': colors.clusterLine,
-          'circle-stroke-width': 1,
-          'circle-radius': ['interpolate', ['linear'], ['get', 'point_count'], 2, 12, 60, 24],
+          'circle-stroke-color': clusterStrokeExpression(undefined) as never,
+          'circle-stroke-width': clusterStrokeWidthExpression(undefined) as never,
+          'circle-radius': clusterRadiusExpression(undefined) as never,
         },
       })
 
@@ -211,6 +265,84 @@ export function MapView({
       })
       instance.on('mouseleave', 'points', () => {
         instance.getCanvas().style.cursor = ''
+      })
+
+      /* --- подсветка округа под курсором --- */
+
+      const paintDistrict = (code: string | undefined) => {
+        if (hoveredDistrict.current === code) return
+        hoveredDistrict.current = code
+        instance.setPaintProperty(
+          `${OKRUGS}-hover`,
+          'fill-opacity',
+          districtHoverExpression(code) as never,
+        )
+        instance.setPaintProperty(
+          `${OKRUGS}-line`,
+          'line-width',
+          districtLineWidthExpression(code) as never,
+        )
+      }
+
+      // Слушаем mousemove, а не mouseenter: округа лежат встык, и при переходе
+      // границы mouseenter второго округа приходит без mouseleave первого.
+      instance.on('mousemove', `${OKRUGS}-fill`, (event: MapLayerMouseEvent) => {
+        const code = event.features?.[0]?.properties?.['code']
+        paintDistrict(typeof code === 'string' ? code : undefined)
+      })
+      instance.on('mouseleave', `${OKRUGS}-fill`, () => paintDistrict(undefined))
+
+      /* --- подсветка и разбор кружка --- */
+
+      const paintCluster = (clusterId: number | undefined) => {
+        if (hoveredCluster.current === clusterId) return
+        hoveredCluster.current = clusterId
+        instance.setPaintProperty(
+          'clusters',
+          'circle-stroke-color',
+          clusterStrokeExpression(clusterId) as never,
+        )
+        instance.setPaintProperty(
+          'clusters',
+          'circle-stroke-width',
+          clusterStrokeWidthExpression(clusterId) as never,
+        )
+        instance.setPaintProperty(
+          'clusters',
+          'circle-radius',
+          clusterRadiusExpression(clusterId) as never,
+        )
+      }
+
+      instance.on('mousemove', 'clusters', (event: MapLayerMouseEvent) => {
+        const id = event.features?.[0]?.properties?.['cluster_id']
+        paintCluster(typeof id === 'number' ? id : undefined)
+        instance.getCanvas().style.cursor = 'pointer'
+      })
+      instance.on('mouseleave', 'clusters', () => {
+        paintCluster(undefined)
+        instance.getCanvas().style.cursor = ''
+      })
+
+      instance.on('click', 'clusters', (event: MapLayerMouseEvent) => {
+        const properties = event.features?.[0]?.properties
+        const clusterId = properties?.['cluster_id']
+        const count = properties?.['point_count']
+        if (typeof clusterId !== 'number' || typeof count !== 'number') return
+
+        const source = instance.getSource(POINTS) as GeoJSONSource | undefined
+        if (!source) return
+
+        /*
+         * Список объектов кружка знает только источник, и отдаёт он его
+         * обещанием: разбор идёт в том же воркере, что собирает кружки.
+         * Отказ гасим молча — карта остаётся рабочей, а поднимать диалог на
+         * неудавшееся раскрытие группы не за что.
+         */
+        void source
+          .getClusterLeaves(clusterId, count, 0)
+          .then((leaves) => clusterRef.current?.(leaves as unknown as FacilityFeature[]))
+          .catch(() => undefined)
       })
 
       ready.current = true
@@ -267,6 +399,22 @@ export function MapView({
     )
   }, [data, fitToData])
 
+  /*
+   * Наезд на объект, выбранный в списке группы.
+   *
+   * Зависимость — ключ, а не координаты: одна и та же строка списка может
+   * выбираться повторно, и камеру надо возвращать на место каждый раз.
+   * Масштаб 15 разводит группу на отдельные точки, поэтому объект виден
+   * сам, а не кружком.
+   */
+  useEffect(() => {
+    const instance = map.current
+    if (!instance || !focus) return
+    instance.flyTo({ center: focus.center, zoom: 15, duration: 600 })
+    // Координаты меняются вместе с ключом, следить за ними отдельно незачем.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.key])
+
   /* Точки объектов. Меняются при каждом опросе и при сдвиге карты. */
   useEffect(() => {
     const instance = map.current
@@ -312,13 +460,20 @@ export function MapView({
     if (instance.getLayer(`${OKRUGS}-fill`)) {
       instance.setPaintProperty(`${OKRUGS}-fill`, 'fill-color', colors.districtFill)
       instance.setPaintProperty(`${OKRUGS}-line`, 'line-color', colors.districtLine)
+      instance.setPaintProperty(`${OKRUGS}-hover`, 'fill-color', colors.hover)
     }
     if (instance.getLayer(`${LINES}-layer`)) {
       instance.setPaintProperty(`${LINES}-layer`, 'line-color', colors.line)
     }
     if (instance.getLayer('clusters')) {
       instance.setPaintProperty('clusters', 'circle-color', colors.cluster)
-      instance.setPaintProperty('clusters', 'circle-stroke-color', colors.clusterLine)
+      // Выражение, а не цвет: иначе смена темы гасила бы подсветку кружка,
+      // над которым в этот момент стоит курсор.
+      instance.setPaintProperty(
+        'clusters',
+        'circle-stroke-color',
+        clusterStrokeExpression(hoveredCluster.current) as never,
+      )
     }
     if (instance.getLayer('cluster-count')) {
       instance.setPaintProperty('cluster-count', 'text-color', colors.label)
