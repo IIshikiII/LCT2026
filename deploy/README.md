@@ -26,6 +26,7 @@ bash deploy/install.sh
 ```bash
 bash deploy/update.sh --pull      # обновить код и выложить
 bash deploy/update.sh --reset     # вернуть демонстрационные данные в начало
+bash deploy/update.sh --reseed    # засеять данные заново, с потерей прежних
 bash deploy/update.sh --front     # только фронтенд, бэкенд не трогать
 bash deploy/update.sh --rollback  # вернуть предыдущую сборку фронтенда
 bash deploy/inspect.sh            # что сейчас на сервере

@@ -20,6 +20,7 @@
 #   bash deploy/update.sh --reinstall  прогнать install.sh целиком
 #   bash deploy/update.sh --rollback   вернуть предыдущую версию фронтенда
 #   bash deploy/update.sh --reset      вернуть демонстрационные данные в начало
+#   bash deploy/update.sh --reseed     засеять данные заново, с потерей прежних
 #   bash deploy/update.sh --front      только фронтенд, бэкенд не трогать
 #
 set -euo pipefail
@@ -35,6 +36,7 @@ DO_PULL=no
 FORCE_INSTALL=no
 DO_ROLLBACK=no
 DO_RESET=no
+RESEED=no
 FRONT_ONLY=no
 for arg in "$@"; do
     case "$arg" in
@@ -42,8 +44,9 @@ for arg in "$@"; do
         --reinstall) FORCE_INSTALL=yes ;;
         --rollback)  DO_ROLLBACK=yes ;;
         --reset)     DO_RESET=yes ;;
+        --reseed)    RESEED=yes ;;
         --front)     FRONT_ONLY=yes ;;
-        -h|--help)   sed -n '2,28p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;;
+        -h|--help)   sed -n '2,29p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;;
         *)           die "Неизвестный аргумент: $arg" ;;
     esac
 done
@@ -134,8 +137,8 @@ if [ "$DEPLOY_BACKEND" = yes ] && [ "$FRONT_ONLY" != yes ]; then
     backend_migrate
     backend_seed
     [ "$DO_RESET" != yes ] || backend_reset
-elif [ "$DO_RESET" = yes ]; then
-    warn "--reset без бэкенда ничего не значит: сбрасывать нечего."
+elif [ "$DO_RESET" = yes ] || [ "$RESEED" = yes ]; then
+    warn "--reset и --reseed без бэкенда ничего не значат: сеять и сбрасывать нечего."
 fi
 
 # --- сборка ------------------------------------------------------------

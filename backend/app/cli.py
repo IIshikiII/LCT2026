@@ -32,6 +32,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="число объектов для команды seed, по умолчанию число из app.synth.generate",
     )
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="для seed: снести прежнюю синтетику перед посевом",
+    )
     parser.add_argument("--username", help="логин для команды create-user")
     parser.add_argument("--full-name", default="", help="имя пользователя для create-user")
     parser.add_argument("--role", help="код роли для create-user")
@@ -71,10 +76,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "seed":
         from app.auth.seed import seed_users
         from app.db import engine
-        from app.synth.generate import DEFAULT_FACILITY_COUNT, generate
+        from app.synth.generate import DEFAULT_FACILITY_COUNT, generate, wipe_synthetic
 
         count = args.facilities if args.facilities is not None else DEFAULT_FACILITY_COUNT
         with engine().begin() as conn:
+            if args.fresh:
+                # Обычный посев не трогает готовые строки: он вставляет с
+                # `on_conflict_do_nothing`. Когда меняется сама раскладка
+                # объектов, как при переходе на настоящие трассы округов,
+                # старые координаты так и остались бы в базе.
+                removed = wipe_synthetic(conn)
+                print(f"снято прежней синтетики: {removed} строк")
             seeded = generate(conn, facility_count=count)
             # Учётные записи заводятся после объектов: границы видимости узких
             # ролей берутся из первого коллектора посева.

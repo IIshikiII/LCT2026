@@ -52,17 +52,14 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection
 
 from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
-from app.meta.catalog import DISTRICTS
-from app.tables import alarm_event, collector, facility
+from app.synth.geo import OKRUGS, point_on
+from app.tables import action_log, alarm_event, collector, facility, prediction, work_order
 
 DEFAULT_SEED = 20260101
 DEFAULT_FACILITY_COUNT = 60
 FACILITIES_PER_COLLECTOR = 6
 HISTORY_DAYS = 120
 RISKY_SHARE = 0.2
-MOSCOW_LAT = 55.751244
-MOSCOW_LON = 37.618423
-SPREAD_DEGREES = 0.35
 FACILITY_TYPES = ("chamber", "manhole")
 SEQUENCE_GAP_MINUTES = 5
 
@@ -78,39 +75,45 @@ class SynthResult:
 
 @dataclass(frozen=True)
 class _CollectorSeed:
-    """Один коллектор до превращения в строку таблицы. Держит трассу типизированно,
-    чтобы `_facility_rows` могла разложить точку без `type: ignore`."""
+    """Один коллектор до превращения в строку таблицы. Держит трассу целиком,
+    чтобы `_facility_rows` могла разложить по ней объекты без `type: ignore`."""
 
     code: str
     label: str
     district: str
-    start: tuple[float, float]
-    end: tuple[float, float]
+    line: tuple[tuple[float, float], ...]
 
     def as_row(self) -> dict[str, object]:
         return {
             "code": self.code,
             "label": self.label,
             "district": self.district,
-            "line": [list(self.start), list(self.end)],
+            "line": [list(point) for point in self.line],
         }
 
 
-def _collector_seeds(rng: random.Random, count: int) -> list[_CollectorSeed]:
+def _collector_seeds(count: int) -> list[_CollectorSeed]:
+    """Коллекторы по округам, по настоящим трассам.
+
+    Случайных координат вокруг центра Москвы здесь больше нет. Они разбрасывали
+    объекты по городу без оглядки на границы: на карте точка «Центрального»
+    коллектора висела в чистом поле, а подложка округа была в стороне. Трассы
+    берутся те же, что у заглушек фронтенда, и целиком лежат внутри своих
+    полигонов.
+    """
     seeds = []
     for i in range(count):
-        district = DISTRICTS[i % len(DISTRICTS)]
-        start_lat = MOSCOW_LAT + rng.uniform(-SPREAD_DEGREES, SPREAD_DEGREES)
-        start_lon = MOSCOW_LON + rng.uniform(-SPREAD_DEGREES, SPREAD_DEGREES)
-        end_lat = start_lat + rng.uniform(-0.03, 0.03)
-        end_lon = start_lon + rng.uniform(-0.03, 0.03)
+        okrug = OKRUGS[i % len(OKRUGS)]
+        # Номер витка нужен, когда коллекторов больше девяти: второй коллектор
+        # округа идёт по той же трассе и отличается только названием.
+        turn = i // len(OKRUGS) + 1
+        suffix = "" if turn == 1 else f"-{turn}"
         seeds.append(
             _CollectorSeed(
-                code=f"K-{district.code}-{i + 1}",
-                label=f"Коллектор {district.label.lower()} {i + 1}",
-                district=district.code,
-                start=(start_lon, start_lat),
-                end=(end_lon, end_lat),
+                code=f"K-{okrug.code}-{turn}",
+                label=f"Коллектор {okrug.label.lower()}{suffix}",
+                district=okrug.code,
+                line=okrug.line,
             )
         )
     return seeds
@@ -122,11 +125,13 @@ def _facility_rows(
     rows: list[dict[str, object]] = []
     for i in range(count):
         source = collectors[i % len(collectors)]
-        lon_a, lat_a = source.start
-        lon_b, lat_b = source.end
-        share = rng.random()
-        lon = lon_a + (lon_b - lon_a) * share
-        lat = lat_a + (lat_b - lat_a) * share
+        # Объекты раскладываются по трассе равномерно, а не случайно: пикеты
+        # идут вдоль коллектора подряд, и кучное скопление в одной точке
+        # выглядело бы на карте ошибкой данных.
+        step = i // len(collectors)
+        per_collector = max(1, ceil(count / len(collectors)))
+        share = (step + 0.5) / per_collector
+        lon, lat = point_on(source.line, share)
         rows.append(
             {
                 "id": f"F-{i + 1:04d}",
@@ -259,7 +264,7 @@ def generate(
     now = (now or datetime.now(UTC)).replace(microsecond=0)
 
     collector_count = ceil(facility_count / FACILITIES_PER_COLLECTOR)
-    collector_seeds = _collector_seeds(rng, collector_count)
+    collector_seeds = _collector_seeds(collector_count)
     facility_rows = _facility_rows(rng, facility_count, collector_seeds)
     event_rows = _alarm_event_rows(rng, facility_rows, now)
     collector_rows = [seed.as_row() for seed in collector_seeds]
@@ -287,3 +292,19 @@ def generate(
         facility_count=len(facility_rows),
         alarm_event_count=len(event_rows),
     )
+
+
+def wipe_synthetic(conn: Connection) -> int:
+    """Снимает прежнюю синтетику вместе со всем, что на ней стоит.
+
+    Нужно, когда меняется сама раскладка объектов. Обычный посев вставляет с
+    `on_conflict_do_nothing` и старые строки не трогает, поэтому после перехода
+    на настоящие трассы округов в базе остались бы прежние координаты.
+
+    Порядок важен: сначала то, что ссылается на объекты, потом сами объекты.
+    Учётные записи и прогоны конвейера не трогаются — они не про географию.
+    """
+    removed = 0
+    for table in (action_log, work_order, prediction, alarm_event, facility, collector):
+        removed += int(conn.execute(table.delete()).rowcount)
+    return removed

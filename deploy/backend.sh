@@ -157,14 +157,23 @@ backend_migrate() {
 
 # Посев синтетики. Делается один раз: повторный посев не плодит дублей, но и
 # не нужен, а прогон конвейера после него долгий.
+#
+# RESEED=yes сносит прежнюю синтетику и сеет заново. Это нужно, когда меняется
+# сама раскладка данных, а не их количество: обычный посев вставляет с
+# `on_conflict_do_nothing` и старые строки оставляет как есть.
 backend_seed() {
-    if [ "$(prediction_count)" -gt 0 ]; then
+    local fresh=""
+
+    if [ "${RESEED:-no}" = yes ]; then
+        warn "Пересев: прежние объекты, прогнозы и заявки будут сняты."
+        fresh="--fresh"
+    elif [ "$(prediction_count)" -gt 0 ]; then
         echo "    в базе уже есть прогнозы, посев пропущен"
         return 0
     fi
 
     log "Сею объекты и события"
-    dc run --rm pipeline uv run --no-sync python -m app.cli seed --facilities "$SEED_FACILITIES"
+    dc run --rm pipeline uv run --no-sync python -m app.cli seed $fresh --facilities "$SEED_FACILITIES"
 
     log "Публикую замер модели"
     dc run --rm pipeline uv run --no-sync python -m app.cli publish-metrics
