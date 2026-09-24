@@ -13,7 +13,7 @@
 жизни единицы.
 
 Список значений взят из `eda/05_feasibility.py`, таблица `dirmap`. Он же дал
-строку `SENSOR_FAILURE` таблицы `hackathon-gap-analysis.md` §A4."""
+строку `SENSOR_FAILURE` таблицы `INSIGHTS.md` §2.1."""
 import pathlib
 import time
 
@@ -111,7 +111,7 @@ con.execute(
 )
 print(f"жизнь единиц посчитана за {time.time() - t:.0f} c")
 
-# Сверка с `hackathon-gap-analysis.md` §A4. Там замер сделан на канало-днях, а
+# Сверка с `INSIGHTS.md` §2.1. Там замер сделан на канало-днях, а
 # не на единицах, поэтому числа обязаны разойтись. Блок показывает, что
 # расходится именно сетка, а не отбор строк.
 check = con.execute(

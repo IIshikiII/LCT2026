@@ -41,7 +41,7 @@ Ubuntu и macOS — `.venv/bin/python`, на Windows — `.venv\Scripts\python.e
 «Много неисправных устройств», «Отключено устройство», «Не определено».
 
 Список взят из таблицы `dirmap` в `eda/05_feasibility.py`. Та же таблица дала
-строку `SENSOR_FAILURE` в `hackathon-gap-analysis.md` §A4, поэтому сверка с §A4
+строку `SENSOR_FAILURE` в `INSIGHTS.md` §2.1, поэтому сверка с §A4
 проверяет отбор строк, а не состав списка.
 
 ## Полученные числа
@@ -65,7 +65,7 @@ Ubuntu и macOS — `.venv/bin/python`, на Windows — `.venv\Scripts\python.e
 ## Сверка с §A4
 
 `01_dataset.py` печатает замер на канало-днях, то есть на сетке
-`hackathon-gap-analysis.md` §A4.
+`INSIGHTS.md` §2.1.
 
 | Показатель | §A4 | Замер |
 |---|---|---|
@@ -83,7 +83,7 @@ Ubuntu и macOS — `.venv/bin/python`, на Windows — `.venv\Scripts\python.e
 `backend/docs/adr/0001-access-target.md`.
 
 Исключение объекта 5343 за 2020 и 2021 годы не сдвинуло замер на канало-днях
-совсем. `hackathon-gap-analysis.md` §1.6 говорит, что этот объект даёт 73 % всех
+совсем. `INSIGHTS.md` §1.6 говорит, что этот объект даёт 73 % всех
 записей «Неисправен», но 73 % относятся к строкам журнала, а не к канало-дням.
 Сетка суток схлопывает поток строк одного канала в одну клетку, и артефакт
 исчезает.
