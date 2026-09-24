@@ -1,0 +1,178 @@
+{
+  "direction": "FLOOD_RISK",
+  "variant": "v1",
+  "config": {
+    "grid": "day",
+    "groups": [
+      "pump",
+      "evt",
+      "obj",
+      "cx",
+      "cal"
+    ],
+    "train_window_days": 0
+  },
+  "features": [
+    "pump_changes_1h",
+    "pump_changes_6h",
+    "pump_changes_24h",
+    "pump_blink_hours_24h",
+    "pump_blink_hours_168h",
+    "pump_on_share_24h",
+    "pump_on_share_168h",
+    "pump_on_growth_24_720",
+    "pump_unavailable_24h",
+    "pump_unavailable_168h",
+    "pump_all_running_24h",
+    "pump_all_running_168h",
+    "evt_hours_24h",
+    "evt_hours_168h",
+    "evt_hours_720h",
+    "evt_hours_2160h",
+    "evt_hours_8760h",
+    "evt_moments_168h",
+    "evt_hours_since_last",
+    "obj_events_24h",
+    "obj_events_168h",
+    "obj_pump_changes_24h",
+    "obj_pump_blink_24h",
+    "obj_pump_unavailable_24h",
+    "obj_pump_all_running_24h",
+    "obj_pump_on_minutes_24h",
+    "cx_events_24h",
+    "cx_events_168h",
+    "cx_pump_blink_24h",
+    "cx_pump_unavailable_24h",
+    "cx_pump_all_running_168h",
+    "unit_pumps",
+    "unit_flood_sensors",
+    "unit_age_days",
+    "cal_hour",
+    "cal_season",
+    "cal_month",
+    "cal_day_of_year",
+    "cal_day_of_week",
+    "cal_is_day_off",
+    "cal_is_holiday",
+    "cal_day_off_chain"
+  ],
+  "horizon_hours": 24,
+  "reopened": null,
+  "previous_opening": null,
+  "opened_at": "2026-09-24T16:08:43",
+  "trees": 68,
+  "valid": {
+    "pr_auc": 0.284174,
+    "naive": {
+      "precision": 0.253247,
+      "recall": 0.254072,
+      "alerts": 308,
+      "hits": 78
+    },
+    "at_threshold": {
+      "precision": 0.385366,
+      "recall": 0.257329,
+      "alerts": 205,
+      "hits": 79
+    }
+  },
+  "test": {
+    "days": 181,
+    "rows": 13793,
+    "base": 0.03625,
+    "pr_auc": 0.311149,
+    "pr_auc_seeds": [
+      0.311149,
+      0.315013,
+      0.311874
+    ],
+    "naive": {
+      "precision": 0.297521,
+      "recall": 0.288,
+      "alerts": 484,
+      "hits": 144,
+      "alerts_per_day": 2.67
+    },
+    "at_valid_threshold": {
+      "precision": 0.38255,
+      "recall": 0.342,
+      "alerts": 447,
+      "hits": 171,
+      "alerts_per_day": 2.47
+    },
+    "at_naive_recall": {
+      "precision": 0.45283,
+      "recall": 0.288,
+      "alerts": 318,
+      "hits": 144
+    },
+    "at_naive_alerts": {
+      "precision": 0.373967,
+      "recall": 0.362,
+      "alerts": 484,
+      "hits": 181
+    },
+    "beats_naive": true,
+    "lift_precision": 1.522
+  },
+  "gain": {
+    "evt_hours_since_last": 16158.8,
+    "evt_hours_2160h": 9226.5,
+    "evt_hours_720h": 7807.2,
+    "unit_age_days": 5203.7,
+    "evt_hours_8760h": 4536.0,
+    "evt_moments_168h": 4261.3,
+    "cal_is_day_off": 3497.8,
+    "unit_pumps": 3125.6,
+    "cal_day_of_year": 2405.2,
+    "obj_events_168h": 2064.0,
+    "evt_hours_168h": 1646.7,
+    "cal_day_of_week": 1534.5,
+    "pump_on_share_24h": 1271.3,
+    "obj_pump_on_minutes_24h": 1183.0,
+    "pump_unavailable_24h": 1131.6,
+    "pump_on_growth_24_720": 1051.1,
+    "pump_on_share_168h": 934.7,
+    "pump_unavailable_168h": 866.7,
+    "cal_day_off_chain": 863.3,
+    "obj_pump_changes_24h": 733.1,
+    "obj_events_24h": 534.2,
+    "obj_pump_unavailable_24h": 513.4,
+    "unit_flood_sensors": 475.4,
+    "cx_events_168h": 443.0,
+    "evt_hours_24h": 435.7,
+    "pump_all_running_168h": 384.9,
+    "cal_month": 361.6,
+    "pump_changes_24h": 352.5,
+    "obj_pump_all_running_24h": 349.1,
+    "pump_all_running_24h": 244.4,
+    "cal_season": 222.2,
+    "pump_changes_6h": 161.2,
+    "cx_pump_all_running_168h": 159.9,
+    "cx_events_24h": 131.0,
+    "pump_blink_hours_168h": 62.1,
+    "cx_pump_unavailable_24h": 57.1,
+    "pump_changes_1h": 43.1,
+    "cal_is_holiday": 42.4,
+    "pump_blink_hours_24h": 14.0,
+    "cx_pump_blink_24h": 7.5,
+    "obj_pump_blink_24h": 0.0,
+    "cal_hour": 0.0
+  },
+  "shap": {
+    "background": -4.271032,
+    "max_additivity_gap": 7.105427357601002e-15,
+    "rows_checked": 13793
+  },
+  "decision": {
+    "outcome": "model",
+    "threshold": 0.143891,
+    "levels": {
+      "MEDIUM": 0.021203,
+      "HIGH": 0.143891,
+      "CRITICAL": 0.3
+    },
+    "scale": "raw",
+    "rule": "HIGH это порог равной полноты с планкой на проверочном отрезке"
+  }
+}

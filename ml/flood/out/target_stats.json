@@ -1,0 +1,288 @@
+{
+  "direction": "FLOOD_RISK",
+  "horizon_hours": 24,
+  "units": 82,
+  "channels": 172,
+  "train_end": "2025-07-01",
+  "valid_end": "2026-01-01",
+  "versions": {
+    "A": {
+      "values": [
+        "Затоплен"
+      ],
+      "units_with_event": 57,
+      "objects_with_event": 17,
+      "hourly": {
+        "grid": "единица и час, окно 24 ч",
+        "cells": 4119408,
+        "positive": 96571,
+        "base_pct": 2.344,
+        "naive_precision_pct": 23.014,
+        "naive_recall_pct": 23.04
+      },
+      "daily": {
+        "grid": "единица и сутки",
+        "cells": 171642,
+        "positive": 4018,
+        "base_pct": 2.341,
+        "naive_precision_pct": 22.872
+      },
+      "by_value": {
+        "Затоплен": {
+          "unit_days": 4018,
+          "objects": 17,
+          "share_pct": 100.0
+        }
+      },
+      "by_month_pct": {
+        "1": 7.3,
+        "2": 7.3,
+        "3": 12.5,
+        "4": 11.4,
+        "5": 8.3,
+        "6": 9.2,
+        "7": 6.7,
+        "8": 8.8,
+        "9": 7.1,
+        "10": 7.0,
+        "11": 6.3,
+        "12": 8.1
+      },
+      "top_object": {
+        "object_id": 5122,
+        "unit_days": 663,
+        "share_pct": 16.5
+      },
+      "by_split": {
+        "train": {
+          "unit_days": 143370,
+          "positive_days": 3327,
+          "base_pct": 2.321
+        },
+        "valid": {
+          "unit_days": 14479,
+          "positive_days": 248,
+          "base_pct": 1.713
+        },
+        "test": {
+          "unit_days": 13793,
+          "positive_days": 443,
+          "base_pct": 3.212
+        }
+      }
+    },
+    "B": {
+      "values": [
+        "Затоплен",
+        "Не замкнут"
+      ],
+      "units_with_event": 81,
+      "objects_with_event": 26,
+      "hourly": {
+        "grid": "единица и час, окно 24 ч",
+        "cells": 4119408,
+        "positive": 112122,
+        "base_pct": 2.722,
+        "naive_precision_pct": 20.111,
+        "naive_recall_pct": 20.137
+      },
+      "daily": {
+        "grid": "единица и сутки",
+        "cells": 171642,
+        "positive": 4669,
+        "base_pct": 2.72,
+        "naive_precision_pct": 19.919
+      },
+      "by_value": {
+        "Затоплен": {
+          "unit_days": 4018,
+          "objects": 17,
+          "share_pct": 86.1
+        },
+        "Не замкнут": {
+          "unit_days": 651,
+          "objects": 9,
+          "share_pct": 13.9
+        }
+      },
+      "by_month_pct": {
+        "1": 7.9,
+        "2": 7.0,
+        "3": 11.9,
+        "4": 11.7,
+        "5": 7.7,
+        "6": 9.1,
+        "7": 7.2,
+        "8": 8.3,
+        "9": 7.1,
+        "10": 8.0,
+        "11": 5.9,
+        "12": 8.2
+      },
+      "top_object": {
+        "object_id": 5122,
+        "unit_days": 663,
+        "share_pct": 14.2
+      },
+      "by_split": {
+        "train": {
+          "unit_days": 143370,
+          "positive_days": 3862,
+          "base_pct": 2.694
+        },
+        "valid": {
+          "unit_days": 14479,
+          "positive_days": 307,
+          "base_pct": 2.12
+        },
+        "test": {
+          "unit_days": 13793,
+          "positive_days": 500,
+          "base_pct": 3.625
+        }
+      }
+    },
+    "V": {
+      "values": [
+        "Затоплен",
+        "Не замкнут",
+        "Работают все насосы в АНС"
+      ],
+      "units_with_event": 82,
+      "objects_with_event": 26,
+      "hourly": {
+        "grid": "единица и час, окно 24 ч",
+        "cells": 4119408,
+        "positive": 279751,
+        "base_pct": 6.791,
+        "naive_precision_pct": 57.476,
+        "naive_recall_pct": 57.517
+      },
+      "daily": {
+        "grid": "единица и сутки",
+        "cells": 171642,
+        "positive": 11653,
+        "base_pct": 6.789,
+        "naive_precision_pct": 57.376
+      },
+      "by_value": {
+        "Затоплен": {
+          "unit_days": 4018,
+          "objects": 17,
+          "share_pct": 32.1
+        },
+        "Не замкнут": {
+          "unit_days": 651,
+          "objects": 9,
+          "share_pct": 5.2
+        },
+        "Работают все насосы в АНС": {
+          "unit_days": 7859,
+          "objects": 11,
+          "share_pct": 62.7
+        }
+      },
+      "by_month_pct": {
+        "1": 7.6,
+        "2": 7.2,
+        "3": 11.7,
+        "4": 11.9,
+        "5": 9.8,
+        "6": 9.4,
+        "7": 7.9,
+        "8": 7.6,
+        "9": 5.9,
+        "10": 7.1,
+        "11": 6.3,
+        "12": 7.7
+      },
+      "top_object": {
+        "object_id": 5122,
+        "unit_days": 6005,
+        "share_pct": 51.5
+      },
+      "by_split": {
+        "train": {
+          "unit_days": 143370,
+          "positive_days": 10373,
+          "base_pct": 7.235
+        },
+        "valid": {
+          "unit_days": 14479,
+          "positive_days": 690,
+          "base_pct": 4.766
+        },
+        "test": {
+          "unit_days": 13793,
+          "positive_days": 590,
+          "base_pct": 4.278
+        }
+      }
+    }
+  },
+  "all_pumps_check": {
+    "objects": 11,
+    "pump_days": 4230,
+    "pump_days_with_ab": 1352,
+    "observed_pct": 31.96,
+    "expected_pct": 14.46,
+    "lift": 2.21,
+    "per_object": [
+      {
+        "object_id": 5122,
+        "days": 2455,
+        "with_ab_pct": 32.4
+      },
+      {
+        "object_id": 3360,
+        "days": 471,
+        "with_ab_pct": 24.4
+      },
+      {
+        "object_id": 4177,
+        "days": 329,
+        "with_ab_pct": 16.7
+      },
+      {
+        "object_id": 4610,
+        "days": 219,
+        "with_ab_pct": 14.6
+      },
+      {
+        "object_id": 3902,
+        "days": 217,
+        "with_ab_pct": 42.4
+      },
+      {
+        "object_id": 5011,
+        "days": 172,
+        "with_ab_pct": 77.9
+      },
+      {
+        "object_id": 5333,
+        "days": 172,
+        "with_ab_pct": 36.0
+      },
+      {
+        "object_id": 4543,
+        "days": 139,
+        "with_ab_pct": 38.8
+      },
+      {
+        "object_id": 4369,
+        "days": 39,
+        "with_ab_pct": 5.1
+      },
+      {
+        "object_id": 5132,
+        "days": 15,
+        "with_ab_pct": 60.0
+      },
+      {
+        "object_id": 111,
+        "days": 2,
+        "with_ab_pct": 100.0
+      }
+    ]
+  }
+}
