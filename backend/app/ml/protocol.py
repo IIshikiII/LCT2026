@@ -63,6 +63,18 @@ class Block:
         return {"type": self.type, "title": self.title, "data": self.data}
 
 
+def applies(predictor: object, conn: Connection, facility_id: str) -> bool:
+    """Отвечает, считается ли направление на этом объекте.
+
+    Метод `applies` у предиктора необязателен. Направление без него считается
+    на каждом объекте, как раньше. Направление с ним называет свои объекты
+    само: модель подтопления училась только на единицах с насосом или датчиком
+    затопления, и прогноз на объекте без них был бы числом без смысла.
+    """
+    check = getattr(predictor, "applies", None)
+    return True if check is None else bool(check(conn, facility_id))
+
+
 @runtime_checkable
 class Predictor(Protocol):
     """Предиктор одного направления.

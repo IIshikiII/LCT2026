@@ -27,7 +27,7 @@ from app.domain import auto_orders
 from app.meta import active as active_directions
 from app.meta import level_for
 from app.meta.directions import Direction
-from app.ml.protocol import FeatureContext, Predictor
+from app.ml.protocol import FeatureContext, Predictor, applies
 from app.ml.registry import get as get_predictor
 from app.ml.registry import missing as missing_predictors
 from app.tables import facility, pipeline_run, prediction
@@ -130,6 +130,8 @@ def run(engine: Engine, at: datetime | None = None) -> RunResult:
 
                 model_versions[direction.code] = DEFAULT_MODEL_VERSION
                 for facility_id in facility_ids:
+                    if not applies(predictor, conn, facility_id):
+                        continue
                     try:
                         created = _write_prediction(
                             conn, predictor, direction, facility_id, at, run_id

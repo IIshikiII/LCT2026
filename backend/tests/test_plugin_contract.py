@@ -39,11 +39,15 @@ FACILITY_ID = "F-CONTRACT-TEST"
 def _known_names(code: str) -> frozenset[str] | None:
     """Подписи признаков направления. Надмножество: словарь держит подписи для
     всех наборов, а модель просит только свой."""
-    if code != "UNAUTHORIZED_ACCESS":
-        return None
-    from app.ml.plugins.unauthorized_access import FEATURE_LABELS
+    if code == "UNAUTHORIZED_ACCESS":
+        from app.ml.plugins.unauthorized_access import FEATURE_LABELS
 
-    return frozenset(FEATURE_LABELS)
+        return frozenset(FEATURE_LABELS)
+    if code == "FLOOD_RISK":
+        from app.ml.plugins.flood_risk import FEATURE_LABELS as FLOOD_LABELS
+
+        return frozenset(FLOOD_LABELS)
+    return None
 
 
 @pytest.fixture

@@ -52,8 +52,17 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection
 
 from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
+from app.synth.flood import flood_rows
 from app.synth.geo import OKRUGS, point_on
-from app.tables import action_log, alarm_event, collector, facility, prediction, work_order
+from app.tables import (
+    action_log,
+    alarm_event,
+    collector,
+    facility,
+    prediction,
+    sensor,
+    work_order,
+)
 
 DEFAULT_SEED = 20260101
 DEFAULT_FACILITY_COUNT = 60
@@ -71,6 +80,7 @@ class SynthResult:
     collector_count: int
     facility_count: int
     alarm_event_count: int
+    sensor_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -259,7 +269,8 @@ def generate(
     facility_count: int = DEFAULT_FACILITY_COUNT,
     now: datetime | None = None,
 ) -> SynthResult:
-    """Наполняет `collector`, `facility` и `alarm_event` синтетикой доступа."""
+    """Наполняет `collector`, `facility`, `sensor` и `alarm_event` синтетикой
+    доступа и подтопления."""
     rng = random.Random(seed)
     now = (now or datetime.now(UTC)).replace(microsecond=0)
 
@@ -267,6 +278,15 @@ def generate(
     collector_seeds = _collector_seeds(collector_count)
     facility_rows = _facility_rows(rng, facility_count, collector_seeds)
     event_rows = _alarm_event_rows(rng, facility_rows, now)
+    # Насосы и затопления идут своим генератором (`app/synth/flood.py`), поток
+    # доступа от них не меняется. Номера строк после слияния раздаются заново.
+    sensor_rows, flood_events = flood_rows(seed, facility_rows, now, HISTORY_DAYS)
+    event_rows = sorted(
+        [*event_rows, *flood_events],
+        key=lambda item: (item["facility_id"], item["occurred_at"], item["alarm_type"]),
+    )
+    for next_id, row in enumerate(event_rows, start=1):
+        row["id"] = next_id
     collector_rows = [seed.as_row() for seed in collector_seeds]
 
     if collector_rows:
@@ -278,6 +298,11 @@ def generate(
         conn.execute(
             pg_insert(facility).on_conflict_do_nothing(index_elements=["id"]),
             facility_rows,
+        )
+    if sensor_rows:
+        conn.execute(
+            pg_insert(sensor).on_conflict_do_nothing(index_elements=["id"]),
+            sensor_rows,
         )
     if event_rows:
         conn.execute(
@@ -291,6 +316,7 @@ def generate(
         collector_count=len(collector_rows),
         facility_count=len(facility_rows),
         alarm_event_count=len(event_rows),
+        sensor_count=len(sensor_rows),
     )
 
 
@@ -305,6 +331,6 @@ def wipe_synthetic(conn: Connection) -> int:
     Учётные записи и прогоны конвейера не трогаются — они не про географию.
     """
     removed = 0
-    for table in (action_log, work_order, prediction, alarm_event, facility, collector):
+    for table in (action_log, work_order, prediction, alarm_event, sensor, facility, collector):
         removed += int(conn.execute(table.delete()).rowcount)
     return removed
