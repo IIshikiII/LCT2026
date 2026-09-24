@@ -18,8 +18,8 @@ export function Badge({ children, color, title, className }: BadgeProps) {
     <span
       title={title}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded border border-line bg-sunken px-1.5 py-0.5',
-        'text-[12px] whitespace-nowrap text-text-dim',
+        'inline-flex max-w-full items-center gap-1.5 rounded border border-line bg-sunken',
+        'px-1.5 py-0.5 text-[12px] whitespace-nowrap text-text-dim',
         className,
       )}
     >
@@ -30,7 +30,9 @@ export function Badge({ children, color, title, className }: BadgeProps) {
           style={{ background: color }}
         />
       ) : null}
-      {children}
+      {/* Подпись обрезается многоточием: «Несанкционированный доступ» шире
+          своей колонки и без этого ложилась на соседнюю. */}
+      <span className="truncate">{children}</span>
     </span>
   )
 }

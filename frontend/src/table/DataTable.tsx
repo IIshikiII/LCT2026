@@ -66,7 +66,14 @@ export function DataTable<Row>({
 
   return (
     <div className="relative h-full overflow-auto">
-      <table className="w-full border-collapse text-[13px]">
+      {/*
+        Разметка фиксированная, и это не косметика. При автоматической ширина
+        колонки из реестра остаётся пожеланием: длинный адрес объекта растягивал
+        свою колонку и отбирал место у «Прогноза», а `truncate` внутри ячейки не
+        срабатывал, потому что ограничивать было нечего. С `table-fixed` ширина
+        становится обязательной, и обрезка работает.
+      */}
+      <table className="w-full table-fixed border-collapse text-[13px]">
         <caption className="sr-only">{caption}</caption>
         <thead className="sticky top-0 z-10 bg-panel">
           <tr>
@@ -131,9 +138,13 @@ export function DataTable<Row>({
                   <td
                     key={column.key}
                     className={cn(
-                      'px-2 py-1.5 align-middle',
+                      'overflow-hidden px-2 py-1.5 align-middle',
                       column.align === 'right' ? 'text-right' : 'text-left',
                     )}
+                    // Ширина и обрезка нужны обе. Без ширины фиксированная
+                    // разметка разъезжается на длинном адресе, без обрезки
+                    // длинная метка направления ложится на соседнюю колонку.
+                    style={{ maxWidth: column.width }}
                   >
                     {column.cell(row, meta)}
                   </td>

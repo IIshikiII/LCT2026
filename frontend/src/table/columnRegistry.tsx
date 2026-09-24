@@ -32,12 +32,32 @@ import { Mono } from '@/shared/ui/Mono'
 import { RiskBar } from '@/shared/ui/RiskBar'
 import type { ColumnDef } from './DataTable'
 
-/** Объект с иерархией: адрес сверху, путь по коллектору — приглушённо снизу. */
+/**
+ * Объект с иерархией: адрес сверху, путь по коллектору — приглушённо снизу.
+ *
+ * Обе строки обрезаются. Полный текст остаётся в подсказке и в выгрузке CSV:
+ * колонка выгрузки берёт значения из данных, а не из того, что нарисовано.
+ */
 function FacilityCell({ value }: { value: Prediction['facility'] }) {
+  const path = fmtFacilityPath(value)
   return (
-    <span className="flex flex-col leading-tight">
+    <span className="flex min-w-0 flex-col leading-tight" title={`${value.address}\n${path}`}>
       <span className="truncate text-text">{value.address}</span>
-      <span className="truncate text-[12px] text-text-mute">{fmtFacilityPath(value)}</span>
+      <span className="truncate text-[12px] text-text-mute">{path}</span>
+    </span>
+  )
+}
+
+/**
+ * Прогноз одной фразой. Две строки, дальше многоточие.
+ *
+ * Без ограничения строка на пять строк растягивала ряд, и на экране помещалось
+ * вдвое меньше прогнозов. Целиком фраза видна в подсказке и в карточке.
+ */
+function SummaryCell({ text }: { text: string }) {
+  return (
+    <span className="line-clamp-2 text-text-dim" title={text}>
+      {text}
     </span>
   )
 }
@@ -75,7 +95,12 @@ export const predictionColumns: Record<string, ColumnDef<Prediction>> = {
     width: 170,
     sortable: true,
     cell: (row, meta) => (
-      <Badge color={directionAccent(row.direction, meta)}>{directionLabel(row.direction, meta)}</Badge>
+      <Badge
+        color={directionAccent(row.direction, meta)}
+        title={directionLabel(row.direction, meta)}
+      >
+        {directionLabel(row.direction, meta)}
+      </Badge>
     ),
   },
   facility: {
@@ -88,7 +113,7 @@ export const predictionColumns: Record<string, ColumnDef<Prediction>> = {
   summary: {
     key: 'summary',
     header: 'Прогноз',
-    cell: (row) => <span className="text-text-dim">{row.summary}</span>,
+    cell: (row) => <SummaryCell text={row.summary} />,
   },
   probability: {
     key: 'probability',
