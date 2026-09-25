@@ -17,6 +17,7 @@ COMMANDS = (
     "reset-keys",
     "run-pipeline",
     "publish-metrics",
+    "load-weather",
     "train",
     "ingest",
 )
@@ -49,6 +50,12 @@ def main(argv: list[str] | None = None) -> int:
         "--password",
         default=None,
         help="пароль для create-user, по умолчанию берётся из переменной SEED_PASSWORD",
+    )
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=14,
+        help="для load-weather: сколько прошедших суток погоды загрузить, не больше 92",
     )
     parser.add_argument(
         "--set",
@@ -162,6 +169,15 @@ def main(argv: list[str] | None = None) -> int:
             print("замеры опубликованы: " + ", ".join(published))
         else:
             print("замеров нет: ни одно направление не положило metrics.json в ARTIFACTS_DIR")
+        return 0
+
+    if args.command == "load-weather":
+        from app.db import engine
+        from app.ingest.weather import load
+
+        with engine().begin() as conn:
+            hours = load(conn, args.days)
+        print(f"погода Москвы: {hours} часов за {args.days} суток")
         return 0
 
     print(f"команда {args.command} ещё не реализована", file=sys.stderr)

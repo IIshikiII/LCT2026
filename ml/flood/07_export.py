@@ -1,51 +1,73 @@
-"""Кладёт модель и замер подтопления туда, откуда их читает бэкенд.
+"""Кладёт модель подтопления, классификатор воды и замер туда, откуда их читает бэкенд.
 
-Плагин `backend/app/ml/plugins/flood_risk.py` берёт модель через
-`app.ml.tracking.load_model("FLOOD_RISK")`, то есть из
-`backend/artifacts/flood_risk/latest.joblib`, когда реестр MLflow не поднят.
-Замер `metrics.json` едет рядом: его читает `app/ml/publish.py`, и число на
-дашборде обязано описывать ту же модель.
+Модель это ансамбль ADR 0012 (`12_train_pu.py`, `out/model.joblib`). Тревоги
+ставит скользящий бюджет на 30 суток (`14_rolling_budget.py`,
+`15_holdout_budget.py`): за последние 30 суток модель поднимает столько же
+тревог, сколько правило «вода была вчера». Замер рабочей точки берётся из
+`out/holdout_budget.json`.
 
-Замер первой версии `06_train.py` не писал рабочую точку и цель по качеству.
-Скрипт выводит их из уже посчитанных чисел отложенной выборки, не открывая её
-заново: рабочая точка это счёт на пороге с проверочного отрезка, цель это
-наивная планка на том же отрезке.
+Классификатор «вода или проверка» (`11_pu_label.py export`) едет рядом: без
+него бэкенд не отличит воду от плановой проверки ни в признаках, ни в метке.
+
+Файлы в `backend/artifacts/flood_risk/`:
+
+- `latest.joblib` — ансамбль, `app.ml.ensemble.MarginEnsemble`;
+- `pu_classifier.joblib` — классификатор, `c` и граница;
+- `metrics.json` — замер, раздел `decision` читает бэкенд.
+
+Замер с дописанными полями возвращается и в `out/metrics.json`: выкладка на
+сервер копирует его оттуда без Python.
 """
 
-import importlib
 import json
 import pathlib
 import shutil
-import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
-train = importlib.import_module("06_train")
-
 OUT = HERE / "out"
 TARGET = HERE.parents[1] / "backend" / "artifacts" / "flood_risk"
 
 metrics = json.loads((OUT / "metrics.json").read_text(encoding="utf-8"))
-test = metrics["test"]
+budget = json.loads((OUT / "holdout_budget.json").read_text(encoding="utf-8"))
+rolling = json.loads((OUT / "rolling_budget.json").read_text(encoding="utf-8"))
+window = int(rolling["chosen_window"])
+naive, model = budget["naive"], budget["model"]
+days = int(metrics["test"]["days"])
+
 decision = metrics["decision"]
-decision.setdefault(
-    "chosen", train.chosen_point(test["at_valid_threshold"], test["days"])
+decision["outcome"] = "rolling_budget"
+decision["rule"] = (
+    f"скользящий бюджет: за последние {window} суток тревог столько же, "
+    "сколько у правила «вода была вчера»; HIGH это порог, который держит бюджет"
 )
-metrics.setdefault("targets", train.targets_from(test["naive"]))
-metrics.setdefault(
-    "model_version", f"flood-{metrics['variant']}-{metrics['opened_at'][:10]}"
-)
+decision["alert_budget"] = {
+    "window_days": window,
+    "baseline": "правило «вода была вчера»",
+    "fallback_threshold": decision["levels"]["HIGH"],
+    "fallback_note": "порог с проверочных лет, пока истории прогнозов нет",
+}
+decision["chosen"] = {
+    "cell_precision": model["precision"],
+    "cell_recall": model["recall"],
+    "alerts": model["alerts"],
+    "alerts_per_day": round(model["alerts"] / days, 2),
+}
+metrics["test_budget"] = budget
+metrics["evaluation_note"] = budget["opening"]
+metrics["targets"] = {
+    "precision": naive["precision"],
+    "recall": naive["recall"],
+    "basis": "наивная планка «вода была вчера» на отложенном году",
+}
+metrics["model_version"] = f"flood-pu-{metrics['variant']}-budget{window}"
 
 TARGET.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(OUT / "model.joblib", TARGET / "latest.joblib")
-# Замер с дописанными полями возвращается и в `out/`: выкладка на сервер
-# (`deploy/backend.sh`) копирует его оттуда без Python.
-(OUT / "metrics.json").write_text(
-    json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8"
-)
-(TARGET / "metrics.json").write_text(
-    json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8"
-)
-print(f"модель и замер в {TARGET}")
+shutil.copyfile(OUT / "pu_classifier.joblib", TARGET / "pu_classifier.joblib")
+for path in (OUT / "metrics.json", TARGET / "metrics.json"):
+    path.write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
+
+print(f"модель, классификатор и замер в {TARGET}")
 print(f"рабочая точка: {decision['chosen']}")
 print(f"цель: {metrics['targets']}")
+print(f"уровни: {decision['levels']}, бюджет {window} суток")

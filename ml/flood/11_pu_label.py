@@ -25,8 +25,10 @@ import pathlib
 import sys
 
 import duckdb
+import joblib
 import lightgbm as lgb
 import numpy as np
+import pandas as pd
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -77,7 +79,7 @@ FEATURE_SET = sys.argv[2] if len(sys.argv) > 2 else "daily"
 if FEATURE_SET == "hourly":
     FEATURES = FEATURES + HOURLY_FEATURES
 log = json.loads(ATTEMPTS.read_text(encoding="utf-8")) if ATTEMPTS.exists() else []
-if ATTEMPT != "diagnostic":
+if ATTEMPT not in ("diagnostic", "export"):
     if any(item["attempt"] == ATTEMPT for item in log):
         raise SystemExit(f"попытка {ATTEMPT} уже записана")
     if len(log) >= BUDGET:
@@ -272,6 +274,27 @@ real = p_real >= CUTOFF
 frame["score"] = score
 frame["p_real"] = p_real
 frame["real"] = real
+if ATTEMPT == "export":
+    # Режим выгрузки: классификатор для бэкенда. Разметка обязана совпасть с
+    # принятой попыткой строка в строку, иначе бэкенд размечал бы иначе, чем
+    # обучение. Файлы разметки и журнал попыток не меняются.
+    accepted = pd.read_parquet(EVENTS)
+    same = (accepted["real"].to_numpy() == real).all() and len(accepted) == len(real)
+    if not same:
+        raise SystemExit("выгрузка не воспроизводит принятую разметку")
+    joblib.dump(
+        {
+            "booster": final,
+            "features": FEATURES,
+            "c": c,
+            "cutoff": CUTOFF,
+            "test_start": TEST_START,
+            "note": "ADR 0012: вода это сигнал ночью или в нерабочий день либо score / c >= cutoff",
+        },
+        OUT / "pu_classifier.joblib",
+    )
+    print(f"классификатор выгружен: признаков {len(FEATURES)}, c {c:.4f}, граница {CUTOFF:.4f}")
+    raise SystemExit(0)
 con.register("labelled", frame)
 con.execute(f"COPY (SELECT * FROM labelled) TO '{EVENTS.as_posix()}' (FORMAT PARQUET)")
 

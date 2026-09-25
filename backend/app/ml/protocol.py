@@ -75,6 +75,39 @@ def applies(predictor: object, conn: Connection, facility_id: str) -> bool:
     return True if check is None else bool(check(conn, facility_id))
 
 
+def prepare(predictor: object, conn: Connection, at: datetime) -> None:
+    """Готовит данные направления один раз перед прогоном по объектам.
+
+    Метод `prepare` у предиктора необязателен. Подтопление размечает в нём
+    законченные сутки «вода или проверка», а признаки читают готовую разметку
+    (ADR 0013). Считать разметку на каждом объекте было бы повтором одной
+    работы сотни раз.
+    """
+    hook = getattr(predictor, "prepare", None)
+    if hook is not None:
+        hook(conn, at)
+
+
+# Границы уровней: код уровня -> нижняя граница вероятности, по возрастанию.
+Bands = tuple[tuple[str, float], ...]
+
+
+def level_bands(
+    predictor: object,
+    conn: Connection,
+    at: datetime,
+    fresh: dict[str, tuple[float, FeatureVector]],
+) -> Bands | None:
+    """Границы уровней на этот прогон. None значит границы реестра направлений.
+
+    Метод `level_bands` у предиктора необязателен. Он получает прогнозы
+    текущего прогона, `объект -> (вероятность, признаки)`, до записи в базу.
+    Подтопление ставит по ним и по истории скользящий бюджет тревог.
+    """
+    hook = getattr(predictor, "level_bands", None)
+    return None if hook is None else hook(conn, at, fresh)
+
+
 @runtime_checkable
 class Predictor(Protocol):
     """Предиктор одного направления.

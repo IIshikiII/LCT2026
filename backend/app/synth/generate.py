@@ -5,8 +5,8 @@
 и API нечем кормить на чистой базе после `docker compose up`. Этот модуль
 наполняет три таблицы, которых достаточно для прогона: `collector`, `facility`
 и `alarm_event` с событиями доступа (`app/features/access.py` держит словарь
-типов). Полноту не выгрузки, а витрины: `sensor_reading`, `inspection`,
-`weather_hourly` и прочие таблицы направлений здесь не наполняются, потому что
+типов). Полноту не выгрузки, а витрины: `sensor_reading`, `inspection`
+и прочие таблицы направлений здесь не наполняются, потому что
 конвейер направления доступа их не читает, а расширять генератор ради данных,
 которые никто не проверит, значит выбросить эту работу, когда придёт настоящая
 выгрузка (см. `docs/05-gap-tasks.md`, задача 10).
@@ -54,13 +54,16 @@ from sqlalchemy.engine import Connection
 from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
 from app.synth.flood import flood_rows
 from app.synth.geo import OKRUGS, point_on
+from app.synth.weather import weather_rows
 from app.tables import (
     action_log,
     alarm_event,
     collector,
     facility,
+    flood_water_day,
     prediction,
     sensor,
+    weather_hourly,
     work_order,
 )
 
@@ -306,11 +309,17 @@ def generate(
         )
     if event_rows:
         conn.execute(
-            pg_insert(alarm_event).on_conflict_do_nothing(
-                index_elements=["id", "occurred_at"]
-            ),
+            pg_insert(alarm_event).on_conflict_do_nothing(index_elements=["id", "occurred_at"]),
             event_rows,
         )
+    # Погода нужна признакам подтопления (ADR 0013). Настоящий ряд грузит
+    # команда `load-weather`, и посев его не перезаписывает.
+    conn.execute(
+        pg_insert(weather_hourly).on_conflict_do_nothing(
+            index_elements=["observed_at", "district"]
+        ),
+        weather_rows(seed, now, HISTORY_DAYS),
+    )
 
     return SynthResult(
         collector_count=len(collector_rows),
@@ -331,6 +340,16 @@ def wipe_synthetic(conn: Connection) -> int:
     Учётные записи и прогоны конвейера не трогаются — они не про географию.
     """
     removed = 0
-    for table in (action_log, work_order, prediction, alarm_event, sensor, facility, collector):
+    tables = (
+        action_log,
+        work_order,
+        prediction,
+        flood_water_day,
+        alarm_event,
+        sensor,
+        facility,
+        collector,
+    )
+    for table in tables:
         removed += int(conn.execute(table.delete()).rowcount)
     return removed

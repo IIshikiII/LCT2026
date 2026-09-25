@@ -1,14 +1,29 @@
 """Признаки направления «риск подтопления».
 
 Имена совпадают с `ml/flood/04_panel.py` буква в букву: по ним модель берёт
-столбцы. Разбор признаков и чисел лежит в ADR 0008 и ADR 0009.
+столбцы. Разбор признаков и чисел лежит в ADR 0008, 0009, 0012 и 0013.
 
 ## Точка расчёта
 
-Обучение ставит точку расчёта в начало часа, и все окна кончаются строго на
-ней. Сервис считает в любой момент, поэтому момент `at` округляется вниз до
-начала часа. Правило одно на весь модуль: `occurred_at < начало часа`. Тест
-`tests/test_features_no_leak.py` проверяет его для каждого признака реестра.
+Модель ADR 0012 училась на суточной сетке: точка расчёта стоит в полночь по
+Москве, все окна кончаются строго на ней. Сервис считает в любой момент,
+поэтому момент `at` сдвигается назад к последней московской полуночи
+(`point_of`). Правило одно на весь модуль: `occurred_at < точка расчёта`. Тест
+`tests/test_features_flood_no_leak.py` проверяет его для каждого признака
+реестра.
+
+Прогноз, посчитанный днём, отвечает на тот же вопрос, что утренний: будет ли
+вода на пикете в текущие московские сутки. Сигналы этих суток признаки не
+видят: разметка «вода или проверка» есть только у законченных суток.
+
+## Вода и плановые проверки
+
+Сигнал «Затоплен» или «Не замкнут» оставляет и вода, и плановая проверка.
+Сутки пикета с сигналом размечает классификатор ADR 0012
+(`app/features/flood_water.py`), итог лежит в таблице `flood_water_day`.
+Признаки `evt_*`, `obj_events_*`, `cx_events_*`, `recent_evt_*` читают только
+сутки с водой, признаки `check_*` и `recent_check_*` только сутки проверки.
+Сутки без разметки не идут ни туда, ни туда.
 
 ## Сопоставление со схемой
 
@@ -20,15 +35,12 @@
 - объект — все `facility` того же `collector`;
 - комплекс — все `facility` того же `district`.
 
-Насос без пикета в схеме отдельной строки не имеет: его события лежат на
-какой-то `facility` объекта и видны соседям так же, как в обучении.
+## Погода
 
-## Вода и плановые проверки
-
-Сигнал «Затоплен» или «Не замкнут» внутри рабочего окна (будни, кроме
-праздников, с 8:00 до 16:00 по Москве) оставляют в основном плановые проверки.
-Водой он не считается ни в признаках событий, ни в метке (ADR 0010). Условие
-держит функция `water_sql`, одна на модуль и на плагин.
+Модель читает погоду Москвы одним рядом (`ml/flood/08_weather.py`). В
+`weather_hourly` этот ряд лежит под районом `MOSCOW`. Нет строк значит суммы
+равны нулю, а температура пропущена: бустер ведёт пропуск по своей ветке, как
+в первые часы обучающей выборки.
 
 ## Коды событий
 
@@ -45,7 +57,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import functools
+import math
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import text
@@ -73,37 +90,80 @@ SENSOR_FLOOD = "FLOOD_SENSOR"
 # Порог мигания из обучения: квантиль 0,99 смен за час у исправных насосов на
 # обучающем отрезке (`ml/flood/out/panel_stats.json`, ADR 0009).
 BLINK_CHANGES_PER_HOUR = 14.0
-# Рабочее окно плановых проверок и часовой пояс журнала СМВУ (ADR 0010).
-WORK_FROM, WORK_TO = 8, 16
+# Часовой пояс журнала СМВУ. В SQL пояс называется по имени, в Python это
+# постоянный сдвиг: Москва не переводит часы с 2014 года, выгрузка начата в 2019.
 TIMEZONE = "Europe/Moscow"
+MOSCOW = timezone(timedelta(hours=3))
+# Район, под которым `weather_hourly` держит ряд погоды Москвы.
+WEATHER_AREA = "MOSCOW"
 # Интервал «насос включён» длиннее суток обрезается: за ним пропуск данных.
 MAX_ON_HOURS = 24
 
 
-def holidays() -> list[str]:
-    """Постоянные праздники в виде `MM-DD`: в праздник рабочего окна нет."""
-    from app.features.calendar_ru import FIXED_HOLIDAYS
+def point_of(at: datetime) -> datetime:
+    """Точка расчёта: последняя полночь по Москве не позже `at`, в UTC."""
+    moment = at if at.tzinfo is not None else at.replace(tzinfo=UTC)
+    local = moment.astimezone(MOSCOW).replace(hour=0, minute=0, second=0, microsecond=0)
+    return local.astimezone(UTC)
 
-    return sorted(f"{month:02d}-{day:02d}" for month, day in FIXED_HOLIDAYS)
+
+def local_day(at: datetime) -> date:
+    """Московские сутки момента `at`."""
+    moment = at if at.tzinfo is not None else at.replace(tzinfo=UTC)
+    return moment.astimezone(MOSCOW).date()
 
 
-def water_sql(alias: str = "e") -> str:
-    """Условие «сигнал затопления вне рабочего окна». Нужен параметр `:holidays`."""
-    local = f"({alias}.occurred_at AT TIME ZONE '{TIMEZONE}')"
+def day_sql(alias: str = "e") -> str:
+    """Московские сутки события в SQL."""
+    return f"({alias}.occurred_at AT TIME ZONE '{TIMEZONE}')::date"
+
+
+def water_sql(alias: str = "e", water: bool = True) -> str:
+    """Условие «сигнал лежит в сутках с водой» или «в сутках проверки»."""
+    verdict = "w.is_water" if water else "NOT w.is_water"
     return (
-        f"NOT (extract(isodow FROM {local}) <= 5 "
-        f"AND extract(hour FROM {local}) >= {WORK_FROM} "
-        f"AND extract(hour FROM {local}) < {WORK_TO} "
-        f"AND to_char({local}, 'MM-DD') <> ALL(:holidays))"
+        f"EXISTS (SELECT 1 FROM flood_water_day w WHERE w.facility_id = {alias}.facility_id "
+        f"AND w.day = {day_sql(alias)} AND {verdict})"
     )
 
 
-WATER = water_sql("e")
+WATER = water_sql("e", water=True)
+CHECK = water_sql("e", water=False)
+
+# Кэш запросов на один вектор признаков. Один запрос `_counts` кормит два
+# десятка признаков, и без кэша он повторялся бы на каждом. Кэш живёт только
+# внутри `memo()`: вне его каждый вызов идёт в базу, и тест на утечку видит
+# свежие данные.
+_MEMO: ContextVar[dict[tuple[Any, ...], Any] | None] = ContextVar("flood_memo", default=None)
 
 
-def hour_of(at: datetime) -> datetime:
-    """Начало часа расчёта. Все окна кончаются строго на нём."""
-    return at.replace(minute=0, second=0, microsecond=0)
+@contextmanager
+def memo() -> Iterator[None]:
+    """Включает кэш запросов на время расчёта одного вектора."""
+    token = _MEMO.set({})
+    try:
+        yield
+    finally:
+        _MEMO.reset(token)
+
+
+def _cached[T](fn: Callable[..., T]) -> Callable[..., T]:
+    @functools.wraps(fn)
+    def wrapper(conn: Connection, *args: Any) -> T:
+        store = _MEMO.get()
+        if store is None:
+            return fn(conn, *args)
+        key = (fn.__name__, *args)
+        if key not in store:
+            store[key] = fn(conn, *args)
+        return store[key]  # type: ignore[no-any-return]
+
+    return wrapper
+
+
+EVT_WINDOWS = (6, 12, 24, 168, 720, 2160, 8760)
+CHECK_WINDOWS = (24, 168, 720)
+ON_WINDOWS = (6, 24, 168, 720)
 
 
 def _scope(level: str) -> str:
@@ -117,62 +177,52 @@ def _scope(level: str) -> str:
     )
 
 
+def _hours(name: str, condition: str, window: int) -> str:
+    return (
+        f"count(DISTINCT date_trunc('hour', e.occurred_at)) FILTER ("
+        f"WHERE e.alarm_type = ANY(:label) AND {condition} "
+        f"AND e.occurred_at >= :p - interval '{window} hours') AS {name}_{window}h"
+    )
+
+
+def _moments(name: str, condition: str, window: int) -> str:
+    return (
+        f"count(DISTINCT (e.sensor_id, e.occurred_at)) FILTER ("
+        f"WHERE {condition} AND e.occurred_at >= :p - interval '{window} hours') "
+        f"AS {name}_{window}h"
+    )
+
+
+@_cached
 def _counts(conn: Connection, facility_id: str, at: datetime, level: str) -> dict[str, float]:
     """Счётчики событий по окнам для единицы, объекта или комплекса."""
-    h = hour_of(at)
+    parts = [
+        *(_hours("evt_hours", WATER, w) for w in EVT_WINDOWS),
+        *(_hours("check_hours", CHECK, w) for w in CHECK_WINDOWS),
+        *(_moments("m_evt", f"e.alarm_type = ANY(:label) AND {WATER}", w) for w in (24, 168)),
+        *(
+            f"count(*) FILTER (WHERE e.alarm_type = ANY(:state) "
+            f"AND e.occurred_at >= :p - interval '{w} hours') AS chg_{w}h"
+            for w in (1, 6, 24)
+        ),
+        *(_moments("unavail", "e.alarm_type = :unavail", w) for w in (24, 168)),
+        *(_moments("allp", "e.alarm_type = :allp", w) for w in (24, 168)),
+    ]
     row = (
         conn.execute(
             text(
                 f"""
-            SELECT
-                {
-                    ", ".join(
-                        f"count(DISTINCT date_trunc('hour', e.occurred_at)) FILTER ("
-                        f"WHERE e.alarm_type = ANY(:label) AND {WATER} AND e.occurred_at >= :h - "
-                        f"interval '{w} hours') AS evt_hours_{w}h"
-                        for w in (24, 168, 720, 2160, 8760)
-                    )
-                },
-                count(DISTINCT (e.sensor_id, e.occurred_at)) FILTER (
-                    WHERE e.alarm_type = ANY(:label) AND {WATER}
-                      AND e.occurred_at >= :h - interval '24 hours') AS m_evt_24h,
-                count(DISTINCT (e.sensor_id, e.occurred_at)) FILTER (
-                    WHERE e.alarm_type = ANY(:label) AND {WATER}
-                      AND e.occurred_at >= :h - interval '168 hours') AS m_evt_168h,
-                {
-                    ", ".join(
-                        f"count(*) FILTER (WHERE e.alarm_type = ANY(:state) "
-                        f"AND e.occurred_at >= :h - interval '{w} hours') AS chg_{w}h"
-                        for w in (1, 6, 24)
-                    )
-                },
-                {
-                    ", ".join(
-                        f"count(DISTINCT (e.sensor_id, e.occurred_at)) FILTER ("
-                        f"WHERE e.alarm_type = :unavail AND e.occurred_at >= :h - "
-                        f"interval '{w} hours') AS unavail_{w}h"
-                        for w in (24, 168)
-                    )
-                },
-                {
-                    ", ".join(
-                        f"count(DISTINCT (e.sensor_id, e.occurred_at)) FILTER ("
-                        f"WHERE e.alarm_type = :allp AND e.occurred_at >= :h - "
-                        f"interval '{w} hours') AS allp_{w}h"
-                        for w in (24, 168)
-                    )
-                }
+            SELECT {", ".join(parts)}
             FROM alarm_event e
             WHERE {_scope(level)}
               AND e.alarm_type = ANY(:types)
-              AND e.occurred_at >= :h - interval '8760 hours' AND e.occurred_at < :h
+              AND e.occurred_at >= :p - interval '8760 hours' AND e.occurred_at < :p
             """
             ),
             {
                 "facility_id": facility_id,
-                "h": h,
+                "p": point_of(at),
                 "label": list(LABEL_TYPES),
-                "holidays": holidays(),
                 "state": list(STATE_TYPES),
                 "unavail": PUMP_UNAVAILABLE,
                 "allp": PUMP_ALL_RUNNING,
@@ -185,20 +235,20 @@ def _counts(conn: Connection, facility_id: str, at: datetime, level: str) -> dic
     return {key: float(value or 0) for key, value in row.items()}
 
 
+@_cached
 def _blink(conn: Connection, facility_id: str, at: datetime, level: str) -> dict[str, float]:
     """Часы насосов, в которые смен состояния было больше порога мигания."""
-    h = hour_of(at)
     row = (
         conn.execute(
             text(
                 f"""
-            SELECT count(*) FILTER (WHERE hour >= :h - interval '24 hours') AS blink_24h,
+            SELECT count(*) FILTER (WHERE hour >= :p - interval '24 hours') AS blink_24h,
                    count(*) AS blink_168h
             FROM (
                 SELECT e.sensor_id, date_trunc('hour', e.occurred_at) AS hour
                 FROM alarm_event e
                 WHERE {_scope(level)} AND e.alarm_type = ANY(:state)
-                  AND e.occurred_at >= :h - interval '168 hours' AND e.occurred_at < :h
+                  AND e.occurred_at >= :p - interval '168 hours' AND e.occurred_at < :p
                 GROUP BY 1, 2
                 HAVING count(*) > :blink
             ) hours
@@ -206,7 +256,7 @@ def _blink(conn: Connection, facility_id: str, at: datetime, level: str) -> dict
             ),
             {
                 "facility_id": facility_id,
-                "h": h,
+                "p": point_of(at),
                 "state": list(STATE_TYPES),
                 "blink": BLINK_CHANGES_PER_HOUR,
             },
@@ -217,20 +267,19 @@ def _blink(conn: Connection, facility_id: str, at: datetime, level: str) -> dict
     return {key: float(value or 0) for key, value in row.items()}
 
 
+@_cached
 def _on_minutes(conn: Connection, facility_id: str, at: datetime, level: str) -> dict[str, float]:
     """Минуты во включённом состоянии по окнам.
 
     Насос включён от `PUMP_ON` до следующей смены того же канала, но не дольше
-    суток и не дальше начала часа расчёта. Следующая смена ищется только среди
-    записей до начала часа: событие после него признак видеть не имеет права.
+    суток и не дальше точки расчёта. Следующая смена ищется только среди
+    записей до точки: событие после неё признак видеть не имеет права.
     """
-    h = hour_of(at)
-    windows = (24, 168, 720)
     parts = ", ".join(
         f"""coalesce(sum(greatest(extract(epoch FROM (
-                least(b, :h) - greatest(a, :h - interval '{w} hours'))), 0)) / 60.0, 0)
+                least(b, :p) - greatest(a, :p - interval '{w} hours'))), 0)) / 60.0, 0)
             AS on_min_{w}h"""
-        for w in windows
+        for w in ON_WINDOWS
     )
     row = (
         conn.execute(
@@ -243,8 +292,8 @@ def _on_minutes(conn: Connection, facility_id: str, at: datetime, level: str) ->
                        ) AS nxt
                 FROM alarm_event e
                 WHERE {_scope(level)} AND e.alarm_type = ANY(:state)
-                  AND e.occurred_at >= :h - interval '{max(windows) + MAX_ON_HOURS} hours'
-                  AND e.occurred_at < :h
+                  AND e.occurred_at >= :p - interval '{max(ON_WINDOWS) + MAX_ON_HOURS} hours'
+                  AND e.occurred_at < :p
             ),
             iv AS (
                 SELECT a, least(coalesce(nxt, a + interval '{MAX_ON_HOURS} hours'),
@@ -254,7 +303,12 @@ def _on_minutes(conn: Connection, facility_id: str, at: datetime, level: str) ->
             SELECT {parts} FROM iv
             """
             ),
-            {"facility_id": facility_id, "h": h, "state": list(STATE_TYPES), "on": PUMP_ON},
+            {
+                "facility_id": facility_id,
+                "p": point_of(at),
+                "state": list(STATE_TYPES),
+                "on": PUMP_ON,
+            },
         )
         .mappings()
         .one()
@@ -262,11 +316,12 @@ def _on_minutes(conn: Connection, facility_id: str, at: datetime, level: str) ->
     return {key: float(value or 0) for key, value in row.items()}
 
 
+@_cached
 def _unit_sensors(conn: Connection, facility_id: str, at: datetime) -> dict[str, float]:
     """Насосы и датчики затопления единицы.
 
     Первый источник — таблица `sensor`. Когда в ней нет строк единицы, число
-    выводится из журнала: каналы, которые хоть раз подали сигнал до `at`.
+    выводится из журнала: каналы, которые хоть раз подали сигнал до точки.
     """
     row = conn.execute(
         text(
@@ -289,58 +344,58 @@ def _unit_sensors(conn: Connection, facility_id: str, at: datetime) -> dict[str,
                        count(DISTINCT sensor_id) FILTER (WHERE alarm_type = :sensor_open)
                 FROM alarm_event
                 WHERE facility_id = :facility_id AND alarm_type = ANY(:types)
-                  AND occurred_at < :h
+                  AND occurred_at < :p
                 """
             ),
             {
                 "facility_id": facility_id,
                 "sensor_open": FLOOD_SENSOR_OPEN,
                 "types": list(ALL_TYPES),
-                "h": hour_of(at),
+                "p": point_of(at),
             },
         ).one()
         pumps, sensors = int(fallback[0]), int(fallback[1])
     return {"pumps": float(pumps), "flood_sensors": float(sensors)}
 
 
+@_cached
 def _first_seen(conn: Connection, facility_id: str, at: datetime) -> datetime:
-    """Первая запись единицы до начала часа. Нет записей значит сам час."""
-    h = hour_of(at)
+    """Начало часа первой записи единицы до точки. Нет записей значит сама точка."""
+    p = point_of(at)
     row = conn.execute(
         text(
             "SELECT min(occurred_at) FROM alarm_event "
-            "WHERE facility_id = :facility_id AND occurred_at < :h"
+            "WHERE facility_id = :facility_id AND occurred_at < :p"
         ),
-        {"facility_id": facility_id, "h": h},
+        {"facility_id": facility_id, "p": p},
     ).fetchone()
-    first = row[0] if row and row[0] is not None else h
-    return hour_of(first)
+    first = row[0] if row and row[0] is not None else p
+    return first.replace(minute=0, second=0, microsecond=0)
 
 
 def _hours_since_last(conn: Connection, facility_id: str, at: datetime) -> float:
-    """Часов от последнего события до начала часа расчёта.
+    """Часов от последнего часа с водой до точки расчёта.
 
-    Событием считается только вода, сигнал вне рабочего окна (ADR 0010).
-    Событий не было значит часов от первой записи единицы плюс один, как в
+    Воды не было значит часов от первой записи единицы плюс один, как в
     обучении: там отсчёт шёл от начала жизни единицы.
     """
-    h = hour_of(at)
+    p = point_of(at)
     row = conn.execute(
         text(
             "SELECT max(e.occurred_at) FROM alarm_event e "
             "WHERE e.facility_id = :facility_id AND e.alarm_type = ANY(:label) "
-            f"AND {WATER} AND e.occurred_at < :h"
+            f"AND {WATER} AND e.occurred_at < :p"
         ),
-        {
-            "facility_id": facility_id,
-            "label": list(LABEL_TYPES),
-            "holidays": holidays(),
-            "h": h,
-        },
+        {"facility_id": facility_id, "label": list(LABEL_TYPES), "p": p},
     ).fetchone()
     if row and row[0] is not None:
-        return (h - hour_of(row[0])).total_seconds() // 3600
-    return (h - _first_seen(conn, facility_id, at)).total_seconds() // 3600 + 1
+        return (p - row[0].replace(minute=0, second=0, microsecond=0)).total_seconds() // 3600
+    return (p - _first_seen(conn, facility_id, at)).total_seconds() // 3600 + 1
+
+
+def _unit_age_days(conn: Connection, facility_id: str, at: datetime) -> float:
+    """Смен московских суток от первой записи единицы до точки, как `date_diff('day')`."""
+    return float((local_day(point_of(at)) - local_day(_first_seen(conn, facility_id, at))).days)
 
 
 def _pump_share(conn: Connection, facility_id: str, at: datetime, hours: int) -> float:
@@ -352,6 +407,58 @@ def _pump_share(conn: Connection, facility_id: str, at: datetime, hours: int) ->
 def _pump_growth(conn: Connection, facility_id: str, at: datetime) -> float:
     on = _on_minutes(conn, facility_id, at, "unit")
     return (on["on_min_24h"] / 24.0) / max(on["on_min_720h"] / 720.0, 0.1)
+
+
+@_cached
+def _weather(conn: Connection, at: datetime) -> dict[str, float]:
+    """Погода Москвы до точки расчёта, окна прошлых часов, как в `04_panel.py`."""
+    row = (
+        conn.execute(
+            text(
+                """
+            SELECT
+                sum(precip_mm) FILTER (WHERE observed_at >= :p - interval '24 hours')
+                    AS precip_24h,
+                sum(precip_mm) FILTER (WHERE observed_at >= :p - interval '72 hours')
+                    AS precip_72h,
+                sum(precip_mm) AS precip_168h,
+                sum(rain_mm) FILTER (WHERE observed_at >= :p - interval '72 hours') AS rain_72h,
+                sum(snowfall_cm) FILTER (WHERE observed_at >= :p - interval '72 hours')
+                    AS snowfall_72h,
+                avg(temperature_c) FILTER (WHERE observed_at >= :p - interval '24 hours')
+                    AS temp_mean_24h,
+                max(temperature_c) FILTER (WHERE observed_at >= :p - interval '72 hours')
+                    AS temp_max_72h,
+                max(snow_depth_m) FILTER (WHERE observed_at = :p - interval '1 hour')
+                    AS snow_now,
+                max(snow_depth_m) FILTER (WHERE observed_at = :p - interval '72 hours')
+                    AS snow_72h_ago
+            FROM weather_hourly
+            WHERE district = :area
+              AND observed_at >= :p - interval '168 hours' AND observed_at < :p
+            """
+            ),
+            {"p": point_of(at), "area": WEATHER_AREA},
+        )
+        .mappings()
+        .one()
+    )
+    snow_now = float(row["snow_now"] or 0.0)
+    snow_before = float(row["snow_72h_ago"] or 0.0)
+    return {
+        **{
+            key: float(row[key] or 0.0)
+            for key in ("precip_24h", "precip_72h", "precip_168h", "rain_72h", "snowfall_72h")
+        },
+        "temp_mean_24h": _or_nan(row["temp_mean_24h"]),
+        "temp_max_72h": _or_nan(row["temp_max_72h"]),
+        "snow_depth_cm": snow_now * 100,
+        "melt_72h_cm": max(0.0, snow_before - snow_now) * 100,
+    }
+
+
+def _or_nan(value: Any) -> float:
+    return math.nan if value is None else float(value)
 
 
 def _neighbour(source: Any, key: str, outer: str, inner: str) -> registry.Builder:
@@ -366,9 +473,9 @@ def _neighbour(source: Any, key: str, outer: str, inner: str) -> registry.Builde
 def _cal(at: datetime) -> dict[str, float]:
     from app.features.calendar_ru import day_off_chain, is_day_off, is_holiday
 
-    day = hour_of(at).date()
+    day = local_day(point_of(at))
     return {
-        "hour": float(hour_of(at).hour),
+        "hour": 0.0,
         "season": float((day.month % 12) // 3),
         "month": float(day.month),
         "day_of_year": float(day.timetuple().tm_yday),
@@ -382,6 +489,10 @@ def _cal(at: datetime) -> dict[str, float]:
 
 def _unit(key: str) -> registry.Builder:
     return lambda c, f, a: _counts(c, f, a, "unit")[key]
+
+
+def _wx(key: str) -> registry.Builder:
+    return lambda c, _f, a: _weather(c, a)[key]
 
 
 BUILDERS: dict[str, registry.Builder] = {
@@ -398,7 +509,7 @@ BUILDERS: dict[str, registry.Builder] = {
     "pump_unavailable_168h": _unit("unavail_168h"),
     "pump_all_running_24h": _unit("allp_24h"),
     "pump_all_running_168h": _unit("allp_168h"),
-    # 2. история событий единицы
+    # 2. история воды на единице
     "evt_hours_24h": _unit("evt_hours_24h"),
     "evt_hours_168h": _unit("evt_hours_168h"),
     "evt_hours_720h": _unit("evt_hours_720h"),
@@ -422,10 +533,28 @@ BUILDERS: dict[str, registry.Builder] = {
     # устройство места
     "unit_pumps": lambda c, f, a: _unit_sensors(c, f, a)["pumps"],
     "unit_flood_sensors": lambda c, f, a: _unit_sensors(c, f, a)["flood_sensors"],
-    "unit_age_days": lambda c, f, a: float(
-        (hour_of(a) - _first_seen(c, f, a)) // timedelta(days=1)
-    ),
-    # 4. календарь
+    "unit_age_days": _unit_age_days,
+    # 7. свежесть внутри суток: вечер накануне весит больше утра
+    "recent_evt_hours_6h": _unit("evt_hours_6h"),
+    "recent_evt_hours_12h": _unit("evt_hours_12h"),
+    "recent_check_hours_24h": _unit("check_hours_24h"),
+    "recent_pump_on_share_6h": lambda c, f, a: _pump_share(c, f, a, 6),
+    # 5. плановые проверки на пикете
+    "check_hours_168h": _unit("check_hours_168h"),
+    "check_hours_720h": _unit("check_hours_720h"),
+    # 6. погода Москвы до точки расчёта
+    "weather_precip_24h": _wx("precip_24h"),
+    "weather_precip_72h": _wx("precip_72h"),
+    "weather_precip_168h": _wx("precip_168h"),
+    "weather_rain_72h": _wx("rain_72h"),
+    "weather_snowfall_72h": _wx("snowfall_72h"),
+    "weather_temp_mean_24h": _wx("temp_mean_24h"),
+    "weather_temp_max_72h": _wx("temp_max_72h"),
+    "weather_snow_depth_cm": _wx("snow_depth_cm"),
+    "weather_melt_72h_cm": _wx("melt_72h_cm"),
+    # 4. календарь. Час, день недели и нерабочий день модель ADR 0012 не
+    # читает: она ищет воду, а не график работ. Построители остались для
+    # моделей, которые их просят.
     "cal_hour": lambda _c, _f, a: _cal(a)["hour"],
     "cal_season": lambda _c, _f, a: _cal(a)["season"],
     "cal_month": lambda _c, _f, a: _cal(a)["month"],

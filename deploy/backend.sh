@@ -135,7 +135,15 @@ publish_model() {
     mkdir -p "$FLOOD_TARGET"
     cp "$FLOOD_SOURCE/model.joblib" "$FLOOD_TARGET/latest.joblib"
     cp "$FLOOD_SOURCE/metrics.json" "$FLOOD_TARGET/metrics.json"
-    echo "    модель на месте, шкала сырая"
+    # Классификатор воды размечает сутки «вода или проверка» (ADR 0013). Без
+    # него водой считается только сигнал ночью или в нерабочий день.
+    if [ -f "$FLOOD_SOURCE/pu_classifier.joblib" ]; then
+        cp "$FLOOD_SOURCE/pu_classifier.joblib" "$FLOOD_TARGET/pu_classifier.joblib"
+        echo "    модель и классификатор воды на месте, шкала сырая"
+    else
+        rm -f "$FLOOD_TARGET/pu_classifier.joblib"
+        warn "Нет $FLOOD_SOURCE/pu_classifier.joblib — вода размечается только по времени."
+    fi
 }
 
 # --- службы ------------------------------------------------------------

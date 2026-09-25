@@ -1,11 +1,19 @@
 """Предиктор направления «риск подтопления». Спецификация §7.
 
-Модель — суточный бустер LightGBM из `ml/flood/10_train.py`, читается через
+Модель — ансамбль суточных бустеров LightGBM из `ml/flood/12_train_pu.py`
+(`app.ml.ensemble.MarginEnsemble`), читается через
 `app.ml.tracking.load_model("FLOOD_RISK")`. Признаки считает реестр
 `app.features.registry` по модулю `app/features/flood.py`, набор и порядок
 называет сама модель через `feature_name()`. Разбор метки и модели лежит в
-ADR 0010 и ADR 0011: водой считается только сигнал вне рабочего окна, сигналы
-плановых проверок в метку не идут.
+ADR 0012, перенос в бэкенд в ADR 0013.
+
+## Три шага прогона
+
+1. `prepare` размечает законченные сутки «вода или проверка»
+   (`app/features/flood_water.py`). Признаки читают готовую разметку.
+2. `build_features`, `predict`, `explain` на каждом объекте.
+3. `level_bands` ставит HIGH скользящим бюджетом тревог: за последние 30
+   суток у модели столько тревог, сколько у правила «вода была вчера».
 
 ## Направление считается не на каждом объекте
 
@@ -22,6 +30,7 @@ ADR 0010 и ADR 0011: водой считается только сигнал в
 
 from __future__ import annotations
 
+import math
 import warnings
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
@@ -35,11 +44,13 @@ from app.features.flood import (
     SENSOR_FLOOD,
     SENSOR_PUMP,
     STATE_TYPES,
+    TIMEZONE,
     WATER,
-    holidays,
+    point_of,
 )
+from app.meta.directions import FLOOD_RISK
 from app.ml.plugins.unauthorized_access import shap_weight
-from app.ml.protocol import Block, FeatureContext, FeatureVector, Window
+from app.ml.protocol import Bands, Block, FeatureContext, FeatureVector, Window
 from app.ml.registry import register
 from app.ml.tracking import load_model
 
@@ -82,6 +93,21 @@ FEATURE_LABELS: dict[str, str] = {
     "unit_pumps": "Насосов на пикете",
     "unit_flood_sensors": "Датчиков затопления на пикете",
     "unit_age_days": "Суток наблюдения пикета",
+    "recent_evt_hours_6h": "Часов с затоплением за последние 6 часов",
+    "recent_evt_hours_12h": "Часов с затоплением за последние 12 часов",
+    "recent_check_hours_24h": "Часов с плановой проверкой за сутки",
+    "recent_pump_on_share_6h": "Доля последних 6 часов, когда насос работал",
+    "check_hours_168h": "Часов с плановой проверкой за неделю",
+    "check_hours_720h": "Часов с плановой проверкой за 30 суток",
+    "weather_precip_24h": "Осадки за сутки, мм",
+    "weather_precip_72h": "Осадки за трое суток, мм",
+    "weather_precip_168h": "Осадки за неделю, мм",
+    "weather_rain_72h": "Дождь за трое суток, мм",
+    "weather_snowfall_72h": "Снегопад за трое суток, см",
+    "weather_temp_mean_24h": "Средняя температура за сутки, °C",
+    "weather_temp_max_72h": "Наибольшая температура за трое суток, °C",
+    "weather_snow_depth_cm": "Высота снежного покрова, см",
+    "weather_melt_72h_cm": "Стаяло снега за трое суток, см",
     "cal_hour": "Час расчёта",
     "cal_season": "Сезон",
     "cal_month": "Месяц",
@@ -102,6 +128,9 @@ _FACTOR_NOTE = (
     "вероятности: вклады SHAP складываются в логарифме шансов, а не в ней."
 )
 
+# Скользящий бюджет тревог (ADR 0013, `ml/flood/14_rolling_budget.py`).
+BUDGET_WINDOW_DAYS = 30
+
 _CACHE: dict[str, Any] = {}
 
 
@@ -115,6 +144,26 @@ def _model() -> Any | None:
     return model
 
 
+def _contributions(model: Any, features: FeatureVector) -> list[float]:
+    """Вклады SHAP одного вектора. Ансамбль считает их сам, бустер через shap."""
+    import numpy as np
+
+    rows = np.asarray(_row(model, features), dtype=float)
+    own = getattr(model, "shap_values", None)
+    if callable(own):
+        raw = own(rows)
+    else:
+        # SHAP предупреждает, что для двоичного LightGBM форма вывода сменилась
+        # на список матриц. Обе формы ниже разобраны, поэтому предупреждение
+        # глушится здесь, и только оно.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="LightGBM binary classifier")
+            raw = _explainer(model).shap_values(rows)
+    if isinstance(raw, list):
+        raw = raw[-1]
+    return [float(value) for value in raw[0]]
+
+
 def _explainer(model: Any) -> Any:
     explainer = _CACHE.get("explainer")
     if explainer is None:
@@ -126,12 +175,48 @@ def _explainer(model: Any) -> Any:
 
 
 def reset_cache() -> None:
-    """Забывает модель и объяснитель. Нужен тесту, который подменяет модель."""
+    """Забывает модель, объяснитель и классификатор воды. Нужен тесту."""
+    from app.features import flood_water
+
     _CACHE.clear()
+    flood_water.reset_cache()
 
 
 def _row(model: Any, features: FeatureVector) -> list[list[float]]:
-    return [[features[name] for name in model.feature_name()]]
+    # Пропуск в сохранённом векторе лежит как null. Бустер ждёт NaN.
+    return [
+        [math.nan if features[name] is None else features[name] for name in model.feature_name()]
+    ]
+
+
+def budget_bands(
+    history: Sequence[tuple[float, float]],
+    fresh: Sequence[tuple[float, float]],
+    static: Bands,
+) -> Bands | None:
+    """Границы уровней по скользящему бюджету тревог.
+
+    Пары это `(вероятность, evt_hours_24h)` прогнозов окна: суточных из
+    истории и текущего прогона. Бюджет равен числу прогнозов, у которых вода
+    была вчера, то есть числу тревог наивного правила. HIGH это вероятность
+    прогноза с номером бюджета по убыванию, как в
+    `ml/flood/14_rolling_budget.py::rolling_alerts`.
+
+    Бюджет ноль значит воды не было 30 суток ни на одном пикете. Тогда
+    работают запасные границы реестра, а не молчание модели.
+    """
+    pairs = [*history, *fresh]
+    budget = sum(1 for _, naive in pairs if naive > 0)
+    if budget == 0:
+        return None
+    scores = sorted((p for p, _ in pairs), reverse=True)
+    high = scores[min(budget, len(scores)) - 1]
+    bounds = dict(static)
+    return (
+        ("MEDIUM", min(bounds.get("MEDIUM", high), high)),
+        ("HIGH", high),
+        ("CRITICAL", max(bounds.get("CRITICAL", high), high)),
+    )
 
 
 def factors_block(
@@ -264,6 +349,47 @@ class FloodRisk:
 
     code = DIRECTION
 
+    def prepare(self, conn: Connection, at: datetime) -> None:
+        """Размечает законченные сутки «вода или проверка» до точки расчёта."""
+        from app.features import flood_water
+
+        flood_water.refresh(conn, at)
+
+    def level_bands(
+        self, conn: Connection, at: datetime, fresh: dict[str, tuple[float, FeatureVector]]
+    ) -> Bands | None:
+        """HIGH по скользящему бюджету тревог за 30 суток. ADR 0013.
+
+        История это последний прогноз каждого пикета за каждые московские
+        сутки окна до текущих. Текущие сутки представляет сам прогон.
+        """
+        point = point_of(at)
+        rows = conn.execute(
+            text(
+                f"""
+                SELECT DISTINCT ON (facility_id, (computed_at AT TIME ZONE '{TIMEZONE}')::date)
+                       probability,
+                       coalesce((features ->> 'evt_hours_24h')::double precision, 0) AS naive
+                FROM prediction
+                WHERE direction = :direction
+                  AND computed_at >= :start AND computed_at < :point
+                ORDER BY facility_id, (computed_at AT TIME ZONE '{TIMEZONE}')::date,
+                         computed_at DESC
+                """
+            ),
+            {
+                "direction": DIRECTION,
+                "start": point - timedelta(days=BUDGET_WINDOW_DAYS - 1),
+                "point": point,
+            },
+        ).all()
+        history = [(float(row[0]), float(row[1])) for row in rows]
+        today = [
+            (probability, float(features.get("evt_hours_24h") or 0.0))
+            for probability, features in fresh.values()
+        ]
+        return budget_bands(history, today, FLOOD_RISK.level_thresholds)
+
     def applies(self, conn: Connection, facility_id: str) -> bool:
         """Отвечает, стоит ли на объекте насос или датчик затопления."""
         row = conn.execute(
@@ -288,14 +414,15 @@ class FloodRisk:
         return bool(row)
 
     def build_features(self, ctx: FeatureContext) -> FeatureVector:
-        from app.features import registry
+        from app.features import flood, registry
 
         model = _model()
         if model is None:
             return {}
-        return registry.build(
-            DIRECTION, ctx.conn, ctx.facility_id, ctx.at, list(model.feature_name())
-        )
+        with flood.memo():
+            return registry.build(
+                DIRECTION, ctx.conn, ctx.facility_id, ctx.at, list(model.feature_name())
+            )
 
     def predict(self, features: FeatureVector) -> float:
         """Сырая вероятность бустера. Калибровки нет, как у доступа (ADR 0009)."""
@@ -309,18 +436,8 @@ class FloodRisk:
         if model is None:
             raise RuntimeError(_MODEL_MISSING)
 
-        import numpy as np
-
         moment = at if at is not None else datetime.now(UTC).replace(microsecond=0)
-        # SHAP предупреждает, что для двоичного LightGBM форма вывода сменилась
-        # на список матриц. Обе формы ниже разобраны, поэтому предупреждение
-        # глушится здесь, и только оно.
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="LightGBM binary classifier")
-            raw = _explainer(model).shap_values(np.asarray(_row(model, features), dtype=float))
-        if isinstance(raw, list):
-            raw = raw[-1]
-        contributions = [float(value) for value in raw[0]]
+        contributions = _contributions(model, features)
         return [
             factors_block(model.feature_name(), contributions, features),
             timeseries_block(features, moment),
@@ -344,9 +461,9 @@ class FloodRisk:
         return "Гидроизоляция"
 
     def label_rule(self, conn: Connection, facility_id: str, window: Window) -> bool:
-        """Метка обучения (ADR 0010): «Затоплен» насоса или «Не замкнут» датчика
-        затопления вне рабочего окна. Окно открыто слева: момент расчёта в метку
-        не входит."""
+        """Метка обучения (ADR 0012): «Затоплен» насоса или «Не замкнут» датчика
+        затопления в сутках, которые разметка признала водой. Окно открыто
+        слева: момент расчёта в метку не входит."""
         row = conn.execute(
             text(
                 "SELECT 1 FROM alarm_event e WHERE e.facility_id = :facility_id "
@@ -356,7 +473,6 @@ class FloodRisk:
             {
                 "facility_id": facility_id,
                 "label": list(LABEL_TYPES),
-                "holidays": holidays(),
                 "start": window.start,
                 "end": window.end,
             },

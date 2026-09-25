@@ -1,4 +1,4 @@
-"""Плагин направления «риск подтопления». ADR 0008, ADR 0009.
+"""Плагин направления «риск подтопления». ADR 0012, ADR 0013.
 
 Часть проверок идёт на настоящей модели из `artifacts/flood_risk/`. Каталог
 артефактов в git не хранится, поэтому без файла модели эти проверки
@@ -16,11 +16,11 @@ import pytest
 from sqlalchemy import delete, insert, text
 
 from app.db import engine
-from app.features import flood, registry
+from app.features import flood, flood_water, registry
 from app.meta import directions
 from app.meta.catalog import level_for
 from app.ml.plugins import flood_risk
-from app.ml.plugins.flood_risk import FEATURE_LABELS, FloodRisk
+from app.ml.plugins.flood_risk import FEATURE_LABELS, FloodRisk, budget_bands
 from app.ml.protocol import Predictor, Window, applies
 from app.tables import alarm_event, facility, sensor
 from tests.conftest import reset_database
@@ -89,12 +89,39 @@ def test_the_card_speaks_about_the_pump_in_words(model: Any) -> None:
     assert "Беда у соседа по объекту" in titles
 
 
-def test_a_blinking_pump_raises_the_risk(model: Any) -> None:
-    """Сценарий заказчика: мигание насоса предвещает подтопление (ADR 0009)."""
-    calm = _vector(model, unit_pumps=2.0, evt_hours_since_last=2000.0, unit_age_days=900.0)
-    blinking = {**calm, "pump_changes_24h": 300.0, "pump_blink_hours_24h": 6.0}
+def test_the_model_is_the_ensemble_and_explains_itself(model: Any) -> None:
+    """SHAP ансамбля плюс фон равны логиту прогноза: объяснение точное."""
+    import math
+
+    import numpy as np
+
+    assert hasattr(model, "shap_values")
+    features = _vector(model, evt_hours_24h=3.0, evt_hours_168h=5.0, weather_precip_72h=30.0)
+    row = np.asarray([[features[name] for name in model.feature_name()]], dtype=float)
+    total = float(model.shap_values(row)[0].sum()) + model.expected_value
+    probability = FloodRisk().predict(features)
+    assert total == pytest.approx(math.log(probability / (1 - probability)), abs=1e-4)
+
+
+def test_water_yesterday_raises_the_risk(model: Any) -> None:
+    """Самый сильный сигнал модели ADR 0012: вода была в прошлые сутки."""
+    dry = _vector(model, unit_pumps=2.0, evt_hours_since_last=2000.0, unit_age_days=900.0)
+    wet = {**dry, "evt_hours_24h": 4.0, "evt_hours_168h": 6.0, "evt_hours_since_last": 3.0}
     plugin = FloodRisk()
-    assert plugin.predict(blinking) > plugin.predict(calm)
+    assert plugin.predict(wet) > plugin.predict(dry)
+
+
+def test_a_pump_working_harder_than_usual_raises_the_risk(model: Any) -> None:
+    """Насос откачивает больше обычного значит вода идёт.
+
+    Мигание насоса само по себе модель ADR 0012 почти не читает: после того
+    как проверки ушли из метки, у мигания не осталось своего сигнала (ADR 0013).
+    Насосный сигнал модели это рост работы насоса.
+    """
+    calm = _vector(model, unit_pumps=2.0, evt_hours_since_last=2000.0, unit_age_days=900.0)
+    pumping = {**calm, "pump_on_growth_24_720": 5.0, "pump_on_share_24h": 0.5}
+    plugin = FloodRisk()
+    assert plugin.predict(pumping) > plugin.predict(calm)
 
 
 @pytest.mark.parametrize(
@@ -124,6 +151,52 @@ def test_the_bands_equal_the_measured_levels() -> None:
     assert float(decision["threshold"]) == pytest.approx(bands["HIGH"])
     assert level_for(bands["HIGH"], directions.FLOOD_RISK) == "HIGH"
     assert level_for(bands["HIGH"] - 1e-6, directions.FLOOD_RISK) == "MEDIUM"
+    assert decision["alert_budget"]["window_days"] == flood_risk.BUDGET_WINDOW_DAYS
+
+
+def test_the_published_point_beats_the_naive_rule() -> None:
+    """Рабочая точка это скользящий бюджет, и она выше правила по обеим мерам."""
+    path = ARTIFACTS / "metrics.json"
+    if not path.exists():
+        pytest.skip("замера модели подтопления нет в artifacts/flood_risk")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    chosen, targets = payload["decision"]["chosen"], payload["targets"]
+    assert payload["decision"]["outcome"] == "rolling_budget"
+    assert chosen["cell_precision"] > targets["precision"]
+    assert chosen["cell_recall"] > targets["recall"]
+
+
+# --- скользящий бюджет тревог ---
+
+STATIC = directions.FLOOD_RISK.level_thresholds
+
+
+def test_the_budget_takes_as_many_alerts_as_the_naive_rule() -> None:
+    history = [(0.9, 0.0), (0.5, 2.0), (0.2, 0.0), (0.1, 1.0)]
+    fresh = [(0.4, 0.0), (0.05, 0.0)]
+    bands = budget_bands(history, fresh, STATIC)
+    assert bands is not None
+    high = dict(bands)["HIGH"]
+    # Правило подняло две тревоги, значит HIGH это вторая вероятность окна.
+    assert high == 0.5
+    alerts = [
+        p
+        for p, _ in [*history, *fresh]
+        if level_for(p, directions.FLOOD_RISK, bands) in directions.FLOOD_RISK.order_levels
+    ]
+    assert len(alerts) == 2
+
+
+def test_the_budget_keeps_the_bands_ordered() -> None:
+    bands = budget_bands([(0.95, 1.0), (0.9, 1.0)], [], STATIC)
+    assert bands is not None
+    values = [bound for _, bound in bands]
+    assert values == sorted(values)
+    assert dict(bands)["CRITICAL"] >= dict(bands)["HIGH"]
+
+
+def test_no_water_for_a_month_falls_back_to_the_static_bands() -> None:
+    assert budget_bands([(0.9, 0.0)], [(0.3, 0.0)], STATIC) is None
 
 
 # --- правило метки и отбор объектов, на базе ---
@@ -185,6 +258,13 @@ def db() -> Any:
                 },
             ],
         )
+    # Классификатора нет, работает правило времени: воскресная ночь это вода,
+    # вторник днём это проверка.
+    original = flood_water.classifier
+    flood_water.classifier = lambda: None  # type: ignore[assignment]
+    with engine().begin() as conn:
+        flood_water.refresh(conn, AT + timedelta(days=4))
+    flood_water.classifier = original  # type: ignore[assignment]
     yield
     with engine().begin() as conn:
         conn.execute(delete(alarm_event))
@@ -208,7 +288,7 @@ def test_the_label_rule_repeats_the_training_label() -> None:
         assert plugin.label_rule(conn, "F-EVENTS", ahead)
         # Чужой тип тревоги подтоплением не является.
         assert not plugin.label_rule(conn, "F-DRY", ahead)
-        # Сигнал в рабочее окно это плановая проверка, а не вода (ADR 0010).
+        # Сутки с сигналом только днём в будни разметка зовёт проверкой (ADR 0012).
         workday = Window(start=AT + timedelta(days=2), end=AT + timedelta(days=3))
         assert not plugin.label_rule(conn, "F-PUMP", workday)
         # Окно открыто слева: событие ровно в момент начала окна не считается.
