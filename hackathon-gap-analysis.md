@@ -13,7 +13,7 @@
 4. Решения по спорным пунктам.
 
 План работ по этим расхождениям лежит в `backend/TODO.md`, `frontend/TODO.md`,
-`ml/TODO.md`, `ml/access/TODO.md` и `ml/flood/TODO.md`.
+`ml/TODO.md`, `ml/access/TODO.md`, `ml/flood/TODO.md` и `ml/fire/TODO.md`.
 
 **Правка от 16 сентября.** QA-сессия закрыла восемь вопросов и отменила часть
 прежних выводов. Заказчик обновил справочник каналов и добавил в него поле
