@@ -1,0 +1,18 @@
+{
+  "sections": 892,
+  "units": 400,
+  "channels": 1792,
+  "alarm_hours_all": 103178,
+  "alarm_hours_armed": 13435,
+  "moments": 255058,
+  "moments_armed_not_event": 151,
+  "moments_off_guard_pct": 68.133,
+  "disarm_windows": 78096,
+  "guard_unknown_periods": 929,
+  "time_off_guard_pct": 19.381,
+  "chains": 3494,
+  "period": [
+    "2019-01-01 01:00:00",
+    "2026-06-30 22:00:00"
+  ]
+}

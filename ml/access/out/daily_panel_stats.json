@@ -1,11 +1,9 @@
 {
-  "rows": 2456916,
-  "positives": 11179,
-  "base": 0.00455,
-  "units": 1158,
+  "rows": 811074,
+  "positives": 8270,
+  "base": 0.010196,
+  "units": 400,
   "day_from": "2019-01-01",
   "day_to": "2026-06-30",
-  "naive_share": 0.004499,
-  "near_pickets": 5,
-  "sequence_window_minutes": 15
+  "naive_share": 0.010215
 }
