@@ -101,18 +101,18 @@ set_env_line() {
 #
 # Каталог artifacts лежит в .gitignore: модель весит полтора мегабайта и в
 # истории репозитория ей не место. В git лежит результат обучения,
-# `ml/access/out/model.joblib`, и выкладка копирует его под тем именем,
+# `ml/access/out/daily_model.joblib`, и выкладка копирует его под тем именем,
 # которое ищет `app.ml.tracking`.
 publish_model() {
-    if [ ! -f "$MODEL_SOURCE/model.joblib" ]; then
-        warn "Нет $MODEL_SOURCE/model.joblib — направление доступа останется без модели."
+    if [ ! -f "$MODEL_SOURCE/daily_model.joblib" ]; then
+        warn "Нет $MODEL_SOURCE/daily_model.joblib — направление доступа останется без модели."
         return 0
     fi
 
     log "Публикую модель направления «несанкционированный доступ»"
     mkdir -p "$MODEL_TARGET"
-    cp "$MODEL_SOURCE/model.joblib" "$MODEL_TARGET/latest.joblib"
-    cp "$MODEL_SOURCE/metrics.json" "$MODEL_TARGET/metrics.json"
+    cp "$MODEL_SOURCE/daily_model.joblib" "$MODEL_TARGET/latest.joblib"
+    cp "$MODEL_SOURCE/daily_metrics.json" "$MODEL_TARGET/metrics.json"
 
     # Калибратор появляется, только когда выигрывает по счёту Брайера.
     if [ -f "$MODEL_SOURCE/calibration.joblib" ]; then

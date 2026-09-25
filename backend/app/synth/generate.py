@@ -35,9 +35,9 @@ now)`, чтобы `hours_since_last_alarm` не растил взгляд в п�
 ## Профиль риска
 
 Часть объектов размечена «рискованными» (`RISKY_SHARE`): у них выше частота
-тревог доступа и чаще встречается связка «дверь, объёмный датчик, движение»
-(`smvu-insights.md` §2, признак `has_access_sequence` в
-`app/features/access.py`). Без такого расслоения модель на синтетике не
+тревог доступа и чаще встречается связка «контакт входа, затем движение»
+(ответ 2.8, правило события в `app/features/access.py`). Без такого
+расслоения модель на синтетике не
 увидела бы разницы между объектом и не о чем было бы объяснять через SHAP.
 """
 
@@ -188,7 +188,7 @@ def _access_alarms(
         if cursor >= end:
             break
         if is_risky and rng.random() < 0.4:
-            # Связка «дверь, объёмный датчик, движение» в коротком окне.
+            # Связка «контакт входа, затем движение» в коротком окне.
             events.append(
                 {
                     "sensor_id": sensor_ids["DOOR_OPEN"],
@@ -197,17 +197,7 @@ def _access_alarms(
                     "alarm_type": "DOOR_OPEN",
                 }
             )
-            step = timedelta(minutes=rng.uniform(1, SEQUENCE_GAP_MINUTES))
-            cursor += step
-            events.append(
-                {
-                    "sensor_id": sensor_ids["VOLUMETRIC"],
-                    "facility_id": facility_id,
-                    "occurred_at": cursor,
-                    "alarm_type": "VOLUMETRIC",
-                }
-            )
-            cursor += step
+            cursor += timedelta(minutes=rng.uniform(1, SEQUENCE_GAP_MINUTES))
             events.append(
                 {
                     "sensor_id": sensor_ids["MOTION"],
@@ -239,7 +229,6 @@ def _alarm_event_rows(
         is_risky = rng.random() < RISKY_SHARE
         sensor_ids = {
             "DOOR_OPEN": f"{facility_id}-DOOR",
-            "VOLUMETRIC": f"{facility_id}-VOL",
             "MOTION": f"{facility_id}-MOTION",
         }
         security_sensor_id = f"{facility_id}-SECURITY"
@@ -281,9 +270,7 @@ def generate(
         )
     if event_rows:
         conn.execute(
-            pg_insert(alarm_event).on_conflict_do_nothing(
-                index_elements=["id", "occurred_at"]
-            ),
+            pg_insert(alarm_event).on_conflict_do_nothing(index_elements=["id", "occurred_at"]),
             event_rows,
         )
 

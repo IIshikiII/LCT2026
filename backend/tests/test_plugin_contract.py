@@ -33,7 +33,7 @@ FACILITY_ID = "F-CONTRACT-TEST"
 
 
 # Имена признаков, устойчивость которых уже закреплена буква в букву с
-# `ml/access/features.py::FEATURE_COLUMNS` (докстринг `app/features/access.py`).
+# `ml/access/panel.py` (докстринг `app/features/access_daily.py`).
 # Направление без записи здесь проверяется только на структуру словаря: тип
 # ключей и значений, а не конкретный набор имён.
 def _known_names(code: str) -> frozenset[str] | None:

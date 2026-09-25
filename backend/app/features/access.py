@@ -1,387 +1,148 @@
-"""Признаки направления «несанкционированный доступ» поверх `alarm_event`.
+"""Словарь событий направления «несанкционированный доступ» и правило события.
 
-Имена и порядок признаков берутся из `ml/access/features.py::FEATURE_COLUMNS`
-буква в букву: обучение и инференс обязаны видеть один и тот же вход.
+Правило повторяет `ml/access/data.py`. Признаки поверх него считает
+`app/features/access_daily.py`.
 
-## Словарь событий
+## Единица
 
-`ml/access` считает признаки по сырой выгрузке СМВУ, где тип датчика и его
-значение приходят отдельными полями (`stype`, `value`). Таблица `alarm_event`
-такого разделения не держит: у неё одно поле `alarm_type` на строку. Приёмник
-выгрузки (`app/pipeline`, задача T17/T18) ещё не написан, значит словарь
-`alarm_type` для направления доступа никто не закрепил. Эта задача закрепляет
-его сама, а не ждёт отдельного решения: закрепить его отдельно негде, кроме
-как в точке, которая первой читает поле.
+Единица прогноза это участок хода вокруг узла входа: аварийного выхода, люка,
+вентшахты или входной двери. Участков 400 (ADR 0001, правка от 25 сентября).
+В схеме участок это строка `facility`, а объект, на котором он лежит, это
+`facility.collector`. Признаки вида `obj_*` считаются по всем участкам того же
+объекта.
 
-`alarm_type` для доступа принимает пять значений:
+## Словарь `alarm_type`
 
-- `DOOR_OPEN` — дверной или люковый контакт разомкнут. Соответствует каналам
-  `КД Дверь`, `КД Люк`, `КД АВ` со значением «Не замкнут» в сырой выгрузке.
-- `VOLUMETRIC` — сработал объёмный датчик. Соответствует каналу
-  `Состояние УИР-Р`.
-- `MOTION` — сработал датчик движения. Соответствует каналу `Датчик движения`
-  со значением «Обнаружено движение».
-- `SECURITY_ARMED` — участок поставлен на охрану.
-- `SECURITY_DISARMED` — участок снят с охраны.
+- `DOOR_OPEN` — контакт входа или датчик стекла: «Не замкнут» на каналах
+  `КД АВ`, `КД Дверь`, `КД Люк`, `9-секционный люк`, `Стекло`.
+- `MOTION` — «Обнаружено движение» на канале `Датчик движения`.
+- `SECURITY_ARMED` и `SECURITY_DISARMED` — смена режима охраны. Режим это
+  свойство объекта, поэтому приёмник пишет смену режима на каждый участок
+  объекта.
 
-`DOOR_OPEN`, `VOLUMETRIC`, `MOTION` считаются тревогой доступа
-(`ACCESS_ALARM_TYPES`). `SECURITY_ARMED` и `SECURITY_DISARMED` тревогой не
-являются: это переключение режима, а не событие на датчике, и в `n_alarms_*`
-не входит. Приёмник выгрузки и генератор синтетики (`app/synth`) обязаны
-писать `alarm_event.alarm_type` этими же пятью значениями, иначе признаки
-посчитаются нулями молча.
+Тревога доступа это `DOOR_OPEN` или `MOTION` (`ACCESS_ALARM_TYPES`).
+`VOLUMETRIC` в доступ больше не входит. Это рычаг переговорного устройства
+УИР-Р, то есть разговор с диспетчером, а не проход (ADR 0001).
 
-## Единица признака и граница задачи
+Датчик участка лежит в таблице `sensor`. Контактный датчик несёт
+`sensor_type = 'CONTACT'`. Правило события читает только их число.
 
-Единица обучения в `ml/access` — тройка «объект, галерея, пикет», 3 947 штук
-(`hackathon-gap-analysis.md` §A2). Схема `backend` не хранит галерею и пикет
-отдельными полями: `facility.id` уже и есть эта единица, а соседних пикетов
-через `FeatureContext` не достать — таблицы соседства нет.
+## Момент, инцидент, событие
 
-Отсюда два признака ml-версии сужены до границ одной `facility_id`, а не
-окна в `NEAR_PICKETS` пикетов вдоль трассы:
+1. Момент это пара «датчик и отметка времени». Пачка строк в одну секунду весит
+   как один момент.
+2. Инцидент это моменты участка вне окон «Снято с охраны», между которыми
+   прошло не больше `INCIDENT_GAP_MINUTES` минут.
+3. Инцидент является событием, если выполнено одно из условий: в нём есть
+   контакт, сработали два и больше датчиков движения, или участок держат
+   меньше `TRUSTED_CONTACTS` контактных датчиков.
 
-- `neighbor_channels_1h` в `ml/access` уже считает каналы внутри одного пикета
-  (см. docstring `ml/access/features.py`), поэтому граница не меняет смысл.
-- `has_access_sequence` в `ml/access` ищет цепочку «дверь → объёмный датчик →
-  движение» в радиусе `NEAR_PICKETS` пикетов. Здесь цепочка ищется только на
-  той же `facility_id`. Это сужение, а не то же самое число: соседний пикет
-  сюда не попадёт. Записано как документированное решение, не как измерение.
+Условие `data.py` «датчик движения не дальше 6 пикетов от входа» здесь не
+проверяется: схема не держит пикет датчика. Правило поэтому строже обучения:
+одиночное движение у входа на участке с двумя контактами событием не станет.
 
-Цепочка длится не дольше `SEQUENCE_WINDOW_MINUTES` минут, а видна точке
-расчёта `SEQUENCE_RECENCY_HOURS` часов. Оба числа повторяют
-`ml/access/features.py`. Задача T35 развела их: до неё срок видимости тоже
-равнялся пятнадцати минутам, и признак был нулём почти везде.
+Окно «Снято с охраны» без закрытия длится до конца отрезка расчёта.
 
-Каждый запрос читает `occurred_at < at`, никогда `<= at`: признак не имеет
-права видеть момент расчёта и позже.
+Приёмник не пишет тревоги из тех отрезков, которые `data.py` вычёркивает до
+правила: объект 5343 за 2020 и 2021 годы, первые 270 суток объекта и первые 30
+суток канала. Правило события их поэтому не проверяет.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
 
-from sqlalchemy import text
-from sqlalchemy.engine import Connection
-
-from app.features import registry
-from app.ml.protocol import FeatureContext, FeatureVector
-
-ACCESS_ALARM_TYPES = ("DOOR_OPEN", "VOLUMETRIC", "MOTION")
+CONTACT = "DOOR_OPEN"
+MOTION = "MOTION"
+ACCESS_ALARM_TYPES = (CONTACT, MOTION)
 SECURITY_ARMED = "SECURITY_ARMED"
 SECURITY_DISARMED = "SECURITY_DISARMED"
-SEQUENCE_WINDOW_MINUTES = 15
-SEQUENCE_RECENCY_HOURS = 24
-NIGHT_START_HOUR = 22
-NIGHT_END_HOUR = 6
+CONTACT_SENSOR_TYPE = "CONTACT"
+
+INCIDENT_GAP_MINUTES = 30
+TRUSTED_CONTACTS = 2
 
 
-def _facility_first_seen(conn: Connection, facility_id: str, at: datetime) -> datetime:
-    """Момент первой известной записи по объекту до `at`.
+def event_ctes(scope: str) -> str:
+    """Отдаёт CTE `access_moment` и `event_moment` для запроса `WITH`.
 
-    Заменяет `hour_from` из `ml/access/out/access_units.parquet`: отдельной
-    таблицы границ жизни единицы в схеме `backend` нет, а `hours_since_*`
-    признакам нужно какое-то конечное число для единицы без истории тревог.
-    Объект без единой записи в `alarm_event` получает в ответ `at`, то есть
-    `hours_since_*` для него равен 0 — это отличается от `ml/access`, где
-    единица без пикета в выборку вообще не попадает.
+    `scope` это условие на строку `alarm_event e`: один участок, объект или
+    вся сеть. Отрезок задают параметры `:ev_start` и `:ev_end`, их даёт
+    `event_params`. Смена режима читается без левой границы: окно снятия могло
+    открыться раньше отрезка.
     """
-    row = conn.execute(
-        text(
-            "SELECT min(occurred_at) FROM alarm_event "
-            "WHERE facility_id = :facility_id AND occurred_at < :at"
-        ),
-        {"facility_id": facility_id, "at": at},
-    ).fetchone()
-    return row[0] if row and row[0] is not None else at
-
-
-def _is_disarmed(conn: Connection, facility_id: str, at: datetime) -> bool:
-    row = conn.execute(
-        text(
-            "SELECT alarm_type FROM alarm_event "
-            "WHERE facility_id = :facility_id AND occurred_at < :at "
-            "AND alarm_type IN (:armed, :disarmed) "
-            "ORDER BY occurred_at DESC LIMIT 1"
-        ),
-        {
-            "facility_id": facility_id,
-            "at": at,
-            "armed": SECURITY_ARMED,
-            "disarmed": SECURITY_DISARMED,
-        },
-    ).fetchone()
-    return row is not None and row[0] == SECURITY_DISARMED
-
-
-def _n_access_alarms(conn: Connection, facility_id: str, at: datetime, hours: int) -> int:
-    row = conn.execute(
-        text(
-            "SELECT count(*) FROM alarm_event "
-            "WHERE facility_id = :facility_id AND alarm_type = ANY(:types) "
-            "AND occurred_at >= :start AND occurred_at < :at"
-        ),
-        {
-            "facility_id": facility_id,
-            "types": list(ACCESS_ALARM_TYPES),
-            "start": at - timedelta(hours=hours),
-            "at": at,
-        },
-    ).fetchone()
-    return int(row[0]) if row else 0
-
-
-def _hours_since_last_access_alarm(conn: Connection, facility_id: str, at: datetime) -> int:
-    row = conn.execute(
-        text(
-            "SELECT max(occurred_at) FROM alarm_event "
-            "WHERE facility_id = :facility_id AND alarm_type = ANY(:types) "
-            "AND occurred_at < :at"
-        ),
-        {"facility_id": facility_id, "types": list(ACCESS_ALARM_TYPES), "at": at},
-    ).fetchone()
-    last = row[0] if row and row[0] is not None else _facility_first_seen(conn, facility_id, at)
-    return int((at - last).total_seconds() // 3600)
-
-
-def _alarm_hour_share_720h(conn: Connection, facility_id: str, at: datetime) -> float:
-    row = conn.execute(
-        text(
-            "SELECT count(DISTINCT date_trunc('hour', occurred_at)) FROM alarm_event "
-            "WHERE facility_id = :facility_id AND alarm_type = ANY(:types) "
-            "AND occurred_at >= :start AND occurred_at < :at"
-        ),
-        {
-            "facility_id": facility_id,
-            "types": list(ACCESS_ALARM_TYPES),
-            "start": at - timedelta(hours=720),
-            "at": at,
-        },
-    ).fetchone()
-    hours = int(row[0]) if row else 0
-    return hours / 720.0
-
-
-def _night_share(conn: Connection, facility_id: str, at: datetime) -> float:
-    row = conn.execute(
-        text(
-            "SELECT "
-            "count(*) FILTER ("
-            "WHERE extract(hour FROM occurred_at) >= :night_start "
-            "OR extract(hour FROM occurred_at) < :night_end"
-            "), "
-            "count(*) "
-            "FROM alarm_event "
-            "WHERE facility_id = :facility_id AND alarm_type = ANY(:types) "
-            "AND occurred_at < :at"
-        ),
-        {
-            "facility_id": facility_id,
-            "types": list(ACCESS_ALARM_TYPES),
-            "at": at,
-            "night_start": NIGHT_START_HOUR,
-            "night_end": NIGHT_END_HOUR,
-        },
-    ).fetchone()
-    night = int(row[0]) if row and row[0] is not None else 0
-    total = int(row[1]) if row and row[1] is not None else 0
-    return night / total if total else 0.0
-
-
-def _neighbor_channels_1h(conn: Connection, facility_id: str, at: datetime) -> int:
-    row = conn.execute(
-        text(
-            "SELECT count(DISTINCT sensor_id) FROM alarm_event "
-            "WHERE facility_id = :facility_id AND alarm_type = ANY(:types) "
-            "AND occurred_at >= :start AND occurred_at < :at"
-        ),
-        {
-            "facility_id": facility_id,
-            "types": list(ACCESS_ALARM_TYPES),
-            "start": at - timedelta(hours=1),
-            "at": at,
-        },
-    ).fetchone()
-    return int(row[0]) if row else 0
-
-
-def _has_access_sequence(conn: Connection, facility_id: str, at: datetime) -> bool:
-    row = conn.execute(
-        text(
-            """
-            WITH door AS (
-                SELECT occurred_at AS ts FROM alarm_event
-                WHERE facility_id = :facility_id AND alarm_type = 'DOOR_OPEN'
-                  AND occurred_at < :at
-            ),
-            vol AS (
-                SELECT d.ts AS door_ts, min(v.occurred_at) AS vol_ts
-                FROM door d
-                JOIN alarm_event v
-                  ON v.facility_id = :facility_id AND v.alarm_type = 'VOLUMETRIC'
-                  AND v.occurred_at > d.ts
-                  AND v.occurred_at <= d.ts + make_interval(mins => :window_minutes)
-                GROUP BY d.ts
-            ),
-            chain AS (
-                SELECT v.door_ts, min(m.occurred_at) AS completed_ts
-                FROM vol v
-                JOIN alarm_event m
-                  ON m.facility_id = :facility_id AND m.alarm_type = 'MOTION'
-                  AND m.occurred_at > v.vol_ts
-                  AND m.occurred_at <= v.door_ts + make_interval(mins => :window_minutes)
-                GROUP BY v.door_ts
-            )
-            SELECT 1 FROM chain
-            WHERE completed_ts < :at
-              AND completed_ts >= :at - make_interval(hours => :recency_hours)
-            LIMIT 1
-            """
-        ),
-        {
-            "facility_id": facility_id,
-            "at": at,
-            "window_minutes": SEQUENCE_WINDOW_MINUTES,
-            "recency_hours": SEQUENCE_RECENCY_HOURS,
-        },
-    ).fetchone()
-    return row is not None
-
-
-def _n_armed_alarms(conn: Connection, facility_id: str, at: datetime, hours: int) -> int:
-    row = conn.execute(
-        text(
-            """
-            WITH toggle AS (
-                SELECT occurred_at AS ts, alarm_type,
-                       lead(occurred_at) OVER (ORDER BY occurred_at) AS next_ts
-                FROM alarm_event
-                WHERE facility_id = :facility_id
-                  AND alarm_type IN (:armed, :disarmed)
-                  AND occurred_at < :at
-            ),
-            window_ AS (
-                SELECT ts AS win_start, coalesce(next_ts, :at) AS win_end
-                FROM toggle
-                WHERE alarm_type = :disarmed
-            )
-            SELECT count(*) FROM alarm_event a
-            WHERE a.facility_id = :facility_id AND a.alarm_type = ANY(:types)
-              AND a.occurred_at >= :start AND a.occurred_at < :at
-              AND NOT EXISTS (
-                  SELECT 1 FROM window_ w
-                  WHERE a.occurred_at >= w.win_start AND a.occurred_at < w.win_end
-              )
-            """
-        ),
-        {
-            "facility_id": facility_id,
-            "types": list(ACCESS_ALARM_TYPES),
-            "armed": SECURITY_ARMED,
-            "disarmed": SECURITY_DISARMED,
-            "start": at - timedelta(hours=hours),
-            "at": at,
-        },
-    ).fetchone()
-    return int(row[0]) if row else 0
-
-
-def _hours_since_last_armed_alarm(conn: Connection, facility_id: str, at: datetime) -> int:
-    row = conn.execute(
-        text(
-            """
-            WITH toggle AS (
-                SELECT occurred_at AS ts, alarm_type,
-                       lead(occurred_at) OVER (ORDER BY occurred_at) AS next_ts
-                FROM alarm_event
-                WHERE facility_id = :facility_id
-                  AND alarm_type IN (:armed, :disarmed)
-                  AND occurred_at < :at
-            ),
-            window_ AS (
-                SELECT ts AS win_start, coalesce(next_ts, :at) AS win_end
-                FROM toggle
-                WHERE alarm_type = :disarmed
-            )
-            SELECT max(a.occurred_at) FROM alarm_event a
-            WHERE a.facility_id = :facility_id AND a.alarm_type = ANY(:types)
-              AND a.occurred_at < :at
-              AND NOT EXISTS (
-                  SELECT 1 FROM window_ w
-                  WHERE a.occurred_at >= w.win_start AND a.occurred_at < w.win_end
-              )
-            """
-        ),
-        {
-            "facility_id": facility_id,
-            "types": list(ACCESS_ALARM_TYPES),
-            "armed": SECURITY_ARMED,
-            "disarmed": SECURITY_DISARMED,
-            "at": at,
-        },
-    ).fetchone()
-    last = row[0] if row and row[0] is not None else None
-    if last is None:
-        last = _facility_first_seen(conn, facility_id, at)
-    return int((at - last).total_seconds() // 3600)
-
-
-HOURLY_BUILDERS: dict[str, registry.Builder] = {
-    "n_alarms_1h": lambda c, f, a: _n_access_alarms(c, f, a, 1),
-    "n_alarms_24h": lambda c, f, a: _n_access_alarms(c, f, a, 24),
-    "n_alarms_168h": lambda c, f, a: _n_access_alarms(c, f, a, 168),
-    "n_alarms_720h": lambda c, f, a: _n_access_alarms(c, f, a, 720),
-    "alarm_hour_share_720h": _alarm_hour_share_720h,
-    "hours_since_last_alarm": _hours_since_last_access_alarm,
-    "night_share": _night_share,
-    "hour_of_day": lambda _c, _f, a: a.hour,
-    "month": lambda _c, _f, a: a.month,
-    "is_weekend": lambda _c, _f, a: 1 if (a.weekday() + 1) % 7 in (0, 6) else 0,
-    "neighbor_channels_1h": _neighbor_channels_1h,
-    "is_disarmed": lambda c, f, a: int(_is_disarmed(c, f, a)),
-    "has_access_sequence": lambda c, f, a: int(_has_access_sequence(c, f, a)),
-    "n_armed_alarms_24h": lambda c, f, a: _n_armed_alarms(c, f, a, 24),
-    "n_armed_alarms_168h": lambda c, f, a: _n_armed_alarms(c, f, a, 168),
-    "hours_since_last_armed_alarm": _hours_since_last_armed_alarm,
-}
-
-# Признак живёт в обоих наборах и считается одинаково, поэтому объявлен один
-# раз: реестр запрещает два построителя на одно имя.
-SHARED_BUILDERS: dict[str, registry.Builder] = {
-    "day_of_week": lambda _c, _f, a: (a.weekday() + 1) % 7,
-}
-
-
-def build_features(ctx: FeatureContext) -> FeatureVector:
-    """Строит часовой набор признаков. Оставлен для прямых вызовов и тестов.
-
-    Конвейер этой функцией не пользуется: он спрашивает у модели её список
-    признаков и берёт их из реестра `app.features.registry`.
+    return f"""
+    guard AS (
+        SELECT e.facility_id, e.occurred_at AS ts, e.alarm_type,
+               lag(e.alarm_type) OVER (
+                   PARTITION BY e.facility_id ORDER BY e.occurred_at, e.alarm_type
+               ) AS prev
+        FROM alarm_event e
+        WHERE {scope} AND e.alarm_type IN (:armed, :disarmed) AND e.occurred_at < :ev_end
+    ),
+    guard_step AS (
+        SELECT facility_id, ts, alarm_type,
+               lead(ts) OVER (PARTITION BY facility_id ORDER BY ts) AS next_ts
+        FROM guard WHERE prev IS NULL OR prev <> alarm_type
+    ),
+    disarm_window AS (
+        SELECT facility_id, ts AS t_from, coalesce(next_ts, 'infinity') AS t_to
+        FROM guard_step WHERE alarm_type = :disarmed
+    ),
+    access_moment AS (
+        SELECT DISTINCT e.facility_id, e.sensor_id, e.occurred_at AS ts, e.alarm_type AS kind
+        FROM alarm_event e
+        WHERE {scope} AND e.alarm_type IN (:contact, :motion)
+          AND e.occurred_at >= :ev_start AND e.occurred_at < :ev_end
+    ),
+    armed_moment AS (
+        SELECT m.*,
+               CASE WHEN m.ts - lag(m.ts) OVER w <= make_interval(mins => :gap)
+                    THEN 0 ELSE 1 END AS is_new
+        FROM access_moment m
+        WHERE NOT EXISTS (
+            SELECT 1 FROM disarm_window d
+            WHERE d.facility_id = m.facility_id AND m.ts >= d.t_from AND m.ts < d.t_to
+        )
+        WINDOW w AS (PARTITION BY m.facility_id ORDER BY m.ts, m.sensor_id)
+    ),
+    incident AS (
+        SELECT *, sum(is_new) OVER (
+            PARTITION BY facility_id ORDER BY ts, sensor_id ROWS UNBOUNDED PRECEDING
+        ) AS incident_no
+        FROM armed_moment
+    ),
+    contacts AS (
+        SELECT facility_id, count(*) AS n_contact FROM sensor
+        WHERE sensor_type = :contact_sensor AND is_active GROUP BY facility_id
+    ),
+    valid_incident AS (
+        SELECT i.facility_id, i.incident_no
+        FROM incident i LEFT JOIN contacts c USING (facility_id)
+        GROUP BY i.facility_id, i.incident_no
+        HAVING bool_or(i.kind = :contact)
+            OR count(DISTINCT i.sensor_id) FILTER (WHERE i.kind = :motion) >= 2
+            OR coalesce(max(c.n_contact), 0) < :trusted
+    ),
+    event_moment AS (
+        SELECT i.facility_id, i.sensor_id, i.ts
+        FROM incident i
+        JOIN valid_incident v USING (facility_id, incident_no)
+    )
     """
-    conn = ctx.conn
-    facility_id = ctx.facility_id
-    at = ctx.at
 
+
+def event_params(start: datetime, end: datetime) -> dict[str, Any]:
+    """Параметры к `event_ctes`: отрезок `[start, end)` и словарь правила."""
     return {
-        "n_alarms_1h": float(_n_access_alarms(conn, facility_id, at, 1)),
-        "n_alarms_24h": float(_n_access_alarms(conn, facility_id, at, 24)),
-        "n_alarms_168h": float(_n_access_alarms(conn, facility_id, at, 168)),
-        "n_alarms_720h": float(_n_access_alarms(conn, facility_id, at, 720)),
-        "alarm_hour_share_720h": _alarm_hour_share_720h(conn, facility_id, at),
-        "hours_since_last_alarm": float(
-            _hours_since_last_access_alarm(conn, facility_id, at)
-        ),
-        "night_share": _night_share(conn, facility_id, at),
-        "hour_of_day": float(at.hour),
-        "day_of_week": float((at.weekday() + 1) % 7),
-        "month": float(at.month),
-        "is_weekend": float(1 if (at.weekday() + 1) % 7 in (0, 6) else 0),
-        "neighbor_channels_1h": float(_neighbor_channels_1h(conn, facility_id, at)),
-        "is_disarmed": float(_is_disarmed(conn, facility_id, at)),
-        "has_access_sequence": float(_has_access_sequence(conn, facility_id, at)),
-        "n_armed_alarms_24h": float(_n_armed_alarms(conn, facility_id, at, 24)),
-        "n_armed_alarms_168h": float(_n_armed_alarms(conn, facility_id, at, 168)),
-        "hours_since_last_armed_alarm": float(
-            _hours_since_last_armed_alarm(conn, facility_id, at)
-        ),
+        "ev_start": start,
+        "ev_end": end,
+        "armed": SECURITY_ARMED,
+        "disarmed": SECURITY_DISARMED,
+        "contact": CONTACT,
+        "motion": MOTION,
+        "contact_sensor": CONTACT_SENSOR_TYPE,
+        "gap": INCIDENT_GAP_MINUTES,
+        "trusted": TRUSTED_CONTACTS,
     }

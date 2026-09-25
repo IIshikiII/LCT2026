@@ -125,8 +125,9 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
 машине надо положить рядом с моделью два файла и выполнить команду.
 
 ```
-cp ../ml/access/out/model.joblib artifacts/unauthorized_access/latest.joblib
-cp ../ml/access/out/metrics.json artifacts/unauthorized_access/metrics.json
+mkdir -p artifacts/unauthorized_access
+cp ../ml/access/out/daily_model.joblib artifacts/unauthorized_access/latest.joblib
+cp ../ml/access/out/daily_metrics.json artifacts/unauthorized_access/metrics.json
 docker compose run --rm pipeline uv run --no-sync python -m app.cli publish-metrics
 ```
 
