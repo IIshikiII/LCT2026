@@ -1,521 +1,285 @@
-"""Обучает LightGBM направления «несанкционированный доступ» на обучающей
-панели `out/access_features.parquet` и меряет качество на отложенной выборке.
-Пишет модель в `out/model.txt` и замер в `out/metrics.json`.
+"""Отбирает признаки на скользящей проверке, обучает итоговую модель и меряет её
+на отложенной выборке.
 
-Три решения этого скрипта.
+Проверка: шесть полугодий с 2023 по 2025 год, модуль `cv.py`. Отбор идёт так:
 
-## Вес отрицательной клетки
+1. Обучить модель на всех признаках на каждом отрезке.
+2. Отсортировать признаки по средней доле `gain` на отрезках.
+3. Обучить модели на первых k признаках, k из `LADDER`, на каждом отрезке.
+4. Взять наименьшее k, чей средний PR-AUC не ниже лучшего минус одна
+   стандартная ошибка.
 
-Панель прорежена: `features.py` держит все положительные клетки и долю
-`NEGATIVE_KEEP_RATE` отрицательных (ADR 0001, раздел «Что из этого следует»).
-Точность, посчитанная на панели как есть, завышена примерно в 50 раз: модель
-видит одну отрицательную клетку вместо пятидесяти.
+Итоговая модель учится на всей истории до 2026 года. Отложенная выборка,
+первое полугодие 2026 года, даёт только итоговый замер:
 
-Поэтому каждая отрицательная клетка получает вес, а каждая положительная —
-единицу. Вес считается по каждому отрезку времени отдельно:
+- сравнение с наивной планкой при равной полноте и при равном числе тревог;
+- тот же замер отдельно по давности прошлой тревоги на единице;
+- точность и полнота при заданном числе тревог в сутки.
 
-    вес = (клеток на отрезке − положительных) / отрицательных в панели
+Прогноз на сутки T строится на 00:00 суток T − 1, за 24 часа до их начала.
 
-Число клеток берётся из границ жизни единиц `out/access_units.parquet`, а не из
-панели: панель отрицательных клеток целиком не держит. Вес идёт и в обучение, и
-в замер. В обучении он возвращает модели настоящую базу 0,558 %, поэтому
-вероятность на выходе не требует отдельной калибровки. В замере он даёт
-точность и полноту такими, какими их увидит диспетчер на полной сетке.
+Наивная планка: событие было на участке в последние известные сутки, то есть в
+сутки T − 2.
 
-Доля прореживания задана как 2 %, но настоящий вес получается чуть иным: жребий
-отрицательных клеток идёт с повторениями, и совпадения схлопываются. Поэтому
-вес считается из чисел, а не берётся как 1/0,02.
+Результат: `out/daily_model.txt`, `out/daily_model.joblib`,
+`out/daily_metrics.json`, `out/daily_selected.json`.
 
-Схема весов проверена прямым счётом по полной сетке на отложенной выборке.
-Полная сетка даёт 4 796 328 клеток, базу 0,944 % и наивную планку 11,220 %
-точности при полноте 10,820 %. Взвешенная панель даёт то же число клеток, ту же
-базу и планку 11,32 % при полноте 10,82 %. Расхождение точности в 0,1 процентного
-пункта это шум жребия отрицательных клеток.
+Запуск из корня репозитория:
 
-## Разбиение по времени
-
-Три отрезка, границы по календарю:
-
-| Отрезок | Период | Для чего |
-|---|---|---|
-| обучение | до 2025-07-01 | подбор деревьев |
-| проверка | 2025-07-01 … 2026-01-01 | ранняя остановка |
-| отложенная выборка | с 2026-01-01 | замер качества |
-
-Отложенная выборка это последние шесть месяцев выгрузки. Она держит самый
-свежий режим работы коллекторов, а модель в эксплуатации будет работать именно
-с ним. Плотность событий по годам меняется в четыре раза (доля положительных
-клеток панели: 42 % в 2019 году, 9 % в 2023, 32 % в 2026), поэтому случайное
-разбиение дало бы модели заглянуть в будущее через соседние часы одной единицы.
-
-Точка обучения выбывает, когда её окно метки перешагивает границу отрезка:
-метка смотрит на 24 часа вперёд, и без этого отступа обучение получило бы
-ответы из проверочного отрезка. Отступ снимает 24 часа перед каждой границей.
-
-## Наивная планка на той же выборке
-
-Планка это правило «тревога была в прошлом окне такой же длины»: прогноз равен
-единице, когда у единицы есть момент тревоги метки в окне `(at − 24 ч, at]`.
-Правило повторяет замер ADR 0001 (19,982 % точности на всей выгрузке), но
-считается на отложенной выборке и с теми же весами, что и модель. Сравнивать
-модель с числом из ADR нельзя: там другой период и другая база.
-
-Планка берёт тревоги из `out/access_hourly_armed.parquet`, то есть из того же
-источника, что метка. Признак `n_alarms_24h` для этого не годится: он считает
-все тревоги, включая тревоги внутри окон «Снято с охраны».
-
-Модель обязана бить планку, иначе она не нужна: правило «тревога была вчера»
-диспетчер напишет без модели. Замер `test.beats_naive` отвечает на этот вопрос
-одним значением. Сравнение идёт на равной полноте: модель ставят на порог, где
-её полнота догоняет планку, и смотрят на точность.
-
-## SHAP
-
-`shap.TreeExplainer` считает вклад каждого признака на отложенной выборке в
-шкале логита, той же шкале, где живёт `raw_score` LightGBM: вероятность после
-сигмоиды вклады не сохраняет. Аддитивность проверяется на всей отложенной
-выборке, а не на выборке из неё: подсчёт занимает доли секунды при пяти —
-двенадцати деревьях модели, экономить не на чем, а проверка на подмножестве
-может пропустить строку, где числа не сошлись.
-
-Фоновое значение — это `explainer.expected_value`, логит, который дало бы
-дерево без единого признака. Диспетчерский слой прибавляет к нему вклады
-SHAP, поэтому значение сохраняется рядом с моделью, в `out/shap_background.json`,
-вместе с порядком признаков: вклады без порядка бессмысленны.
-
-## Артефакт для бэкенда
-
-`backend/app/ml/tracking.py` хранит модель направления как `joblib.dump` в
-`ARTIFACTS_DIR/<направление>/<версия>.joblib` и читает её тем же `joblib.load`
-безотносительно библиотеки. `out/model.joblib` — бустер `out/model.txt`,
-сохранённый тем же способом, тот же файл, что ляжет в реестр в T13. Круговой
-путь проверяет `test_export.py`.
+    .venv/bin/python ml/access/train.py
 """
-import datetime
+
+from __future__ import annotations
+
 import json
 import pathlib
+import sys
 import time
 
-import duckdb
-import features
 import joblib
-import lightgbm as lgb
 import numpy as np
-import shap
-from sklearn.metrics import average_precision_score
 
-OUT = pathlib.Path(__file__).resolve().parent / "out"
-PANEL = OUT / "access_features.parquet"
-UNITS = OUT / "access_units.parquet"
-ARMED = OUT / "access_hourly_armed.parquet"
-MODEL = OUT / "model.txt"
-MODEL_JOBLIB = OUT / "model.joblib"
-METRICS = OUT / "metrics.json"
-SHAP_BACKGROUND = OUT / "shap_background.json"
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-# Допуск проверки аддитивности SHAP: сумма вкладов плюс фоновое значение
-# обязана совпасть с логитом модели с этой точностью.
-SHAP_TOLERANCE = 1e-6
+import cv  # noqa: E402
 
-# Границы отрезков. Разбор выбора — в docstring модуля.
-TRAIN_END = "2025-07-01"
-VALID_END = "2026-01-01"
-# Отступ перед границей отрезка, часы. Равен горизонту метки.
-EMBARGO_HOURS = features.HORIZON_HOURS
+MODEL = cv.OUT / "daily_model.txt"
+METRICS = cv.OUT / "daily_metrics.json"
+SELECTED = cv.OUT / "daily_selected.json"
 
-SEED = 4217
-PARAMS = {
-    "objective": "binary",
-    "metric": "average_precision",
-    "learning_rate": 0.05,
-    "num_leaves": 63,
-    "min_data_in_leaf": 200,
-    "feature_fraction": 0.9,
-    "bagging_fraction": 0.8,
-    "bagging_freq": 1,
-    "lambda_l2": 1.0,
-    "num_threads": 8,
-    "seed": SEED,
-    "deterministic": True,
-    "verbosity": -1,
-}
-NUM_ROUNDS = 600
-EARLY_STOPPING = 50
+LADDER = (10, 20, 30)
+SEEDS = (cv.SEED, 1301, 7717)
+# Число тревог в сутки для кривой рабочих точек. Ёмкость смены нам не
+# известна, её выбирает администратор.
+ALERTS_PER_DAY = (2, 5, 10, 20, 50)
+# Доли строк с наибольшей вероятностью для кривой лифта и кривой накопленного
+# улова событий.
+LIFT_SHARES = (0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5)
+# Группы по давности прошлой тревоги вне окна «Снято с охраны», сутки.
+RECENCY = (("последние известные сутки", 1, 1), ("2–7 суток", 2, 7), ("8–30 суток", 8, 30),
+           ("больше 30 суток", 31, 10**9))
 
 
-def load_panel(con: duckdb.DuckDBPyConnection) -> None:
-    """Подключает панель, границы жизни единиц и метку как представления
-    `panel_raw`, `unit` и `armed`. Добавляет колонки `split` и `naive`."""
-    con.execute(
-        f"CREATE OR REPLACE VIEW panel_raw AS "
-        f"SELECT * FROM read_parquet('{PANEL.as_posix()}')"
-    )
-    con.execute(
-        f"CREATE OR REPLACE VIEW unit AS "
-        f"SELECT * FROM read_parquet('{UNITS.as_posix()}')"
-    )
-    con.execute(
-        f"CREATE OR REPLACE VIEW armed AS "
-        f"SELECT * FROM read_parquet('{ARMED.as_posix()}')"
-    )
-    con.execute(
-        f"""
-        CREATE OR REPLACE VIEW panel AS
-        SELECT
-            p.*,
-            CASE
-                WHEN p."at" < TIMESTAMP '{TRAIN_END}' THEN 'train'
-                WHEN p."at" < TIMESTAMP '{VALID_END}' THEN 'valid'
-                ELSE 'test'
-            END AS split,
-            CASE WHEN EXISTS (
-                SELECT 1 FROM armed a
-                WHERE (a.object_id, a.gallery, a.picket)
-                    = (p.object_id, p.gallery, p.picket)
-                  AND a.hour > p."at" - INTERVAL {features.HORIZON_HOURS} HOUR
-                  AND a.hour <= p."at"
-            ) THEN 1 ELSE 0 END AS naive
-        FROM panel_raw p
-        """
-    )
+def select(panel: cv.Panel) -> dict[str, object]:
+    t = time.time()
+    full = cv.evaluate(panel, panel.columns)
+    share = np.zeros(len(panel.columns))
+    for run in full["runs"]:
+        gain = np.array([run["gain"][c] for c in panel.columns])
+        share += gain / max(gain.sum(), 1e-12)
+    share /= len(full["runs"])
+    ranked = [panel.columns[i] for i in np.argsort(-share, kind="stable")]
+    print(f"все признаки: PR-AUC {full['pr_auc_mean']:.4f} ± {full['pr_auc_se']:.4f}, "
+          f"{time.time() - t:.0f} c")
 
+    trials = {len(ranked): full}
+    for k in LADDER:
+        t = time.time()
+        trials[k] = cv.evaluate(panel, ranked[:k])
+        print(f"k={k:3d}: PR-AUC {trials[k]['pr_auc_mean']:.4f} ± "
+              f"{trials[k]['pr_auc_se']:.4f}, {time.time() - t:.0f} c")
 
-def split_cells(
-    con: duckdb.DuckDBPyConnection, t_from: str | None, t_to: str | None
-) -> int:
-    """Считает число клеток полной сетки «единица и час» на отрезке
-    `[t_from, t_to)`. Граница `None` значит открытый конец."""
-    lo = f"TIMESTAMP '{t_from}'" if t_from else "hour_from"
-    hi = f"TIMESTAMP '{t_to}'" if t_to else "hour_to + INTERVAL 1 HOUR"
-    return int(
-        con.execute(
-            f"""
-            SELECT coalesce(sum(greatest(0, date_diff(
-                'hour',
-                greatest(hour_from, {lo}),
-                least(hour_to + INTERVAL 1 HOUR, {hi})
-            ))), 0)
-            FROM unit
-            """
-        ).fetchone()[0]
-    )
-
-
-def panel_end(con: duckdb.DuckDBPyConnection) -> str:
-    """Возвращает конец выгрузки: час после последней точки панели. Служит
-    границей отступа для последнего отрезка."""
-    last = con.execute('SELECT max("at") FROM panel').fetchone()[0]
-    return (last + datetime.timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
-
-
-def fetch_split(
-    con: duckdb.DuckDBPyConnection, name: str, embargo_to: str
-) -> dict[str, object]:
-    """Забирает отрезок панели и считает вес отрицательной клетки.
-
-    `embargo_to` это граница следующего отрезка, а для последнего отрезка —
-    конец выгрузки. Точка выбывает, когда её окно метки перешагивает границу:
-    метка смотрит на 24 часа вперёд, и за границей ответа нет.
-    """
-    cut = f"AND \"at\" < TIMESTAMP '{embargo_to}' - INTERVAL {EMBARGO_HOURS} HOUR"
-    cols = ", ".join(f'"{c}"' for c in features.FEATURE_COLUMNS)
-    frame = con.execute(
-        f"""
-        SELECT {cols}, label, naive
-        FROM panel
-        WHERE split = '{name}' {cut}
-        ORDER BY object_id, gallery, picket, "at"
-        """
-    ).df()
-
-    bounds = con.execute(
-        f'SELECT min("at"), max("at") FROM panel WHERE split = \'{name}\' {cut}'
-    ).fetchone()
-
-    label = frame["label"].to_numpy()
-    n_positive = int(label.sum())
-    n_negative = int(len(label) - n_positive)
-    # Клетки берутся по тем же границам, что и точки отрезка, иначе вес
-    # отнесёт к отрезку часы, которых в нём нет.
-    cells = split_cells(
-        con,
-        bounds[0].strftime("%Y-%m-%d %H:%M:%S"),
-        (bounds[1] + datetime.timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S"),
-    )
-    weight_negative = (cells - n_positive) / n_negative
-
-    weight = np.where(label == 1, 1.0, weight_negative)
+    best = max(trials.values(), key=lambda r: r["pr_auc_mean"])
+    floor = best["pr_auc_mean"] - best["pr_auc_se"]
+    k = min(k for k, r in trials.items() if r["pr_auc_mean"] >= floor)
     return {
-        "name": name,
-        "x": frame[features.FEATURE_COLUMNS].to_numpy(dtype=np.float32),
-        "y": label,
-        "w": weight,
-        "naive": frame["naive"].to_numpy(),
-        "rows": len(label),
-        "positive_rows": n_positive,
-        "negative_rows": n_negative,
-        "cells": cells,
-        "weight_negative": weight_negative,
-        "base_pct": 100.0 * n_positive / cells,
-        "hours": (bounds[1] - bounds[0]).total_seconds() / 3600.0 + 1.0,
-        "from": bounds[0].isoformat(sep=" "),
-        "to": bounds[1].isoformat(sep=" "),
+        "ranked": ranked,
+        "gain_share": {c: round(float(share[panel.columns.index(c)]), 6) for c in ranked},
+        "selected": ranked[:k],
+        "ladder": [
+            {
+                "k": k_,
+                "pr_auc_mean": r["pr_auc_mean"],
+                "pr_auc_se": r["pr_auc_se"],
+                "precision_at_naive_recall_mean": r["precision_at_naive_recall_mean"],
+                "folds": [
+                    {"fold": x["fold"], "pr_auc": x["pr_auc"], "base": x["base"],
+                     "trees": x["trees"]}
+                    for x in r["runs"]
+                ],
+            }
+            for k_, r in sorted(trials.items())
+        ],
     }
 
 
-def weighted_scores(
-    y: np.ndarray, w: np.ndarray, prediction: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Строит взвешенную PR-кривую по порогам. Возвращает порог, точность,
-    полноту и число взвешенных тревог для каждого уникального значения
-    вероятности.
-
-    Точки с одинаковой вероятностью режутся вместе: порог их не различает,
-    и резать группу посередине значит завысить точность.
-    """
-    order = np.argsort(-prediction, kind="stable")
-    p_sorted = prediction[order]
-    tp = np.cumsum(w[order] * (y[order] == 1))
-    fp = np.cumsum(w[order] * (y[order] == 0))
-    # Последний индекс каждой группы равных вероятностей.
-    ends = np.flatnonzero(np.diff(p_sorted)) if len(p_sorted) > 1 else np.array([])
-    ends = np.append(ends, len(p_sorted) - 1).astype(np.int64)
-    tp, fp, threshold = tp[ends], fp[ends], p_sorted[ends]
-    alerts = tp + fp
-    return threshold, tp / alerts, tp / tp[-1], alerts
+def by_recency(test: cv.Panel, p: np.ndarray, threshold: float) -> list[dict]:
+    rows = []
+    for name, lo, hi in RECENCY:
+        mask = (test.since_armed >= lo) & (test.since_armed <= hi)
+        y, flag = test.y[mask], (p[mask] >= threshold).astype(np.int8)
+        rows.append({
+            "group": name,
+            "rows": int(mask.sum()),
+            "events": int(y.sum()),
+            "model": cv.rule_point(y, flag),
+            "naive": cv.rule_point(y, test.naive[mask] == 1),
+        })
+    return rows
 
 
-def point(
-    threshold: float,
-    y: np.ndarray,
-    w: np.ndarray,
-    prediction: np.ndarray,
-) -> dict[str, float]:
-    """Меряет точность, полноту и поток тревог одного порога."""
-    flag = prediction >= threshold
-    tp = float(w[flag & (y == 1)].sum())
-    fp = float(w[flag & (y == 0)].sum())
-    positive = float(w[y == 1].sum())
+def lift_curve(y: np.ndarray, p: np.ndarray, naive: np.ndarray) -> dict[str, object]:
+    """Лифт это точность среди первых строк, делённая на базу. Улов это доля
+    событий, пойманных первыми строками. Наивная планка даёт одну точку."""
+    base = float(y.mean())
+    order = np.argsort(-p, kind="stable")
+    caught = np.cumsum(y[order])
+    points = []
+    for share in LIFT_SHARES:
+        k = max(int(round(share * len(y))), 1)
+        precision = float(caught[k - 1]) / k
+        points.append({
+            "share": share,
+            "rows": k,
+            "precision": round(precision, 6),
+            "captured": round(float(caught[k - 1]) / float(y.sum()), 6),
+            "lift": round(precision / base, 3),
+        })
+    naive_point = cv.rule_point(y, naive == 1)
     return {
-        "threshold": round(float(threshold), 6),
-        "precision": round(tp / (tp + fp), 6) if tp + fp else 0.0,
-        "recall": round(tp / positive, 6) if positive else 0.0,
-        "alerts": round(tp + fp, 1),
+        "base": round(base, 6),
+        "pr_auc_lift": round(cv.pr_auc(y, p) / base, 3),
+        "points": points,
+        "naive": {
+            "share": round(float((naive == 1).mean()), 6),
+            "captured": naive_point["recall"],
+            "lift": round(naive_point["precision"] / base, 3),
+        },
     }
 
 
-def rule_point(y: np.ndarray, w: np.ndarray, flag: np.ndarray) -> dict[str, float]:
-    """Меряет точность и полноту готового правила, у которого нет порога."""
-    result = point(0.5, y, w, flag.astype(float))
-    del result["threshold"]
-    return result
+def shap_check(booster, x: np.ndarray) -> dict[str, object]:
+    import shap
 
-
-def explain_test(booster: lgb.Booster, x: np.ndarray) -> dict[str, object]:
-    """Считает SHAP-вклады на отложенной выборке и проверяет аддитивность:
-    сумма вкладов плюс фоновое значение обязана совпасть с логитом модели
-    (`raw_score`) с точностью `SHAP_TOLERANCE`. Нарушение останавливает
-    обучение: сохранять модель с неверными вкладами нет смысла.
-
-    Возвращает фоновое значение и наибольшее расхождение аддитивности —
-    оба идут в `out/shap_background.json` и в `metrics.json`.
-    """
+    sample = x[:20000]
     explainer = shap.TreeExplainer(booster)
-    contributions = explainer.shap_values(x)
-    background = float(explainer.expected_value)
-    raw_score = booster.predict(x, raw_score=True)
-    reconstructed = contributions.sum(axis=1) + background
-    max_gap = float(np.max(np.abs(reconstructed - raw_score)))
-    if max_gap > SHAP_TOLERANCE:
-        raise AssertionError(
-            f"аддитивность SHAP нарушена: расхождение {max_gap:.3e} "
-            f"больше допуска {SHAP_TOLERANCE:.0e}"
-        )
-    return {"background": background, "max_additivity_gap": max_gap}
+    contributions = explainer.shap_values(sample)
+    prob = np.clip(booster.predict(sample), 1e-12, 1 - 1e-12)
+    logit = np.log(prob) - np.log(1 - prob)
+    gap = float(np.max(np.abs(contributions.sum(axis=1) + explainer.expected_value - logit)))
+    if gap > 1e-6:
+        raise ValueError(f"SHAP не аддитивен: расхождение {gap}")
+    return {"background": round(float(explainer.expected_value), 6),
+            "max_additivity_gap": gap, "tolerance": 1e-6, "rows_checked": len(sample)}
 
 
 def main() -> None:
-    con = duckdb.connect()
-    con.execute("PRAGMA threads=8")
-    con.execute("PRAGMA memory_limit='6GB'")
-    load_panel(con)
-
     t = time.time()
-    train = fetch_split(con, "train", TRAIN_END)
-    valid = fetch_split(con, "valid", VALID_END)
-    test = fetch_split(con, "test", panel_end(con))
-    print(f"панель разобрана за {time.time() - t:.0f} c")
-    for part in (train, valid, test):
-        print(
-            f"{part['name']}: {part['rows']} точек, "
-            f"{part['positive_rows']} положительных, "
-            f"клеток {part['cells']}, вес отрицательной {part['weight_negative']:.2f}, "
-            f"база {part['base_pct']:.3f} %"
-        )
+    panel = cv.load()
+    print(f"панель: {panel.x.shape[0]} строк, {len(panel.columns)} признаков, "
+          f"{time.time() - t:.0f} c")
 
-    t = time.time()
-    booster = lgb.train(
-        PARAMS,
-        lgb.Dataset(
-            train["x"],
-            label=train["y"],
-            weight=train["w"],
-            feature_name=features.FEATURE_COLUMNS,
-        ),
-        num_boost_round=NUM_ROUNDS,
-        valid_sets=[
-            lgb.Dataset(
-                valid["x"],
-                label=valid["y"],
-                weight=valid["w"],
-                feature_name=features.FEATURE_COLUMNS,
-            )
-        ],
-        callbacks=[
-            lgb.early_stopping(EARLY_STOPPING, verbose=False),
-            lgb.log_evaluation(100),
-        ],
-    )
-    seconds_train = time.time() - t
-    trees = int(booster.best_iteration)
-    print(f"обучение заняло {seconds_train:.0f} c, деревьев {trees}")
+    chosen = select(panel)
+    selected = chosen["selected"]
+    index = [panel.columns.index(c) for c in selected]
+    print(f"\nвыбрано признаков: {len(selected)}")
 
-    # Модель сохраняется до замера и объяснения: `save_model` обрезает
-    # бустер до `best_iteration`, и предсказание, метрики и SHAP обязаны
-    # идти по тому же артефакту, который получит бэкенд, а не по бустеру
-    # с полным числом раундов, ещё живущим в памяти. `best_iteration` не
-    # переживает перезагрузку из файла, поэтому число деревьев уже взято
-    # в `trees` выше.
-    booster.save_model(str(MODEL), num_iteration=trees)
-    booster = lgb.Booster(model_file=str(MODEL))
-    # Формат бэкенда: `tracking._save_local` кладёт модель через
-    # `joblib.dump` и читает её `joblib.load` без разбора по библиотеке.
-    # Дамп идёт с обрезанного бустера, а не с исходного: это тот же
-    # артефакт, что получит прогноз.
-    joblib.dump(booster, MODEL_JOBLIB)
+    train, es, test = cv.split(panel, cv.HOLDOUT_FROM, cv.HOLDOUT_FROM, None)
+    days = int((test.day.max() - test.day.min()).astype(int)) + 1
 
-    y, w = test["y"], test["w"]
-    prediction = booster.predict(test["x"])
-    pr_auc = float(average_precision_score(y, prediction, sample_weight=w))
-    naive = rule_point(y, w, test["naive"] == 1)
-    threshold, precision, recall, _alerts = weighted_scores(y, w, prediction)
-
-    # Рабочие точки. Порог назначает T09, здесь он не выбирается: эти точки
-    # дают ему цену ошибки в числах.
-    at_naive_recall = int(np.argmax(recall >= naive["recall"]))
-    f1 = np.divide(
-        2 * precision * recall,
-        precision + recall,
-        out=np.zeros_like(precision),
-        where=(precision + recall) > 0,
-    )
-    days = test["hours"] / 24.0
-    operating = {
-        "naive_recall": point(threshold[at_naive_recall], y, w, prediction),
-        "max_f1": point(threshold[int(np.argmax(f1))], y, w, prediction),
-    }
-    for name, need, source in (
-        ("precision_70", 0.70, precision),
-        ("recall_50", 0.50, recall),
-    ):
-        reached = np.flatnonzero(source >= need)
-        operating[name] = (
-            point(threshold[reached[-1] if source is precision else reached[0]], y, w, prediction)
-            if len(reached)
-            else {}
-        )
-    for item in operating.values():
-        if item:
-            item["alerts_per_day"] = round(item["alerts"] / days, 2)
+    runs, booster, p = [], None, None
+    for seed in SEEDS:
+        model = cv.fit(train, es, index, seed=seed)
+        pred = model.predict(test.x[:, index])
+        item = cv.score(test, pred)
+        item.update({"seed": seed, "trees": model.num_trees()})
+        runs.append(item)
+        if seed == cv.SEED:
+            booster, p = model, pred
+    main_run = runs[0]
+    naive = main_run["naive"]
     naive["alerts_per_day"] = round(naive["alerts"] / days, 2)
+    working = main_run["at_naive_recall"]
 
-    t = time.time()
-    shap_result = explain_test(booster, test["x"])
-    seconds_shap = time.time() - t
-    print(
-        f"SHAP посчитан за {seconds_shap:.1f} c на {len(y)} строках, "
-        f"фон {shap_result['background']:.4f}, "
-        f"расхождение аддитивности {shap_result['max_additivity_gap']:.2e}"
-    )
-    SHAP_BACKGROUND.write_text(
-        json.dumps(
-            {
-                "background": shap_result["background"],
-                "features": features.FEATURE_COLUMNS,
-                "output": "raw",
-            },
-            ensure_ascii=False,
-            indent=2,
-        ),
+    result = {
+        "grid": "daily",
+        "horizon_hours": 24,
+        "lead_hours": 24,
+        "seed": cv.SEED,
+        "early_stopping_metric": cv.PARAMS["metric"],
+        "trees": booster.num_trees(),
+        "candidates": len(panel.columns),
+        "selected": selected,
+        "gain_share": chosen["gain_share"],
+        "cv": {"folds": [f[0] for f in cv.FOLDS], "ladder": chosen["ladder"]},
+        "test": {
+            "days": days,
+            **{k: main_run[k] for k in ("events", "base", "pr_auc", "naive",
+                                        "at_naive_recall", "at_naive_alerts")},
+            "beats_naive": bool(
+                working["precision"] > naive["precision"]
+                and main_run["at_naive_alerts"]["recall"] > naive["recall"]
+            ),
+            "lift_precision": round(working["precision"] / naive["precision"], 3),
+            "lift_recall": round(main_run["at_naive_alerts"]["recall"] / naive["recall"], 3),
+            "by_recency": by_recency(test, p, working["threshold"]),
+            "lift": lift_curve(test.y, p, test.naive),
+            "curve": [
+                {"alerts_per_day": n, **cv.top_k(test.y, p, n * days)}
+                for n in ALERTS_PER_DAY
+            ],
+        },
+        "stability": {
+            "runs": [{"seed": r["seed"], "trees": r["trees"], "pr_auc": r["pr_auc"],
+                      "precision_at_naive_recall": r["at_naive_recall"]["precision"]}
+                     for r in runs],
+        },
+        "shap": shap_check(booster, test.x[:, index]),
+    }
+    spread = [r["pr_auc"] for r in runs]
+    result["stability"]["pr_auc_spread"] = round(max(spread) - min(spread), 6)
+
+    # Ключ `decision` читает бэкенд. Граница HIGH стоит в точке равной полноты с
+    # планкой, CRITICAL это первый кандидат выше HIGH.
+    high = float(working["threshold"])
+    critical = next((c for c in (0.3, 0.4, 0.5, 0.6, 0.8) if c > high), high * 2)
+    levels = {"MEDIUM": round(float(test.y.mean()), 6), "HIGH": round(high, 6),
+              "CRITICAL": round(critical, 6)}
+    values = [levels[n] for n in ("MEDIUM", "HIGH", "CRITICAL")]
+    if values != sorted(values) or len(set(values)) != len(values):
+        raise ValueError(f"границы уровней не возрастают: {levels}")
+    result["decision"] = {
+        "rule": "порог держит полноту наивной планки: равная полнота, выше точность",
+        "threshold": levels["HIGH"],
+        "levels": levels,
+        "scale": "raw",
+        "level_note": "границы стоят на сырой шкале бустера, калибратор отклонён",
+        "chosen": {
+            "cell_precision": working["precision"],
+            "cell_recall": working["recall"],
+            "alerts": working["alerts"],
+            "alerts_per_day": round(working["alerts"] / days, 2),
+        },
+        "naive": naive,
+    }
+    result["calibration"] = {"kept": False, "method": None}
+
+    joblib.dump(booster, str(MODEL.with_suffix(".joblib")))
+    booster.save_model(str(MODEL))
+    METRICS.write_text(json.dumps(result, ensure_ascii=False, indent=2, default=float),
+                       encoding="utf-8")
+    SELECTED.write_text(
+        json.dumps({"selected": selected, "gain_share": chosen["gain_share"]},
+                   ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
-    gain = booster.feature_importance("gain")
-    result = {
-        "direction": "UNAUTHORIZED_ACCESS",
-        "horizon_hours": features.HORIZON_HOURS,
-        "seed": SEED,
-        "trees": trees,
-        "seconds_train": round(seconds_train, 1),
-        "features": features.FEATURE_COLUMNS,
-        "splits": {
-            part["name"]: {
-                key: part[key]
-                for key in (
-                    "from",
-                    "to",
-                    "rows",
-                    "positive_rows",
-                    "negative_rows",
-                    "cells",
-                )
-            }
-            | {
-                "weight_negative": round(part["weight_negative"], 4),
-                "base_pct": round(part["base_pct"], 4),
-            }
-            for part in (train, valid, test)
-        },
-        "test": {
-            "pr_auc": round(pr_auc, 6),
-            "base": round(test["base_pct"] / 100.0, 6),
-            "days": round(days, 1),
-            "naive": naive,
-            "beats_naive": bool(
-                operating["naive_recall"]["precision"] > naive["precision"]
-            ),
-            "operating_points": operating,
-        },
-        "gain": {
-            name: round(float(value), 1)
-            for name, value in sorted(
-                zip(features.FEATURE_COLUMNS, gain), key=lambda kv: -kv[1]
-            )
-        },
-        "shap": {
-            "background": round(shap_result["background"], 6),
-            "max_additivity_gap": shap_result["max_additivity_gap"],
-            "tolerance": SHAP_TOLERANCE,
-            "rows_checked": len(y),
-        },
-    }
-
-    METRICS.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    print(f"PR-AUC {pr_auc:.4f}, база {test['base_pct'] / 100:.5f}")
-    print(f"наивная планка: точность {naive['precision']:.4f}, полнота {naive['recall']:.4f}")
-    print(f"модель бьёт планку: {result['test']['beats_naive']}")
-    for name, item in operating.items():
-        if item:
-            print(
-                f"{name}: порог {item['threshold']:.4f}, "
-                f"точность {item['precision']:.4f}, полнота {item['recall']:.4f}, "
-                f"тревог в сутки {item['alerts_per_day']}"
-            )
-    print(
-        f"модель в {MODEL} и {MODEL_JOBLIB}, "
-        f"замер в {METRICS}, фон SHAP в {SHAP_BACKGROUND}"
-    )
+    r = result["test"]
+    print(f"\nотложенная выборка, {days} суток: база {r['base']:.4%}, событий {r['events']}")
+    print(f"  PR-AUC {r['pr_auc']:.4f}, семена {spread}")
+    print(f"  планка:            точность {naive['precision']:.3f}, полнота {naive['recall']:.3f}")
+    print(f"  при той же полноте точность {working['precision']:.3f} "
+          f"(в {r['lift_precision']} раза)")
+    print(f"  при том же труде   полнота {r['at_naive_alerts']['recall']:.3f} "
+          f"(в {r['lift_recall']} раза)")
+    for g in r["by_recency"]:
+        print(f"  {g['group']:26s} событий {g['events']:4d}  модель P {g['model']['precision']:.3f} "
+              f"R {g['model']['recall']:.3f}  планка P {g['naive']['precision']:.3f} "
+              f"R {g['naive']['recall']:.3f}")
+    for c in r["curve"]:
+        print(f"  {c['alerts_per_day']:3d} тревог в сутки: точность {c['precision']:.3f}, "
+              f"полнота {c['recall']:.3f}")
+    print(f"\nзамер в {METRICS}")
 
 
 if __name__ == "__main__":
