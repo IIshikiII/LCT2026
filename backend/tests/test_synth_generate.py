@@ -11,7 +11,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import migrate
 from app.db import engine
-from app.features import flood
+from app.features import fire, flood
 from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
 from app.synth.generate import generate
 from app.tables import alarm_event, collector, facility
@@ -19,7 +19,10 @@ from tests.conftest import reset_database
 
 NOW = datetime(2026, 9, 18, 12, 0, tzinfo=UTC)
 VALID_ALARM_TYPES = (
-    set(ACCESS_ALARM_TYPES) | {SECURITY_ARMED, SECURITY_DISARMED} | set(flood.ALL_TYPES)
+    set(ACCESS_ALARM_TYPES)
+    | {SECURITY_ARMED, SECURITY_DISARMED}
+    | set(flood.ALL_TYPES)
+    | {*fire.SIGNAL_TYPES, fire.PHASE_OFF}
 )
 
 

@@ -43,6 +43,8 @@ def test_model_metrics_return_a_bare_array() -> None:
         "targetPrecision",
         "targetRecall",
         "evaluatedAt",
+        "method",
+        "note",
     }
 
 
@@ -70,9 +72,15 @@ def test_the_order_follows_the_direction_registry() -> None:
 
 
 def test_metrics_survive_an_empty_table() -> None:
+    """Без замеров остаются только направления, которые сами сказали, что
+    точность не измерена. Чисел у них нет, пояснение есть. ADR 0016."""
     with engine().begin() as conn:
         conn.execute(delete(model_metric))
-    assert get("/metrics/models") == []
+    body = get("/metrics/models")
+    assert [item["direction"] for item in body] == ["FIRE_RISK"]
+    assert body[0]["precision"] is None
+    assert body[0]["method"] == "expert_rules"
+    assert "не измерена" in body[0]["note"]
 
 
 # --- здоровье конвейера ---

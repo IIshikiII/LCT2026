@@ -1,0 +1,128 @@
+{
+  "screen_year": [
+    "2021-07-01",
+    "2022-07-01"
+  ],
+  "train_before": "2021-07-01",
+  "variants": {
+    "base": {
+      "features": 74,
+      "pr_auc": 0.02604,
+      "pr_auc_seed_spread": 0.00178,
+      "rule": {
+        "precision": 0.109375,
+        "recall": 0.112,
+        "alerts": 256,
+        "hits": 28
+      },
+      "model": {
+        "precision": 0.099291,
+        "recall": 0.112,
+        "alerts": 282,
+        "hits": 28
+      }
+    },
+    "space": {
+      "features": 78,
+      "pr_auc": 0.02522,
+      "pr_auc_seed_spread": 0.00255,
+      "rule": {
+        "precision": 0.109375,
+        "recall": 0.112,
+        "alerts": 256,
+        "hits": 28
+      },
+      "model": {
+        "precision": 0.111111,
+        "recall": 0.124,
+        "alerts": 279,
+        "hits": 31
+      }
+    },
+    "moon": {
+      "features": 76,
+      "pr_auc": 0.02602,
+      "pr_auc_seed_spread": 0.00092,
+      "rule": {
+        "precision": 0.109375,
+        "recall": 0.112,
+        "alerts": 256,
+        "hits": 28
+      },
+      "model": {
+        "precision": 0.102564,
+        "recall": 0.112,
+        "alerts": 273,
+        "hits": 28
+      }
+    },
+    "char": {
+      "features": 80,
+      "pr_auc": 0.0269,
+      "pr_auc_seed_spread": 0.00056,
+      "rule": {
+        "precision": 0.109375,
+        "recall": 0.112,
+        "alerts": 256,
+        "hits": 28
+      },
+      "model": {
+        "precision": 0.100372,
+        "recall": 0.108,
+        "alerts": 269,
+        "hits": 27
+      }
+    },
+    "lz": {
+      "features": 75,
+      "pr_auc": 0.02642,
+      "pr_auc_seed_spread": 0.00086,
+      "rule": {
+        "precision": 0.109375,
+        "recall": 0.112,
+        "alerts": 256,
+        "hits": 28
+      },
+      "model": {
+        "precision": 0.107143,
+        "recall": 0.12,
+        "alerts": 280,
+        "hits": 30
+      }
+    },
+    "iforest": {
+      "features": 75,
+      "pr_auc": 0.02558,
+      "pr_auc_seed_spread": 0.00082,
+      "rule": {
+        "precision": 0.109375,
+        "recall": 0.112,
+        "alerts": 256,
+        "hits": 28
+      },
+      "model": {
+        "precision": 0.113208,
+        "recall": 0.12,
+        "alerts": 265,
+        "hits": 30
+      }
+    },
+    "rank": {
+      "features": 74,
+      "pr_auc": 0.02946,
+      "pr_auc_seed_spread": 0.0021,
+      "rule": {
+        "precision": 0.109375,
+        "recall": 0.112,
+        "alerts": 256,
+        "hits": 28
+      },
+      "model": {
+        "precision": 0.115538,
+        "recall": 0.116,
+        "alerts": 251,
+        "hits": 29
+      }
+    }
+  }
+}

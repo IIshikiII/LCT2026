@@ -1,0 +1,210 @@
+{
+  "raw": {
+    "train_events": 4665,
+    "train_base": 0.001181,
+    "train_naive_precision": 0.0681,
+    "train_naive_recall": 0.0669,
+    "by_period": {
+      "2019": {
+        "unit_days": 214932,
+        "events": 350,
+        "base": 0.001628,
+        "naive_precision": 0.0257,
+        "naive_recall": 0.0257,
+        "week_rhythm": 8.11
+      },
+      "2020": {
+        "unit_days": 337319,
+        "events": 538,
+        "base": 0.001595,
+        "naive_precision": 0.1487,
+        "naive_recall": 0.1487,
+        "week_rhythm": 5.741
+      },
+      "2021": {
+        "unit_days": 400643,
+        "events": 675,
+        "base": 0.001685,
+        "naive_precision": 0.0237,
+        "naive_recall": 0.0237,
+        "week_rhythm": 3.579
+      },
+      "2022": {
+        "unit_days": 774972,
+        "events": 1344,
+        "base": 0.001734,
+        "naive_precision": 0.0655,
+        "naive_recall": 0.0655,
+        "week_rhythm": 5.615
+      },
+      "2023": {
+        "unit_days": 888403,
+        "events": 581,
+        "base": 0.000654,
+        "naive_precision": 0.0929,
+        "naive_recall": 0.0929,
+        "week_rhythm": 2.88
+      },
+      "2024": {
+        "unit_days": 891357,
+        "events": 838,
+        "base": 0.00094,
+        "naive_precision": 0.0322,
+        "naive_recall": 0.0322,
+        "week_rhythm": 6.872
+      },
+      "2025": {
+        "unit_days": 440981,
+        "events": 339,
+        "base": 0.000769,
+        "naive_precision": 0.149,
+        "naive_recall": 0.1121,
+        "week_rhythm": 1.759
+      },
+      "holdout": {
+        "unit_days": 862213,
+        "events": 7493,
+        "base": 0.00869
+      }
+    }
+  },
+  "off_window": {
+    "train_events": 1414,
+    "train_base": 0.000358,
+    "train_naive_precision": 0.0869,
+    "train_naive_recall": 0.082,
+    "by_period": {
+      "2019": {
+        "unit_days": 214932,
+        "events": 69,
+        "base": 0.000321,
+        "naive_precision": 0.0725,
+        "naive_recall": 0.0725,
+        "week_rhythm": 1.869
+      },
+      "2020": {
+        "unit_days": 337319,
+        "events": 177,
+        "base": 0.000525,
+        "naive_precision": 0.0734,
+        "naive_recall": 0.0734,
+        "week_rhythm": 2.394
+      },
+      "2021": {
+        "unit_days": 400643,
+        "events": 129,
+        "base": 0.000322,
+        "naive_precision": 0.0775,
+        "naive_recall": 0.0775,
+        "week_rhythm": 0.491
+      },
+      "2022": {
+        "unit_days": 774972,
+        "events": 328,
+        "base": 0.000423,
+        "naive_precision": 0.0671,
+        "naive_recall": 0.0671,
+        "week_rhythm": 1.555
+      },
+      "2023": {
+        "unit_days": 888403,
+        "events": 252,
+        "base": 0.000284,
+        "naive_precision": 0.0913,
+        "naive_recall": 0.0913,
+        "week_rhythm": 1.483
+      },
+      "2024": {
+        "unit_days": 891357,
+        "events": 214,
+        "base": 0.00024,
+        "naive_precision": 0.0888,
+        "naive_recall": 0.0888,
+        "week_rhythm": 2.114
+      },
+      "2025": {
+        "unit_days": 440981,
+        "events": 245,
+        "base": 0.000556,
+        "naive_precision": 0.1446,
+        "naive_recall": 0.098,
+        "week_rhythm": 1.696
+      },
+      "holdout": {
+        "unit_days": 862213,
+        "events": 869,
+        "base": 0.001008
+      }
+    }
+  },
+  "off_hours": {
+    "train_events": 738,
+    "train_base": 0.000187,
+    "train_naive_precision": 0.098,
+    "train_naive_recall": 0.0976,
+    "by_period": {
+      "2019": {
+        "unit_days": 214932,
+        "events": 42,
+        "base": 0.000195,
+        "naive_precision": 0.0952,
+        "naive_recall": 0.0952,
+        "week_rhythm": 1.759
+      },
+      "2020": {
+        "unit_days": 337319,
+        "events": 65,
+        "base": 0.000193,
+        "naive_precision": 0.0923,
+        "naive_recall": 0.0923,
+        "week_rhythm": 0.93
+      },
+      "2021": {
+        "unit_days": 400643,
+        "events": 113,
+        "base": 0.000282,
+        "naive_precision": 0.0708,
+        "naive_recall": 0.0708,
+        "week_rhythm": 0.697
+      },
+      "2022": {
+        "unit_days": 774972,
+        "events": 144,
+        "base": 0.000186,
+        "naive_precision": 0.1111,
+        "naive_recall": 0.1111,
+        "week_rhythm": 0.622
+      },
+      "2023": {
+        "unit_days": 888403,
+        "events": 149,
+        "base": 0.000168,
+        "naive_precision": 0.0872,
+        "naive_recall": 0.0872,
+        "week_rhythm": 1.19
+      },
+      "2024": {
+        "unit_days": 891357,
+        "events": 99,
+        "base": 0.000111,
+        "naive_precision": 0.1111,
+        "naive_recall": 0.1111,
+        "week_rhythm": 1.208
+      },
+      "2025": {
+        "unit_days": 440981,
+        "events": 126,
+        "base": 0.000286,
+        "naive_precision": 0.1138,
+        "naive_recall": 0.1111,
+        "week_rhythm": 1.003
+      },
+      "holdout": {
+        "unit_days": 862213,
+        "events": 469,
+        "base": 0.000544
+      }
+    }
+  },
+  "units": 2792
+}

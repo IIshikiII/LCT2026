@@ -18,6 +18,7 @@ COMMANDS = (
     "run-pipeline",
     "publish-metrics",
     "load-weather",
+    "set-commissioning",
     "train",
     "ingest",
 )
@@ -56,6 +57,16 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=14,
         help="для load-weather: сколько прошедших суток погоды загрузить, не больше 92",
+    )
+    parser.add_argument(
+        "--collector",
+        default=None,
+        help="для set-commissioning: код объекта из таблицы collector",
+    )
+    parser.add_argument(
+        "--until",
+        default=None,
+        help="для set-commissioning: дата конца пусконаладки ГГГГ-ММ-ДД, пусто снимает отметку",
     )
     parser.add_argument(
         "--set",
@@ -178,6 +189,29 @@ def main(argv: list[str] | None = None) -> int:
         with engine().begin() as conn:
             hours = load(conn, args.days)
         print(f"погода Москвы: {hours} часов за {args.days} суток")
+        return 0
+
+    if args.command == "set-commissioning":
+        from datetime import date
+
+        from app.db import engine
+        from app.tables import collector
+
+        if not args.collector:
+            print("нужен ключ --collector", file=sys.stderr)
+            return 2
+        until = date.fromisoformat(args.until) if args.until else None
+        with engine().begin() as conn:
+            changed = conn.execute(
+                collector.update()
+                .where(collector.c.code == args.collector)
+                .values(commissioning_until=until)
+            ).rowcount
+        if not changed:
+            print(f"объекта {args.collector} нет", file=sys.stderr)
+            return 1
+        state = f"в пусконаладке до {until}" if until else "отметка пусконаладки снята"
+        print(f"объект {args.collector}: {state}")
         return 0
 
     print(f"команда {args.command} ещё не реализована", file=sys.stderr)

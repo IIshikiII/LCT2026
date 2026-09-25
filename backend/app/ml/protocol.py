@@ -108,6 +108,27 @@ def level_bands(
     return None if hook is None else hook(conn, at, fresh)
 
 
+def own_level(predictor: object, features: FeatureVector, probability: float) -> str | None:
+    """Уровень, который назвал сам плагин. None значит уровень по вероятности.
+
+    Метод `level` у предиктора необязателен. Пожарный риск ставит уровень
+    экспертными правилами по совпадению признаков (ADR 0016). Его вероятность
+    это доля сигнала назавтра на истории, и уровни по ней не упорядочены.
+    """
+    hook = getattr(predictor, "level", None)
+    return None if hook is None else str(hook(features, probability))
+
+
+def own_summary(predictor: object, features: FeatureVector, probability: float) -> str | None:
+    """Строка прогноза от плагина. None значит строка «вероятность N %».
+
+    Метод `summary` у предиктора необязателен. Экспертные правила пишут, какие
+    признаки совпали: это диспетчеру полезнее числа.
+    """
+    hook = getattr(predictor, "summary", None)
+    return None if hook is None else str(hook(features, probability))
+
+
 @runtime_checkable
 class Predictor(Protocol):
     """Предиктор одного направления.

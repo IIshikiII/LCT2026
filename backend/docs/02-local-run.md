@@ -71,6 +71,13 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
    ```
    docker compose run --rm pipeline uv run --no-sync python -m app.cli load-weather --days 14
    ```
+
+   Объект в пусконаладке отмечает эксплуатация. До даты конца правила пожара
+   понижают уровень его сигналов на ступень (ADR 0016). Пустой `--until`
+   снимает отметку:
+   ```
+   docker compose run --rm pipeline uv run --no-sync python -m app.cli set-commissioning --collector K-CAO-1 --until 2026-10-15
+   ```
 5. Войдите и возьмите токен. Вход идёт двумя шагами, и первый вход записи
    заводит ключ второго фактора, поэтому код возьмите из ответа сервера:
    ```

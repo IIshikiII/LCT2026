@@ -52,6 +52,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection
 
 from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
+from app.synth.fire import fire_rows
 from app.synth.flood import flood_rows
 from app.synth.geo import OKRUGS, point_on
 from app.synth.weather import weather_rows
@@ -61,8 +62,10 @@ from app.tables import (
     collector,
     facility,
     flood_water_day,
+    maintenance_window,
     prediction,
     sensor,
+    sensor_reading,
     weather_hourly,
     work_order,
 )
@@ -272,8 +275,8 @@ def generate(
     facility_count: int = DEFAULT_FACILITY_COUNT,
     now: datetime | None = None,
 ) -> SynthResult:
-    """Наполняет `collector`, `facility`, `sensor` и `alarm_event` синтетикой
-    доступа и подтопления."""
+    """Наполняет `collector`, `facility`, `sensor`, `alarm_event` и
+    `sensor_reading` синтетикой доступа, подтопления и пожара."""
     rng = random.Random(seed)
     now = (now or datetime.now(UTC)).replace(microsecond=0)
 
@@ -284,8 +287,10 @@ def generate(
     # Насосы и затопления идут своим генератором (`app/synth/flood.py`), поток
     # доступа от них не меняется. Номера строк после слияния раздаются заново.
     sensor_rows, flood_events = flood_rows(seed, facility_rows, now, HISTORY_DAYS)
+    # Пожарная сигнализация, температура, окна ППР (ADR 0016).
+    fire = fire_rows(seed, facility_rows, now, HISTORY_DAYS)
     event_rows = sorted(
-        [*event_rows, *flood_events],
+        [*event_rows, *flood_events, *fire["events"]],
         key=lambda item: (item["facility_id"], item["occurred_at"], item["alarm_type"]),
     )
     for next_id, row in enumerate(event_rows, start=1):
@@ -306,6 +311,32 @@ def generate(
         conn.execute(
             pg_insert(sensor).on_conflict_do_nothing(index_elements=["id"]),
             sensor_rows,
+        )
+    if fire["sensors"]:
+        conn.execute(
+            pg_insert(sensor).on_conflict_do_nothing(index_elements=["id"]),
+            fire["sensors"],
+        )
+    # Номера показаний строятся из порядка, как у событий: повторный посев с
+    # тем же `now` бьёт в те же ключи и уходит через `ON CONFLICT`.
+    readings = sorted(fire["readings"], key=lambda r: (r["sensor_id"], r["observed_at"]))
+    for next_id, row in enumerate(readings, start=1):
+        row["id"] = next_id
+    if readings:
+        conn.execute(
+            pg_insert(sensor_reading).on_conflict_do_nothing(index_elements=["id", "observed_at"]),
+            readings,
+        )
+    if fire["windows"]:
+        conn.execute(
+            maintenance_window.delete().where(maintenance_window.c.source.like("синтетика%"))
+        )
+        conn.execute(maintenance_window.insert(), fire["windows"])
+    for item in fire["commissioning"]:
+        conn.execute(
+            collector.update()
+            .where(collector.c.code == item["code"])
+            .values(commissioning_until=item["until"])
         )
     if event_rows:
         conn.execute(
@@ -346,6 +377,8 @@ def wipe_synthetic(conn: Connection) -> int:
         prediction,
         flood_water_day,
         alarm_event,
+        sensor_reading,
+        maintenance_window,
         sensor,
         facility,
         collector,

@@ -31,6 +31,11 @@ router = APIRouter(tags=["metrics"])
 TARGET_COMPUTE_MS = 300_000
 TARGET_HORIZON_HOURS = 24
 
+# Цели по умолчанию, те же, что у `model_metric`. Направление без замера
+# держит их для строки «точность не измерена».
+DEFAULT_TARGET_PRECISION = 0.7
+DEFAULT_TARGET_RECALL = 0.5
+
 # Значение статуса, которым конвейер помечает успешный прогон. Задача 10.
 RUN_DONE = "DONE"
 
@@ -47,6 +52,9 @@ def model_metrics(
 
     Направление без оценки в ответ не попадает. Нули вместо оценки читались бы
     как «модель не работает», хотя верное чтение — «оценки ещё нет».
+    Исключение одно: направление, которое само объявило `quality_note`. Оно
+    приходит строкой без чисел и с пояснением, почему точность не измерена
+    (ADR 0016). Молчание о нём читалось бы как пропуск.
 
     Качество модели от роли не зависит: оно измерено на всей сети, и техник
     видит то же число, что диспетчер ОДС. Резать его границей видимости
@@ -62,18 +70,33 @@ def model_metrics(
 
     # Порядок ответа задаёт реестр направлений, а не база: дашборд обязан
     # показывать направления в одном и том же порядке от прогона к прогону.
-    return [
-        ModelMetric(
-            direction=item.code,
-            precision=rows[item.code].precision_value,
-            recall=rows[item.code].recall_value,
-            target_precision=rows[item.code].target_precision,
-            target_recall=rows[item.code].target_recall,
-            evaluated_at=common.iso(rows[item.code].evaluated_at),
-        )
-        for item in active()
-        if item.code in rows
-    ]
+    result: list[ModelMetric] = []
+    for item in active():
+        row = rows.get(item.code)
+        if row is not None:
+            result.append(
+                ModelMetric(
+                    direction=item.code,
+                    precision=row.precision_value,
+                    recall=row.recall_value,
+                    target_precision=row.target_precision,
+                    target_recall=row.target_recall,
+                    evaluated_at=common.iso(row.evaluated_at),
+                    method=row.method,
+                )
+            )
+        elif item.quality_note:
+            result.append(
+                ModelMetric(
+                    direction=item.code,
+                    target_precision=DEFAULT_TARGET_PRECISION,
+                    target_recall=DEFAULT_TARGET_RECALL,
+                    evaluated_at="",
+                    method=item.quality_method,
+                    note=item.quality_note,
+                )
+            )
+    return result
 
 
 @router.get("/metrics/pipeline", response_model=PipelineHealth, response_model_by_alias=True)

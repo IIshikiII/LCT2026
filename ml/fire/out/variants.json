@@ -1,0 +1,513 @@
+[
+  {
+    "name": "base",
+    "kind": "search",
+    "note": "история пикета, обходы, соседи, календарь",
+    "config": {
+      "groups": [
+        "evt",
+        "chk",
+        "obj",
+        "cal"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000349,
+        "pr_auc": 0.029294,
+        "naive": {
+          "precision": 0.106109,
+          "recall": 0.106452,
+          "alerts": 311,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.153488,
+          "recall": 0.106452,
+          "alerts": 215,
+          "hits": 33
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.00023,
+        "pr_auc": 0.01604,
+        "naive": {
+          "precision": 0.107843,
+          "recall": 0.107317,
+          "alerts": 204,
+          "hits": 22
+        },
+        "at_threshold": {
+          "precision": 0.123596,
+          "recall": 0.107317,
+          "alerts": 178,
+          "hits": 22
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000361,
+        "pr_auc": 0.018579,
+        "naive": {
+          "precision": 0.102881,
+          "recall": 0.077882,
+          "alerts": 243,
+          "hits": 25
+        },
+        "at_threshold": {
+          "precision": 0.070496,
+          "recall": 0.084112,
+          "alerts": 383,
+          "hits": 27
+        }
+      }
+    ],
+    "pr_auc_mean": 0.021304,
+    "pr_auc_seed_spread": 0.009539,
+    "oof_naive": {
+      "precision": 0.105541,
+      "recall": 0.095694,
+      "alerts": 758,
+      "hits": 80
+    },
+    "oof_threshold": 0.083667,
+    "oof_at_threshold": {
+      "precision": 0.10567,
+      "recall": 0.098086,
+      "alerts": 776,
+      "hits": 82
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 41
+  },
+  {
+    "name": "sensors",
+    "kind": "search",
+    "note": "температура_и_неисправности",
+    "config": {
+      "groups": [
+        "evt",
+        "chk",
+        "obj",
+        "cal",
+        "tmp",
+        "hw"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "tmp_max_1d",
+      "tmp_mean_1d",
+      "tmp_mean_7d",
+      "tmp_delta_30d",
+      "tmp_max_rise",
+      "hw_faults_1d",
+      "hw_faults_7d",
+      "hw_faults_30d",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000349,
+        "pr_auc": 0.027545,
+        "naive": {
+          "precision": 0.106109,
+          "recall": 0.106452,
+          "alerts": 311,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.142202,
+          "recall": 0.1,
+          "alerts": 218,
+          "hits": 31
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.00023,
+        "pr_auc": 0.015028,
+        "naive": {
+          "precision": 0.107843,
+          "recall": 0.107317,
+          "alerts": 204,
+          "hits": 22
+        },
+        "at_threshold": {
+          "precision": 0.127168,
+          "recall": 0.107317,
+          "alerts": 173,
+          "hits": 22
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000361,
+        "pr_auc": 0.022965,
+        "naive": {
+          "precision": 0.102881,
+          "recall": 0.077882,
+          "alerts": 243,
+          "hits": 25
+        },
+        "at_threshold": {
+          "precision": 0.092141,
+          "recall": 0.105919,
+          "alerts": 369,
+          "hits": 34
+        }
+      }
+    ],
+    "pr_auc_mean": 0.021846,
+    "pr_auc_seed_spread": 0.012186,
+    "oof_naive": {
+      "precision": 0.105541,
+      "recall": 0.095694,
+      "alerts": 758,
+      "hits": 80
+    },
+    "oof_threshold": 0.148178,
+    "oof_at_threshold": {
+      "precision": 0.114474,
+      "recall": 0.104067,
+      "alerts": 760,
+      "hits": 87
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 47
+  },
+  {
+    "name": "env",
+    "kind": "search",
+    "note": "газ_питание_люди",
+    "config": {
+      "groups": [
+        "evt",
+        "chk",
+        "obj",
+        "cal",
+        "tmp",
+        "hw",
+        "gas",
+        "pwr",
+        "ppl"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "tmp_max_1d",
+      "tmp_mean_1d",
+      "tmp_mean_7d",
+      "tmp_delta_30d",
+      "tmp_max_rise",
+      "gas_max_1d",
+      "gas_max_7d",
+      "gas_mean_30d",
+      "gas_mid_7d",
+      "gas_ge1_30d",
+      "gas_ge1_off_365d",
+      "gas_days_since_ge1",
+      "hw_faults_1d",
+      "hw_faults_7d",
+      "hw_faults_30d",
+      "pwr_phase_off_1d",
+      "pwr_phase_off_7d",
+      "pwr_fan_off_1d",
+      "pwr_fan_off_7d",
+      "ppl_talk_1d",
+      "ppl_talk_7d",
+      "ppl_door_1d",
+      "ppl_door_7d",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000349,
+        "pr_auc": 0.022281,
+        "naive": {
+          "precision": 0.106109,
+          "recall": 0.106452,
+          "alerts": 311,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.114695,
+          "recall": 0.103226,
+          "alerts": 279,
+          "hits": 32
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.00023,
+        "pr_auc": 0.032105,
+        "naive": {
+          "precision": 0.107843,
+          "recall": 0.107317,
+          "alerts": 204,
+          "hits": 22
+        },
+        "at_threshold": {
+          "precision": 0.091286,
+          "recall": 0.107317,
+          "alerts": 241,
+          "hits": 22
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000361,
+        "pr_auc": 0.027027,
+        "naive": {
+          "precision": 0.102881,
+          "recall": 0.077882,
+          "alerts": 243,
+          "hits": 25
+        },
+        "at_threshold": {
+          "precision": 0.117155,
+          "recall": 0.087227,
+          "alerts": 239,
+          "hits": 28
+        }
+      }
+    ],
+    "pr_auc_mean": 0.027138,
+    "pr_auc_seed_spread": 0.006966,
+    "oof_naive": {
+      "precision": 0.105541,
+      "recall": 0.095694,
+      "alerts": 758,
+      "hits": 80
+    },
+    "oof_threshold": 0.253439,
+    "oof_at_threshold": {
+      "precision": 0.108037,
+      "recall": 0.098086,
+      "alerts": 759,
+      "hits": 82
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 57
+  },
+  {
+    "name": "all",
+    "kind": "search",
+    "note": "плюс_погода",
+    "config": {
+      "groups": [
+        "evt",
+        "chk",
+        "obj",
+        "cal",
+        "tmp",
+        "hw",
+        "gas",
+        "pwr",
+        "ppl",
+        "wx"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "tmp_max_1d",
+      "tmp_mean_1d",
+      "tmp_mean_7d",
+      "tmp_delta_30d",
+      "tmp_max_rise",
+      "gas_max_1d",
+      "gas_max_7d",
+      "gas_mean_30d",
+      "gas_mid_7d",
+      "gas_ge1_30d",
+      "gas_ge1_off_365d",
+      "gas_days_since_ge1",
+      "hw_faults_1d",
+      "hw_faults_7d",
+      "hw_faults_30d",
+      "pwr_phase_off_1d",
+      "pwr_phase_off_7d",
+      "pwr_fan_off_1d",
+      "pwr_fan_off_7d",
+      "ppl_talk_1d",
+      "ppl_talk_7d",
+      "ppl_door_1d",
+      "ppl_door_7d",
+      "wx_temp_mean_1d",
+      "wx_temp_max_1d",
+      "wx_temp_max_7d",
+      "wx_precip_1d",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000349,
+        "pr_auc": 0.047427,
+        "naive": {
+          "precision": 0.106109,
+          "recall": 0.106452,
+          "alerts": 311,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.038874,
+          "recall": 0.093548,
+          "alerts": 746,
+          "hits": 29
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.00023,
+        "pr_auc": 0.020518,
+        "naive": {
+          "precision": 0.107843,
+          "recall": 0.107317,
+          "alerts": 204,
+          "hits": 22
+        },
+        "at_threshold": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "alerts": 1,
+          "hits": 0
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000361,
+        "pr_auc": 0.030193,
+        "naive": {
+          "precision": 0.102881,
+          "recall": 0.077882,
+          "alerts": 243,
+          "hits": 25
+        },
+        "at_threshold": {
+          "precision": 0.323529,
+          "recall": 0.034268,
+          "alerts": 34,
+          "hits": 11
+        }
+      }
+    ],
+    "pr_auc_mean": 0.032713,
+    "pr_auc_seed_spread": 0.013653,
+    "oof_naive": {
+      "precision": 0.105541,
+      "recall": 0.095694,
+      "alerts": 758,
+      "hits": 80
+    },
+    "oof_threshold": 0.999995,
+    "oof_at_threshold": {
+      "precision": 0.051216,
+      "recall": 0.047847,
+      "alerts": 781,
+      "hits": 40
+    },
+    "beats_naive_both_oof": false,
+    "seconds": 57
+  }
+]

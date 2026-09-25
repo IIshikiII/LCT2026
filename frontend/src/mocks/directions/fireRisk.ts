@@ -58,6 +58,8 @@ export const fireRisk: DirectionPlugin = {
     { code: 'CABLE_OVERHEAT', label: 'Перегрев кабельной линии' },
     { code: 'VENTILATION', label: 'Недостаточная вентиляция участка' },
     { code: 'DEBRIS', label: 'Горючий мусор в камере' },
+    { code: 'DETECTOR_DIRTY', label: 'Извещатель загрязнён или отсырел' },
+    { code: 'COMMISSIONING', label: 'Пусконаладка системы' },
     { code: 'FALSE_POSITIVE', label: 'Ложное срабатывание, риска не было' },
     { code: 'NO_DEFECT', label: 'Дефект не подтверждён' },
   ],
@@ -67,9 +69,16 @@ export const fireRisk: DirectionPlugin = {
     'Тепловизионное обследование',
     'Проверка вентиляции',
     'Уборка горючих материалов',
+    'Осмотр и чистка извещателя',
   ],
 
-  quality: { precision: 0.76, recall: 0.58 },
+  // Экспертные правила, модели нет (бэкенд, ADR 0016). Точность не измерена.
+  quality: {
+    method: 'expert_rules',
+    note:
+      'Экспертные правила. Точность не измерена: подтверждённых пожаров в ' +
+      'выгрузке нет. Её посчитают отметки бригад при закрытии заявок.',
+  },
   share: 0.24,
 
   appliesTo: (f) => f.kind === FACILITY_KINDS.chamber || f.kind === FACILITY_KINDS.ventShaft,

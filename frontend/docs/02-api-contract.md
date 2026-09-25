@@ -279,14 +279,21 @@ POST /orders/{id}/actions/{code}                  → WorkOrder
 ### Метрики и дашборд
 
 ```
-GET /metrics/models      → ModelMetric[]   { direction, precision, recall,
-                                             targetPrecision, targetRecall, evaluatedAt }
+GET /metrics/models      → ModelMetric[]   { direction, precision?, recall?,
+                                             targetPrecision, targetRecall, evaluatedAt,
+                                             method?, note? }
 GET /metrics/pipeline    → { lastRunAt, lastRunMs, freshnessMinutes,
                              maxComputeMs, minHorizonHours,
                              targetComputeMs, targetHorizonHours }
 GET /dashboard/summary   → { byLevel, byDirection, byStatus, byOrderStatus, total }
 GET /dashboard/top-risks?limit=10 → Prediction[]
 ```
+
+Пустые `precision` и `recall` значат «точность не измерена». Тогда `note`
+говорит почему, а `method` называет способ работы направления:
+`offline_holdout` у модели, `expert_rules` у экспертных правил. Виджет пишет
+«не измерена» и показывает `note` как есть. Ноль вместо пустоты читался бы как
+провал, молчание — как пропуск.
 
 `byLevel`, `byDirection`, `byStatus`, `byOrderStatus` — это `Record<string, number>`,
 а не массивы с фиксированными ключами. Появилось направление — появился ключ,

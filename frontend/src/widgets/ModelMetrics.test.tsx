@@ -32,14 +32,29 @@ describe('виджет метрик моделей', () => {
     renderWithProviders(<ModelMetrics />)
     await screen.findAllByRole('listitem')
 
-    const metrics = db().metrics
-    const good = metrics.find((m) => m.precision >= m.targetPrecision)
-    const bad = metrics.find((m) => m.precision < m.targetPrecision)
+    const metrics = db().metrics.filter((m) => m.precision !== undefined)
+    const good = metrics.find((m) => (m.precision ?? 0) >= m.targetPrecision)
+    const bad = metrics.find((m) => (m.precision ?? 0) < m.targetPrecision)
     expect(good, 'в сиде должно быть направление с Precision выше цели').toBeDefined()
     expect(bad, 'и хотя бы одно ниже — иначе красное состояние не показать').toBeDefined()
 
     expect(screen.getAllByText(/✓/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/!/).length).toBeGreaterThan(0)
+  })
+})
+
+describe('направление без замера точности', () => {
+  it('пишет «не измерена» и пояснение сервера, а не ноль и не молчание', async () => {
+    renderWithProviders(<ModelMetrics />)
+    await screen.findAllByRole('listitem')
+
+    const unmeasured = db().metrics.filter((m) => m.precision === undefined)
+    expect(unmeasured.length, 'в сиде должно быть направление без замера').toBeGreaterThan(0)
+    // Две ячейки на строку: Precision и Recall.
+    expect(screen.getAllByText('не измерена')).toHaveLength(unmeasured.length * 2)
+    for (const metric of unmeasured) {
+      expect(screen.getByText(metric.note ?? '')).toBeInTheDocument()
+    }
   })
 })
 
