@@ -66,7 +66,32 @@ FUTURE_PUMPS = [
 ]
 
 
-def _connect(events: list, pumps: list) -> duckdb.DuckDBPyConnection:
+# Проверки на пикете: сигналы внутри рабочего окна (ADR 0010).
+PAST_CHECKS = [(UNIT, ts("2024-02-28T10:00:00"), 1)]
+FUTURE_CHECKS = [(UNIT, ts("2024-03-01T10:00:00"), 1)]
+
+
+def _weather(con: duckdb.DuckDBPyConnection, future: bool) -> None:
+    """Погода по часам на весь срок. Будущее отличается ливнем и оттепелью."""
+    con.execute(
+        "CREATE TABLE weather (hour TIMESTAMP, precip DOUBLE, rain DOUBLE, "
+        "snowfall DOUBLE, temp DOUBLE, snow_depth DOUBLE)"
+    )
+    hour = LIFE[0]
+    rows = []
+    while hour <= LIFE[1]:
+        ahead = hour >= POINT
+        rain = 5.0 if (future and ahead) else (1.0 if hour.hour == 3 else 0.0)
+        temp = 8.0 if (future and ahead) else -2.0
+        depth = 0.0 if (future and ahead) else 0.30 - 0.001 * (hour - LIFE[0]).days
+        rows.append((hour, rain, rain, 0.0, temp, depth))
+        hour += dt.timedelta(hours=1)
+    con.executemany("INSERT INTO weather VALUES (?, ?, ?, ?, ?, ?)", rows)
+
+
+def _connect(
+    events: list, pumps: list, checks: list, future_weather: bool
+) -> duckdb.DuckDBPyConnection:
     con = duckdb.connect()
     con.execute("PRAGMA threads=2")
     con.execute(
@@ -81,6 +106,15 @@ def _connect(events: list, pumps: list) -> duckdb.DuckDBPyConnection:
     )
     for unit, hour, moments in events:
         con.execute("INSERT INTO alarm VALUES (?, ?, ?, ?, ?)", [*unit, hour, moments])
+    con.execute(
+        "CREATE TABLE check_signal (object_id BIGINT, gallery DOUBLE, picket DOUBLE, "
+        "hour TIMESTAMP, n_moments INTEGER)"
+    )
+    for unit, hour, moments in checks:
+        con.execute(
+            "INSERT INTO check_signal VALUES (?, ?, ?, ?, ?)", [*unit, hour, moments]
+        )
+    _weather(con, future_weather)
     con.execute(
         "CREATE TABLE pump (channel_id BIGINT, object_id BIGINT, gallery DOUBLE, "
         "picket DOUBLE, complex_id BIGINT, hour TIMESTAMP, n_changes INTEGER, "
@@ -103,8 +137,10 @@ def _connect(events: list, pumps: list) -> duckdb.DuckDBPyConnection:
     return con
 
 
-def _row(events: list, pumps: list) -> dict[str, object]:
-    con = _connect(events, pumps)
+def _row(
+    events: list, pumps: list, checks: list, future_weather: bool
+) -> dict[str, object]:
+    con = _connect(events, pumps, checks, future_weather)
     panel_module.build_panel(con, BLINK)
     frame = con.execute(
         "SELECT * FROM panel WHERE object_id = ? AND picket = ? AND hour = ?",
@@ -116,23 +152,33 @@ def _row(events: list, pumps: list) -> dict[str, object]:
 
 @pytest.fixture(scope="module")
 def past_only() -> dict[str, object]:
-    return _row(PAST_EVENTS, PAST_PUMPS)
+    return _row(PAST_EVENTS, PAST_PUMPS, PAST_CHECKS, False)
 
 
 @pytest.fixture(scope="module")
 def with_future() -> dict[str, object]:
-    return _row(PAST_EVENTS + FUTURE_EVENTS, PAST_PUMPS + FUTURE_PUMPS)
+    return _row(
+        PAST_EVENTS + FUTURE_EVENTS,
+        PAST_PUMPS + FUTURE_PUMPS,
+        PAST_CHECKS + FUTURE_CHECKS,
+        True,
+    )
 
 
 def test_the_point_sees_the_past(past_only: dict[str, object]) -> None:
     """Контроль: без него тест на утечку прошёл бы и на пустых признаках."""
     assert past_only["pump_changes_1h"] == 30
+    assert past_only["check_hours_168h"] == 1
+    assert past_only["weather_precip_24h"] == 1.0
+    assert past_only["weather_temp_mean_24h"] == -2.0
+    assert past_only["weather_snow_depth_cm"] > 0
     assert past_only["pump_blink_hours_24h"] == 1
     assert past_only["pump_unavailable_24h"] == 1
     assert past_only["evt_hours_24h"] == 1
     assert past_only["evt_hours_since_last"] == 2
-    # сосед по объекту: событие соседней единицы и затопление насоса без пикета
-    assert past_only["obj_events_24h"] == 3 + 1
+    # Сосед по объекту: событие соседней единицы. Затопление насоса без пикета
+    # не разметить, поэтому водой оно не считается (ADR 0012).
+    assert past_only["obj_events_24h"] == 3
     assert past_only["obj_pump_blink_24h"] == 1
     # соседний объект того же комплекса
     assert past_only["cx_events_24h"] == 0

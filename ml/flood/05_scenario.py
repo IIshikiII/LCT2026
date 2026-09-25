@@ -10,7 +10,7 @@
 сутки. Второй замер отделяет предвестие от простого продолжения уже идущего
 затопления.
 
-Отложенная выборка не читается: замер идёт по часам до 2026-01-01.
+Отложенный год не читается: замер идёт по часам до 2025-07-01. Метка ADR 0010.
 
 Выход: `out/scenario.json`."""
 
@@ -22,7 +22,7 @@ import duckdb
 OUT = pathlib.Path(__file__).resolve().parent / "out"
 PANEL = OUT / "panel_hourly.parquet"
 RESULT = OUT / "scenario.json"
-VALID_END = "2026-01-01"
+VALID_END = "2025-07-01"
 
 SIGNALS = {
     "насос единицы мигал": "pump_blink_hours_24h > 0",

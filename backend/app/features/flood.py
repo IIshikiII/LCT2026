@@ -23,6 +23,13 @@
 Насос без пикета в схеме отдельной строки не имеет: его события лежат на
 какой-то `facility` объекта и видны соседям так же, как в обучении.
 
+## Вода и плановые проверки
+
+Сигнал «Затоплен» или «Не замкнут» внутри рабочего окна (будни, кроме
+праздников, с 8:00 до 16:00 по Москве) оставляют в основном плановые проверки.
+Водой он не считается ни в признаках событий, ни в метке (ADR 0010). Условие
+держит функция `water_sql`, одна на модуль и на плагин.
+
 ## Коды событий
 
 Журнал СМВУ пишет тексты, схема `backend` держит коды. Соответствие:
@@ -65,9 +72,33 @@ SENSOR_FLOOD = "FLOOD_SENSOR"
 
 # Порог мигания из обучения: квантиль 0,99 смен за час у исправных насосов на
 # обучающем отрезке (`ml/flood/out/panel_stats.json`, ADR 0009).
-BLINK_CHANGES_PER_HOUR = 15.0
+BLINK_CHANGES_PER_HOUR = 14.0
+# Рабочее окно плановых проверок и часовой пояс журнала СМВУ (ADR 0010).
+WORK_FROM, WORK_TO = 8, 16
+TIMEZONE = "Europe/Moscow"
 # Интервал «насос включён» длиннее суток обрезается: за ним пропуск данных.
 MAX_ON_HOURS = 24
+
+
+def holidays() -> list[str]:
+    """Постоянные праздники в виде `MM-DD`: в праздник рабочего окна нет."""
+    from app.features.calendar_ru import FIXED_HOLIDAYS
+
+    return sorted(f"{month:02d}-{day:02d}" for month, day in FIXED_HOLIDAYS)
+
+
+def water_sql(alias: str = "e") -> str:
+    """Условие «сигнал затопления вне рабочего окна». Нужен параметр `:holidays`."""
+    local = f"({alias}.occurred_at AT TIME ZONE '{TIMEZONE}')"
+    return (
+        f"NOT (extract(isodow FROM {local}) <= 5 "
+        f"AND extract(hour FROM {local}) >= {WORK_FROM} "
+        f"AND extract(hour FROM {local}) < {WORK_TO} "
+        f"AND to_char({local}, 'MM-DD') <> ALL(:holidays))"
+    )
+
+
+WATER = water_sql("e")
 
 
 def hour_of(at: datetime) -> datetime:
@@ -97,16 +128,16 @@ def _counts(conn: Connection, facility_id: str, at: datetime, level: str) -> dic
                 {
                     ", ".join(
                         f"count(DISTINCT date_trunc('hour', e.occurred_at)) FILTER ("
-                        f"WHERE e.alarm_type = ANY(:label) AND e.occurred_at >= :h - "
+                        f"WHERE e.alarm_type = ANY(:label) AND {WATER} AND e.occurred_at >= :h - "
                         f"interval '{w} hours') AS evt_hours_{w}h"
                         for w in (24, 168, 720, 2160, 8760)
                     )
                 },
                 count(DISTINCT (e.sensor_id, e.occurred_at)) FILTER (
-                    WHERE e.alarm_type = ANY(:label)
+                    WHERE e.alarm_type = ANY(:label) AND {WATER}
                       AND e.occurred_at >= :h - interval '24 hours') AS m_evt_24h,
                 count(DISTINCT (e.sensor_id, e.occurred_at)) FILTER (
-                    WHERE e.alarm_type = ANY(:label)
+                    WHERE e.alarm_type = ANY(:label) AND {WATER}
                       AND e.occurred_at >= :h - interval '168 hours') AS m_evt_168h,
                 {
                     ", ".join(
@@ -141,6 +172,7 @@ def _counts(conn: Connection, facility_id: str, at: datetime, level: str) -> dic
                 "facility_id": facility_id,
                 "h": h,
                 "label": list(LABEL_TYPES),
+                "holidays": holidays(),
                 "state": list(STATE_TYPES),
                 "unavail": PUMP_UNAVAILABLE,
                 "allp": PUMP_ALL_RUNNING,
@@ -288,17 +320,23 @@ def _first_seen(conn: Connection, facility_id: str, at: datetime) -> datetime:
 def _hours_since_last(conn: Connection, facility_id: str, at: datetime) -> float:
     """Часов от последнего события до начала часа расчёта.
 
+    Событием считается только вода, сигнал вне рабочего окна (ADR 0010).
     Событий не было значит часов от первой записи единицы плюс один, как в
     обучении: там отсчёт шёл от начала жизни единицы.
     """
     h = hour_of(at)
     row = conn.execute(
         text(
-            "SELECT max(occurred_at) FROM alarm_event "
-            "WHERE facility_id = :facility_id AND alarm_type = ANY(:label) "
-            "AND occurred_at < :h"
+            "SELECT max(e.occurred_at) FROM alarm_event e "
+            "WHERE e.facility_id = :facility_id AND e.alarm_type = ANY(:label) "
+            f"AND {WATER} AND e.occurred_at < :h"
         ),
-        {"facility_id": facility_id, "label": list(LABEL_TYPES), "h": h},
+        {
+            "facility_id": facility_id,
+            "label": list(LABEL_TYPES),
+            "holidays": holidays(),
+            "h": h,
+        },
     ).fetchone()
     if row and row[0] is not None:
         return (h - hour_of(row[0])).total_seconds() // 3600

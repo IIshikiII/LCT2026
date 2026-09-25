@@ -169,6 +169,14 @@ def db() -> Any:
                     "occurred_at": AT + timedelta(hours=3),
                 },
                 {
+                    "id": 3,
+                    "facility_id": "F-PUMP",
+                    "sensor_id": "F-PUMP-P",
+                    "alarm_type": flood.FLOODED,
+                    # Вторник, 11:00 по Москве: плановая проверка, не вода.
+                    "occurred_at": datetime(2026, 5, 12, 8, 0, tzinfo=UTC),
+                },
+                {
                     "id": 2,
                     "facility_id": "F-DRY",
                     "sensor_id": "F-DRY-DOOR",
@@ -200,6 +208,9 @@ def test_the_label_rule_repeats_the_training_label() -> None:
         assert plugin.label_rule(conn, "F-EVENTS", ahead)
         # Чужой тип тревоги подтоплением не является.
         assert not plugin.label_rule(conn, "F-DRY", ahead)
+        # Сигнал в рабочее окно это плановая проверка, а не вода (ADR 0010).
+        workday = Window(start=AT + timedelta(days=2), end=AT + timedelta(days=3))
+        assert not plugin.label_rule(conn, "F-PUMP", workday)
         # Окно открыто слева: событие ровно в момент начала окна не считается.
         exact = Window(start=AT + timedelta(hours=3), end=AT + timedelta(hours=27))
         assert not plugin.label_rule(conn, "F-EVENTS", exact)

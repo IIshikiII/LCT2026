@@ -1,0 +1,76 @@
+{
+  "opening": "второе: правило скользящего бюджета выбрано после первого открытия",
+  "window_days": 30,
+  "opened_at": "2026-09-24T22:25:49",
+  "naive": {
+    "precision": 0.329091,
+    "recall": 0.326126,
+    "alerts": 550,
+    "hits": 181
+  },
+  "model": {
+    "precision": 0.384615,
+    "recall": 0.396396,
+    "alerts": 572,
+    "hits": 220
+  },
+  "beats_both": true,
+  "seasons": {
+    "зима": {
+      "naive": {
+        "precision": 0.267241,
+        "recall": 0.269565,
+        "alerts": 116,
+        "hits": 31
+      },
+      "model": {
+        "precision": 0.31746,
+        "recall": 0.347826,
+        "alerts": 126,
+        "hits": 40
+      }
+    },
+    "весна": {
+      "naive": {
+        "precision": 0.348361,
+        "recall": 0.346939,
+        "alerts": 244,
+        "hits": 85
+      },
+      "model": {
+        "precision": 0.40856,
+        "recall": 0.428571,
+        "alerts": 257,
+        "hits": 105
+      }
+    },
+    "лето": {
+      "naive": {
+        "precision": 0.373913,
+        "recall": 0.361345,
+        "alerts": 115,
+        "hits": 43
+      },
+      "model": {
+        "precision": 0.428571,
+        "recall": 0.403361,
+        "alerts": 112,
+        "hits": 48
+      }
+    },
+    "осень": {
+      "naive": {
+        "precision": 0.293333,
+        "recall": 0.289474,
+        "alerts": 75,
+        "hits": 22
+      },
+      "model": {
+        "precision": 0.350649,
+        "recall": 0.355263,
+        "alerts": 77,
+        "hits": 27
+      }
+    }
+  }
+}

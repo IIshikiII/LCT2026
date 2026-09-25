@@ -5,9 +5,10 @@
 `h` в 00:00: признаки у двух сеток общие, и сравнение сеток меряет только шаг
 прогноза, а не разницу в признаках.
 
-**Метка** (ADR 0008, версия Б). Единица имеет момент тревоги «Затоплен» насоса
-или «Не замкнут» датчика затопления в часах `h … h + 23`. Строки, у которых окно
-метки выходит за конец жизни единицы, выбывают: у них метка неполная.
+**Метка** (ADR 0012). Единица имеет воду в часах `h … h + 23`. Вода это сигнал
+«Затоплен» насоса или «Не замкнут» датчика затопления в сутках, которые
+классификатор `11_pu_label.py` признал водой, а не плановой проверкой. Строки,
+у которых окно метки выходит за конец жизни единицы, выбывают.
 
 **Наивная планка.** Событие было в часах `h − 24 … h − 1`. Для суточной сетки
 это «событие было вчера».
@@ -20,11 +21,18 @@
 3. `obj_*`, `cx_*` — те же величины у соседей: остальные единицы и насосы без
    пикета того же объекта, остальные объекты того же комплекса. Уклонов нет,
    поэтому соседство задано деревом объектов (разуклонка, ответ 2.7).
-4. `cal_*` — сезон и календарь.
+4. `cal_*` — сезон и календарь. Признаки дня недели, нерабочего дня,
+   праздника и часа в панели есть, но в модель не идут: модель ищет воду, а
+   не график работ (ADR 0012).
+5. `check_*` — сигналы в сутках, которые классификатор признал плановой
+   проверкой (ADR 0012).
+6. `weather_*` — погода Москвы до точки расчёта: осадки, снег, таяние,
+   температура (`08_weather.py`).
+7. `recent_*` — вода, проверки и откачка за последние 6 и 12 часов.
 
 **Мигание.** Порог не назначен числом. Это квантиль 0,99 числа смен за час у
-исправных насосов на обучающем отрезке: час насоса, в сутки которого не было
-ни недоступности, ни затопления. Порог считается только по обучающему отрезку,
+исправных насосов до первого проверочного года: час насоса, в сутки которого
+не было ни недоступности, ни затопления. Порог считается только по этим годам,
 иначе он подсмотрел бы проверку.
 
 Окна считаются оконными функциями по плотной сетке, поэтому `ROWS BETWEEN n
@@ -57,12 +65,15 @@ HOURLY = OUT / "flood_hourly.parquet"
 UNITS = OUT / "flood_units.parquet"
 PUMP_HOURLY = OUT / "pump_hourly.parquet"
 PUMP_CHANNELS = OUT / "pump_channels.parquet"
+WEATHER = OUT / "weather_hourly.parquet"
+PU_EVENTS = OUT / "pu_events.parquet"
 PANEL = OUT / "panel_hourly.parquet"
 STATS = OUT / "panel_stats.json"
 
 KEY = "object_id, gallery, picket"
 LABEL_VALUES = ("Затоплен", "Не замкнут")
-TRAIN_END = "2025-07-01"
+# Порог мигания считается по годам до первого проверочного года (`10_train.py`).
+THRESHOLD_END = "2022-07-01"
 BLINK_QUANTILE = 0.99
 HORIZON = 24
 
@@ -78,7 +89,7 @@ def blink_threshold(con: duckdb.DuckDBPyConnection) -> float:
         SELECT quantile_cont(p.n_changes, {BLINK_QUANTILE})
         FROM pump p
         LEFT JOIN bad_day b ON b.channel_id = p.channel_id AND b.day = p.hour::DATE
-        WHERE p.hour < TIMESTAMP '{TRAIN_END}' AND p.n_changes > 0 AND b.day IS NULL
+        WHERE p.hour < TIMESTAMP '{THRESHOLD_END}' AND p.n_changes > 0 AND b.day IS NULL
         """
     ).fetchone()
     return float(row[0])
@@ -106,6 +117,9 @@ def build_unit_hours(con: duckdb.DuckDBPyConnection, blink: float) -> None:
         evt AS (
             SELECT {KEY}, hour, sum(n_moments) AS m_evt FROM alarm GROUP BY ALL
         ),
+        chk AS (
+            SELECT {KEY}, hour, count(*) AS m_check FROM check_signal GROUP BY ALL
+        ),
         pmp AS (
             SELECT {KEY}, hour,
                    sum(n_changes) AS chg,
@@ -122,20 +136,26 @@ def build_unit_hours(con: duckdb.DuckDBPyConnection, blink: float) -> None:
                coalesce(p.blink, 0) AS blink,
                coalesce(p.on_min, 0) AS on_min,
                coalesce(p.unavail, 0) AS unavail,
-               coalesce(p.allp, 0) AS allp
+               coalesce(p.allp, 0) AS allp,
+               CAST(c.m_check IS NOT NULL AS INTEGER) AS had_check
         FROM grid g
         LEFT JOIN evt e USING ({KEY}, hour)
         LEFT JOIN pmp p USING ({KEY}, hour)
+        LEFT JOIN chk c USING ({KEY}, hour)
         """
     )
 
 
-def build_group_hours(con: duckdb.DuckDBPyConnection, blink: float) -> None:
+def build_group_hours(
+    con: duckdb.DuckDBPyConnection, blink: float, calendar: str
+) -> None:
     """Суммы за час по объекту и по комплексу.
 
     Объект включает насосы без пикета: у них нет единицы, но их затопления и
     работа видны соседям. События единиц идут из метки, затопления насосов без
-    пикета из свода насосов, так одно событие не считается дважды.
+    пикета из свода насосов, так одно событие не считается дважды. Затопления
+    насосов без пикета классифицировать нечем: у них нет суток пикета. Поэтому
+    водой соседей они не считаются, а их работа насоса остаётся признаком.
     """
     con.execute(
         f"""
@@ -149,10 +169,12 @@ def build_group_hours(con: duckdb.DuckDBPyConnection, blink: float) -> None:
                    0 AS unavail, 0 AS allp
             FROM unit_hour WHERE had_evt = 1
             UNION ALL
-            SELECT object_id, hour, n_flooded, CAST(n_flooded > 0 AS INTEGER),
-                   n_changes, CAST(n_changes > {blink} AS INTEGER), on_minutes,
-                   n_unavail, n_all_pumps
-            FROM pump WHERE picket IS NULL
+            SELECT p.object_id, p.hour,
+                   0, 0,
+                   p.n_changes, CAST(p.n_changes > {blink} AS INTEGER), p.on_minutes,
+                   p.n_unavail, p.n_all_pumps
+            FROM pump p JOIN {calendar} k ON k.day = p.hour::DATE
+            WHERE p.picket IS NULL
             UNION ALL
             SELECT object_id, hour, 0, 0, n_changes,
                    CAST(n_changes > {blink} AS INTEGER), on_minutes, n_unavail,
@@ -222,10 +244,33 @@ def build_group_hours(con: duckdb.DuckDBPyConnection, blink: float) -> None:
         )
 
 
+def build_weather(con: duckdb.DuckDBPyConnection) -> None:
+    """Погода до начала часа: окна прошлых часов, текущий час не входит."""
+    con.execute(
+        f"""
+        CREATE OR REPLACE TABLE weather_rolled AS
+        SELECT hour,
+            {_roll("precip", 24, "precip_24h", "1")},
+            {_roll("precip", 72, "precip_72h", "1")},
+            {_roll("precip", 168, "precip_168h", "1")},
+            {_roll("rain", 72, "rain_72h", "1")},
+            {_roll("snowfall", 72, "snowfall_72h", "1")},
+            avg(temp) OVER (ORDER BY hour ROWS BETWEEN 24 PRECEDING AND 1 PRECEDING)
+                AS temp_mean_24h,
+            max(temp) OVER (ORDER BY hour ROWS BETWEEN 72 PRECEDING AND 1 PRECEDING)
+                AS temp_max_72h,
+            lag(snow_depth, 1) OVER (ORDER BY hour) AS snow_now,
+            lag(snow_depth, 72) OVER (ORDER BY hour) AS snow_72h_ago
+        FROM weather
+        """
+    )
+
+
 def build_panel(con: duckdb.DuckDBPyConnection, blink: float) -> None:
-    build_unit_hours(con, blink)
-    build_group_hours(con, blink)
     calendar_view = calendar_ru.build_calendar(con)
+    build_unit_hours(con, blink)
+    build_group_hours(con, blink, calendar_view)
+    build_weather(con)
 
     con.execute(
         f"""
@@ -255,6 +300,12 @@ def build_panel(con: duckdb.DuckDBPyConnection, blink: float) -> None:
             {_roll("unavail", 168, "unavail_168h")},
             {_roll("allp", 24, "allp_24h")},
             {_roll("allp", 168, "allp_168h")},
+            {_roll("had_check", 168, "check_hours_168h")},
+            {_roll("had_check", 24, "check_hours_24h")},
+            {_roll("had_evt", 6, "evt_hours_6h")},
+            {_roll("had_evt", 12, "evt_hours_12h")},
+            {_roll("on_min", 6, "on_min_6h")},
+            {_roll("had_check", 720, "check_hours_720h")},
             max(CASE WHEN had_evt = 1 THEN hour END) OVER (
                 PARTITION BY {KEY} ORDER BY hour
                 ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS last_evt,
@@ -317,6 +368,29 @@ def build_panel(con: duckdb.DuckDBPyConnection, blink: float) -> None:
             m.n_flood_sensors AS unit_flood_sensors,
             date_diff('day', r.first_hour, r.hour) AS unit_age_days,
 
+            -- 7. свежесть внутри суток: вечер накануне весит больше утра
+            coalesce(r.evt_hours_6h, 0) AS recent_evt_hours_6h,
+            coalesce(r.evt_hours_12h, 0) AS recent_evt_hours_12h,
+            coalesce(r.check_hours_24h, 0) AS recent_check_hours_24h,
+            coalesce(r.on_min_6h, 0) / (60.0 * 6 * greatest(m.n_pumps, 1))
+                AS recent_pump_on_share_6h,
+
+            -- 5. проверки на пикете
+            coalesce(r.check_hours_168h, 0) AS check_hours_168h,
+            coalesce(r.check_hours_720h, 0) AS check_hours_720h,
+
+            -- 6. погода до начала часа
+            coalesce(w.precip_24h, 0) AS weather_precip_24h,
+            coalesce(w.precip_72h, 0) AS weather_precip_72h,
+            coalesce(w.precip_168h, 0) AS weather_precip_168h,
+            coalesce(w.rain_72h, 0) AS weather_rain_72h,
+            coalesce(w.snowfall_72h, 0) AS weather_snowfall_72h,
+            w.temp_mean_24h AS weather_temp_mean_24h,
+            w.temp_max_72h AS weather_temp_max_72h,
+            coalesce(w.snow_now, 0) * 100 AS weather_snow_depth_cm,
+            greatest(0, coalesce(w.snow_72h_ago, 0) - coalesce(w.snow_now, 0)) * 100
+                AS weather_melt_72h_cm,
+
             -- 4. календарь
             hour(r.hour) AS cal_hour,
             k.season AS cal_season, k.month AS cal_month, k.day_of_year AS cal_day_of_year,
@@ -328,6 +402,7 @@ def build_panel(con: duckdb.DuckDBPyConnection, blink: float) -> None:
         JOIN object_complex oc ON oc.object_id = r.object_id
         LEFT JOIN object_rolled o ON o.object_id = r.object_id AND o.hour = r.hour
         LEFT JOIN complex_rolled c ON c.complex_id = oc.complex_id AND c.hour = r.hour
+        LEFT JOIN weather_rolled w ON w.hour = r.hour
         JOIN {calendar_view} k ON k.day = r.hour::DATE
         WHERE r.rows_next = {HORIZON} AND r.hour + INTERVAL {HORIZON - 1} HOUR <= u.hour_to
         ORDER BY r.object_id, r.gallery, r.picket, r.hour
@@ -338,13 +413,23 @@ def build_panel(con: duckdb.DuckDBPyConnection, blink: float) -> None:
 def attach_sources(con: duckdb.DuckDBPyConnection) -> None:
     label = ", ".join(f"'{v}'" for v in LABEL_VALUES)
     con.execute(f"CREATE VIEW unit AS SELECT * FROM read_parquet('{UNITS.as_posix()}')")
+    # Сигналы делятся по разметке суток: вода идёт в метку, проверка в признак
+    # проверок (ADR 0012).
+    for view, real in (("alarm", "true"), ("check_signal", "false")):
+        con.execute(
+            f"""
+            CREATE TABLE {view} AS
+            SELECT h.object_id, h.gallery, h.picket, h.hour, sum(h.n_moments) AS n_moments
+            FROM read_parquet('{HOURLY.as_posix()}') h
+            JOIN read_parquet('{PU_EVENTS.as_posix()}') e
+              ON e.object_id = h.object_id AND e.gallery = h.gallery
+             AND e.picket = h.picket AND e.day = h.hour::DATE
+            WHERE h.value IN ({label}) AND e.real = {real}
+            GROUP BY ALL
+            """
+        )
     con.execute(
-        f"""
-        CREATE VIEW alarm AS
-        SELECT object_id, gallery, picket, hour, sum(n_moments) AS n_moments
-        FROM read_parquet('{HOURLY.as_posix()}')
-        WHERE value IN ({label}) GROUP BY ALL
-        """
+        f"CREATE VIEW weather AS SELECT * FROM read_parquet('{WEATHER.as_posix()}')"
     )
     con.execute(
         f"CREATE VIEW pump AS SELECT * FROM read_parquet('{PUMP_HOURLY.as_posix()}')"

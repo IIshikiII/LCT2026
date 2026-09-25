@@ -1,10 +1,11 @@
 """Предиктор направления «риск подтопления». Спецификация §7.
 
-Модель — суточный бустер LightGBM из `ml/flood/06_train.py`, читается через
+Модель — суточный бустер LightGBM из `ml/flood/10_train.py`, читается через
 `app.ml.tracking.load_model("FLOOD_RISK")`. Признаки считает реестр
 `app.features.registry` по модулю `app/features/flood.py`, набор и порядок
 называет сама модель через `feature_name()`. Разбор метки и модели лежит в
-ADR 0008 и ADR 0009.
+ADR 0010 и ADR 0011: водой считается только сигнал вне рабочего окна, сигналы
+плановых проверок в метку не идут.
 
 ## Направление считается не на каждом объекте
 
@@ -29,7 +30,14 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from app.features.flood import LABEL_TYPES, SENSOR_FLOOD, SENSOR_PUMP, STATE_TYPES
+from app.features.flood import (
+    LABEL_TYPES,
+    SENSOR_FLOOD,
+    SENSOR_PUMP,
+    STATE_TYPES,
+    WATER,
+    holidays,
+)
 from app.ml.plugins.unauthorized_access import shap_weight
 from app.ml.protocol import Block, FeatureContext, FeatureVector, Window
 from app.ml.registry import register
@@ -336,17 +344,19 @@ class FloodRisk:
         return "Гидроизоляция"
 
     def label_rule(self, conn: Connection, facility_id: str, window: Window) -> bool:
-        """Метка обучения (ADR 0008): «Затоплен» или «Не замкнут» датчика
-        затопления в окне. Окно открыто слева: момент расчёта в метку не входит."""
+        """Метка обучения (ADR 0010): «Затоплен» насоса или «Не замкнут» датчика
+        затопления вне рабочего окна. Окно открыто слева: момент расчёта в метку
+        не входит."""
         row = conn.execute(
             text(
-                "SELECT 1 FROM alarm_event WHERE facility_id = :facility_id "
-                "AND alarm_type = ANY(:label) "
-                "AND occurred_at > :start AND occurred_at <= :end LIMIT 1"
+                "SELECT 1 FROM alarm_event e WHERE e.facility_id = :facility_id "
+                f"AND e.alarm_type = ANY(:label) AND {WATER} "
+                "AND e.occurred_at > :start AND e.occurred_at <= :end LIMIT 1"
             ),
             {
                 "facility_id": facility_id,
                 "label": list(LABEL_TYPES),
+                "holidays": holidays(),
                 "start": window.start,
                 "end": window.end,
             },

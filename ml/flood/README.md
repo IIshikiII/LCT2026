@@ -5,11 +5,14 @@
 бюджет вариантов и однократное открытие отложенной выборки держит код
 `06_train.py`, а не договорённость.
 
-Решения по числам лежат в двух ADR:
+Решения по числам лежат в четырёх ADR:
 
-- `backend/docs/adr/0008-flood-target.md` — метка и правило выбора версии;
-- `backend/docs/adr/0009-flood-model.md` — признаки, сценарий заказчика,
-  варианты, отложенная выборка, порог и уровни.
+- `backend/docs/adr/0008-flood-target.md` — первая метка, заменена;
+- `backend/docs/adr/0009-flood-model.md` — первая модель, заменена;
+- `backend/docs/adr/0010-flood-real-water.md` — как отличить воду от плановой
+  проверки, одиннадцать критериев;
+- `backend/docs/adr/0011-flood-model-real-water.md` — действующая модель:
+  отложенный год, растущее окно, гипотезы, порог и уровни.
 
 ## Файлы
 
@@ -23,6 +26,12 @@
 | `05_scenario.py` | Меряет сценарий заказчика: лифт события после мигания и недоступности насоса. Отложенную выборку не читает. Результат: `out/scenario.json`. |
 | `06_train.py` | Режим `variant` учит вариант по трём семенам и меряет на проверочном отрезке. Режим `final` один раз открывает отложенную выборку. Результат: `out/variants.json`, `out/metrics.json`, `out/model.txt`, `out/model.joblib`. |
 | `07_export.py` | Кладёт модель и замер в `backend/artifacts/flood_risk/`, откуда их читает плагин. |
+| `08_weather.py` | Скачивает архив погоды Москвы Open-Meteo и строит `out/weather_hourly.parquet`, `out/weather_daily.parquet`. |
+| `09_hypotheses.py` | Проверяет одиннадцать критериев воды: ритм недели, погоду, работу насоса, объём. Результат: `out/hypotheses.json`. |
+| `10_train.py` | Действующий протокол: отложенный год, три проверочных года растущим окном, бюджет вариантов в `out/variants_cv.json`. Режим `final` один раз открывает отложенный год и пишет `out/metrics.json`, `out/model.*`. |
+
+Файл `06_train.py` и журнал `out/variants.json` описывают первую модель на
+старой метке. Они оставлены как история ADR 0009.
 
 ## Запуск
 
@@ -36,8 +45,10 @@ Ubuntu и macOS — `.venv/bin/python`, на Windows — `.venv\Scripts\python.e
 .venv/Scripts/python.exe ml/flood/03_pumps.py
 .venv/Scripts/python.exe ml/flood/04_panel.py
 .venv/Scripts/python.exe ml/flood/05_scenario.py
-.venv/Scripts/python.exe ml/flood/06_train.py variant v1 --grid day --groups all
-.venv/Scripts/python.exe ml/flood/06_train.py final v1
+.venv/Scripts/python.exe ml/flood/08_weather.py
+.venv/Scripts/python.exe ml/flood/09_hypotheses.py
+.venv/Scripts/python.exe ml/flood/10_train.py variant base --groups pump,evt,obj,cx,cal
+.venv/Scripts/python.exe ml/flood/10_train.py final base
 .venv/Scripts/python.exe ml/flood/07_export.py
 .venv/Scripts/python.exe -m pytest ml/flood -q
 ```
@@ -54,10 +65,10 @@ Ubuntu и macOS — `.venv/bin/python`, на Windows — `.venv\Scripts\python.e
 | Показатель | Значение |
 |---|---|
 | Единиц «объект, галерея, пикет» | 82 |
-| Метка | «Затоплен» у насоса или «Не замкнут» у датчика затопления, 24 ч |
-| База, сутки | 2,72 % |
-| Порог мигания | больше 15 смен за час |
-| Вариантов использовано | 5 из 8, остановка по правилу |
-| Итог | суточная модель, все 42 признака |
-| Отложенная выборка, точность при полноте планки | 45,3 % против 29,8 % у планки |
-| Порог заявки с проверочного отрезка | 0,143891 |
+| Метка | «Затоплен» у насоса или «Не замкнут» у датчика затопления вне окна «будни 8:00–16:00», 24 ч |
+| База, сутки | 1,09 % |
+| Порог мигания | больше 14 смен за час |
+| Вариантов использовано | 6 из 8 |
+| Итог | суточная модель base, 37 признаков, 26 деревьев |
+| Отложенный год, точность при полноте планки | 57,8 % против 29,1 % у планки |
+| Порог заявки с проверочных лет | 0,065061 |

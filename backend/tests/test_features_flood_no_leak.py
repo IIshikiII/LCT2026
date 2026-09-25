@@ -38,6 +38,8 @@ def _blink(code: str, start: datetime, changes: int) -> list[tuple[str, str, dat
 PAST = [
     (UNIT, flood.FLOODED, HOUR - timedelta(days=20)),
     (UNIT, flood.FLOODED, HOUR - timedelta(hours=5)),
+    # Пятница, 10:00 по Москве: плановая проверка, водой не считается (ADR 0010).
+    (UNIT, flood.FLOODED, datetime(2026, 2, 27, 7, 0, tzinfo=UTC)),
     (UNIT, flood.PUMP_ON, HOUR - timedelta(hours=3)),
     (UNIT, flood.PUMP_OFF, HOUR - timedelta(hours=2)),
     (UNIT, flood.PUMP_ON, HOUR - timedelta(minutes=30)),
@@ -156,6 +158,7 @@ def test_the_point_sees_the_past(both: tuple[dict[str, float], dict[str, float]]
     """Контроль: иначе тест на утечку прошёл бы и на нулевых признаках."""
     past_only, _ = both
     assert past_only["evt_hours_24h"] == 1
+    assert past_only["evt_hours_168h"] == 1, "проверка в рабочее окно попала в воду"
     assert past_only["evt_hours_since_last"] == 5
     assert past_only["pump_blink_hours_24h"] == 1
     assert past_only["pump_unavailable_24h"] == 1

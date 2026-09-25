@@ -1,0 +1,1029 @@
+[
+  {
+    "name": "base",
+    "kind": "search",
+    "note": "гипотеза 1: прежний набор без дня недели, метка ADR 0010",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal"
+      ],
+      "train_window_days": 0,
+      "params": {}
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "rows_train": 60033,
+        "base": 0.007462,
+        "naive": {
+          "precision": 0.2657,
+          "recall": 0.2657,
+          "alerts": 207,
+          "hits": 55
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 5,
+            "pr_auc": 0.251037,
+            "precision_at_naive_recall": 0.333333
+          },
+          {
+            "seed": 1301,
+            "trees": 9,
+            "pr_auc": 0.237569,
+            "precision_at_naive_recall": 0.329341
+          },
+          {
+            "seed": 7717,
+            "trees": 20,
+            "pr_auc": 0.254734,
+            "precision_at_naive_recall": 0.404412
+          }
+        ]
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "rows_train": 87773,
+        "base": 0.010318,
+        "naive": {
+          "precision": 0.244755,
+          "recall": 0.243902,
+          "alerts": 286,
+          "hits": 70
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 26,
+            "pr_auc": 0.213715,
+            "precision_at_naive_recall": 0.346535
+          },
+          {
+            "seed": 1301,
+            "trees": 31,
+            "pr_auc": 0.204365,
+            "precision_at_naive_recall": 0.393258
+          },
+          {
+            "seed": 7717,
+            "trees": 55,
+            "pr_auc": 0.225962,
+            "precision_at_naive_recall": 0.414201
+          }
+        ]
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "rows_train": 115589,
+        "base": 0.005327,
+        "naive": {
+          "precision": 0.187919,
+          "recall": 0.189189,
+          "alerts": 149,
+          "hits": 28
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 47,
+            "pr_auc": 0.158038,
+            "precision_at_naive_recall": 0.321839
+          },
+          {
+            "seed": 1301,
+            "trees": 106,
+            "pr_auc": 0.148938,
+            "precision_at_naive_recall": 0.294737
+          },
+          {
+            "seed": 7717,
+            "trees": 25,
+            "pr_auc": 0.164523,
+            "precision_at_naive_recall": 0.388889
+          }
+        ]
+      }
+    ],
+    "pr_auc_mean": 0.206542,
+    "pr_auc_seed_spread": 0.018116,
+    "pr_auc_by_fold": [
+      0.24778,
+      0.214681,
+      0.157166
+    ],
+    "oof_naive": {
+      "precision": 0.238318,
+      "recall": 0.238318,
+      "alerts": 642,
+      "hits": 153
+    },
+    "oof_precision_at_naive_recall": 0.325224,
+    "beats_naive_oof": true,
+    "best_iterations": [
+      5,
+      26,
+      47
+    ],
+    "seconds": 3
+  },
+  {
+    "name": "weather",
+    "kind": "search",
+    "note": "гипотеза 2: погода до точки расчёта помогает",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal",
+        "weather"
+      ],
+      "train_window_days": 0,
+      "params": {}
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "weather_precip_24h",
+      "weather_precip_72h",
+      "weather_precip_168h",
+      "weather_rain_72h",
+      "weather_snowfall_72h",
+      "weather_temp_mean_24h",
+      "weather_temp_max_72h",
+      "weather_snow_depth_cm",
+      "weather_melt_72h_cm",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "rows_train": 60033,
+        "base": 0.007462,
+        "naive": {
+          "precision": 0.2657,
+          "recall": 0.2657,
+          "alerts": 207,
+          "hits": 55
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 57,
+            "pr_auc": 0.239132,
+            "precision_at_naive_recall": 0.348101
+          },
+          {
+            "seed": 1301,
+            "trees": 22,
+            "pr_auc": 0.248363,
+            "precision_at_naive_recall": 0.34375
+          },
+          {
+            "seed": 7717,
+            "trees": 48,
+            "pr_auc": 0.237813,
+            "precision_at_naive_recall": 0.345912
+          }
+        ]
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "rows_train": 87773,
+        "base": 0.010318,
+        "naive": {
+          "precision": 0.244755,
+          "recall": 0.243902,
+          "alerts": 286,
+          "hits": 70
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 66,
+            "pr_auc": 0.211437,
+            "precision_at_naive_recall": 0.336538
+          },
+          {
+            "seed": 1301,
+            "trees": 60,
+            "pr_auc": 0.210758,
+            "precision_at_naive_recall": 0.35533
+          },
+          {
+            "seed": 7717,
+            "trees": 32,
+            "pr_auc": 0.211018,
+            "precision_at_naive_recall": 0.330189
+          }
+        ]
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "rows_train": 115589,
+        "base": 0.005327,
+        "naive": {
+          "precision": 0.187919,
+          "recall": 0.189189,
+          "alerts": 149,
+          "hits": 28
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 115,
+            "pr_auc": 0.158558,
+            "precision_at_naive_recall": 0.254545
+          },
+          {
+            "seed": 1301,
+            "trees": 30,
+            "pr_auc": 0.149299,
+            "precision_at_naive_recall": 0.314607
+          },
+          {
+            "seed": 7717,
+            "trees": 170,
+            "pr_auc": 0.152472,
+            "precision_at_naive_recall": 0.261682
+          }
+        ]
+      }
+    ],
+    "pr_auc_mean": 0.202094,
+    "pr_auc_seed_spread": 0.002608,
+    "pr_auc_by_fold": [
+      0.241769,
+      0.211071,
+      0.153443
+    ],
+    "oof_naive": {
+      "precision": 0.238318,
+      "recall": 0.238318,
+      "alerts": 642,
+      "hits": 153
+    },
+    "oof_precision_at_naive_recall": 0.334632,
+    "beats_naive_oof": true,
+    "best_iterations": [
+      57,
+      66,
+      115
+    ],
+    "seconds": 5
+  },
+  {
+    "name": "check",
+    "kind": "search",
+    "note": "гипотеза 3: история проверок на пикете помогает",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal",
+        "check"
+      ],
+      "train_window_days": 0,
+      "params": {}
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "check_hours_168h",
+      "check_hours_720h",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "rows_train": 60033,
+        "base": 0.007462,
+        "naive": {
+          "precision": 0.2657,
+          "recall": 0.2657,
+          "alerts": 207,
+          "hits": 55
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 27,
+            "pr_auc": 0.250622,
+            "precision_at_naive_recall": 0.300546
+          },
+          {
+            "seed": 1301,
+            "trees": 9,
+            "pr_auc": 0.246867,
+            "precision_at_naive_recall": 0.291005
+          },
+          {
+            "seed": 7717,
+            "trees": 27,
+            "pr_auc": 0.252492,
+            "precision_at_naive_recall": 0.339506
+          }
+        ]
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "rows_train": 87773,
+        "base": 0.010318,
+        "naive": {
+          "precision": 0.244755,
+          "recall": 0.243902,
+          "alerts": 286,
+          "hits": 70
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 31,
+            "pr_auc": 0.209937,
+            "precision_at_naive_recall": 0.319635
+          },
+          {
+            "seed": 1301,
+            "trees": 42,
+            "pr_auc": 0.210306,
+            "precision_at_naive_recall": 0.358974
+          },
+          {
+            "seed": 7717,
+            "trees": 33,
+            "pr_auc": 0.210245,
+            "precision_at_naive_recall": 0.336538
+          }
+        ]
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "rows_train": 115589,
+        "base": 0.005327,
+        "naive": {
+          "precision": 0.187919,
+          "recall": 0.189189,
+          "alerts": 149,
+          "hits": 28
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 33,
+            "pr_auc": 0.167856,
+            "precision_at_naive_recall": 0.388889
+          },
+          {
+            "seed": 1301,
+            "trees": 131,
+            "pr_auc": 0.165572,
+            "precision_at_naive_recall": 0.314607
+          },
+          {
+            "seed": 7717,
+            "trees": 21,
+            "pr_auc": 0.150738,
+            "precision_at_naive_recall": 0.314607
+          }
+        ]
+      }
+    ],
+    "pr_auc_mean": 0.207182,
+    "pr_auc_seed_spread": 0.00498,
+    "pr_auc_by_fold": [
+      0.249994,
+      0.210163,
+      0.161389
+    ],
+    "oof_naive": {
+      "precision": 0.238318,
+      "recall": 0.238318,
+      "alerts": 642,
+      "hits": 153
+    },
+    "oof_precision_at_naive_recall": 0.330287,
+    "beats_naive_oof": true,
+    "best_iterations": [
+      27,
+      31,
+      33
+    ],
+    "seconds": 3
+  },
+  {
+    "name": "leaf50",
+    "kind": "search",
+    "note": "гипотеза 4: мягкие листья дают редкому миганию насоса попасть в разбиение",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal"
+      ],
+      "train_window_days": 0,
+      "params": {
+        "min_data_in_leaf": 50
+      }
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "rows_train": 60033,
+        "base": 0.007462,
+        "naive": {
+          "precision": 0.2657,
+          "recall": 0.2657,
+          "alerts": 207,
+          "hits": 55
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 20,
+            "pr_auc": 0.233433,
+            "precision_at_naive_recall": 0.186441
+          },
+          {
+            "seed": 1301,
+            "trees": 35,
+            "pr_auc": 0.210109,
+            "precision_at_naive_recall": 0.263158
+          },
+          {
+            "seed": 7717,
+            "trees": 10,
+            "pr_auc": 0.239478,
+            "precision_at_naive_recall": 0.26699
+          }
+        ]
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "rows_train": 87773,
+        "base": 0.010318,
+        "naive": {
+          "precision": 0.244755,
+          "recall": 0.243902,
+          "alerts": 286,
+          "hits": 70
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 33,
+            "pr_auc": 0.196675,
+            "precision_at_naive_recall": 0.318182
+          },
+          {
+            "seed": 1301,
+            "trees": 24,
+            "pr_auc": 0.202274,
+            "precision_at_naive_recall": 0.35
+          },
+          {
+            "seed": 7717,
+            "trees": 17,
+            "pr_auc": 0.222406,
+            "precision_at_naive_recall": 0.299145
+          }
+        ]
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "rows_train": 115589,
+        "base": 0.005327,
+        "naive": {
+          "precision": 0.187919,
+          "recall": 0.189189,
+          "alerts": 149,
+          "hits": 28
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 33,
+            "pr_auc": 0.165791,
+            "precision_at_naive_recall": 0.368421
+          },
+          {
+            "seed": 1301,
+            "trees": 53,
+            "pr_auc": 0.170836,
+            "precision_at_naive_recall": 0.307692
+          },
+          {
+            "seed": 7717,
+            "trees": 5,
+            "pr_auc": 0.171855,
+            "precision_at_naive_recall": 0.430769
+          }
+        ]
+      }
+    ],
+    "pr_auc_mean": 0.201429,
+    "pr_auc_seed_spread": 0.01684,
+    "pr_auc_by_fold": [
+      0.227673,
+      0.207118,
+      0.169494
+    ],
+    "oof_naive": {
+      "precision": 0.238318,
+      "recall": 0.238318,
+      "alerts": 642,
+      "hits": 153
+    },
+    "oof_precision_at_naive_recall": 0.313926,
+    "beats_naive_oof": true,
+    "best_iterations": [
+      20,
+      33,
+      33
+    ],
+    "seconds": 3
+  },
+  {
+    "name": "window3y",
+    "kind": "search",
+    "note": "гипотеза 5: сеть меняется, свежие 3 года лучше всей истории",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal"
+      ],
+      "train_window_days": 1095,
+      "params": {}
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "rows_train": 54230,
+        "base": 0.007462,
+        "naive": {
+          "precision": 0.2657,
+          "recall": 0.2657,
+          "alerts": 207,
+          "hits": 55
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 54,
+            "pr_auc": 0.247885,
+            "precision_at_naive_recall": 0.260664
+          },
+          {
+            "seed": 1301,
+            "trees": 59,
+            "pr_auc": 0.246138,
+            "precision_at_naive_recall": 0.292553
+          },
+          {
+            "seed": 7717,
+            "trees": 19,
+            "pr_auc": 0.254614,
+            "precision_at_naive_recall": 0.387324
+          }
+        ]
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "rows_train": 66857,
+        "base": 0.010318,
+        "naive": {
+          "precision": 0.244755,
+          "recall": 0.243902,
+          "alerts": 286,
+          "hits": 70
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 20,
+            "pr_auc": 0.222941,
+            "precision_at_naive_recall": 0.344828
+          },
+          {
+            "seed": 1301,
+            "trees": 46,
+            "pr_auc": 0.218736,
+            "precision_at_naive_recall": 0.334928
+          },
+          {
+            "seed": 7717,
+            "trees": 26,
+            "pr_auc": 0.230348,
+            "precision_at_naive_recall": 0.311111
+          }
+        ]
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "rows_train": 76739,
+        "base": 0.005327,
+        "naive": {
+          "precision": 0.187919,
+          "recall": 0.189189,
+          "alerts": 149,
+          "hits": 28
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 77,
+            "pr_auc": 0.162496,
+            "precision_at_naive_recall": 0.378378
+          },
+          {
+            "seed": 1301,
+            "trees": 88,
+            "pr_auc": 0.163088,
+            "precision_at_naive_recall": 0.466667
+          },
+          {
+            "seed": 7717,
+            "trees": 135,
+            "pr_auc": 0.161616,
+            "precision_at_naive_recall": 0.388889
+          }
+        ]
+      }
+    ],
+    "pr_auc_mean": 0.211985,
+    "pr_auc_seed_spread": 0.006205,
+    "pr_auc_by_fold": [
+      0.249546,
+      0.224008,
+      0.1624
+    ],
+    "oof_naive": {
+      "precision": 0.238318,
+      "recall": 0.238318,
+      "alerts": 642,
+      "hits": 153
+    },
+    "oof_precision_at_naive_recall": 0.33796,
+    "beats_naive_oof": true,
+    "best_iterations": [
+      54,
+      20,
+      77
+    ],
+    "seconds": 3
+  },
+  {
+    "name": "no_pump",
+    "kind": "measure",
+    "note": "замер: вклад насосов единицы, база без группы pump",
+    "config": {
+      "groups": [
+        "evt",
+        "obj",
+        "cx",
+        "cal"
+      ],
+      "train_window_days": 0,
+      "params": {}
+    },
+    "columns": [
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "rows_train": 60033,
+        "base": 0.007462,
+        "naive": {
+          "precision": 0.2657,
+          "recall": 0.2657,
+          "alerts": 207,
+          "hits": 55
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 5,
+            "pr_auc": 0.246248,
+            "precision_at_naive_recall": 0.207547
+          },
+          {
+            "seed": 1301,
+            "trees": 11,
+            "pr_auc": 0.247459,
+            "precision_at_naive_recall": 0.270936
+          },
+          {
+            "seed": 7717,
+            "trees": 12,
+            "pr_auc": 0.245683,
+            "precision_at_naive_recall": 0.297297
+          }
+        ]
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "rows_train": 87773,
+        "base": 0.010318,
+        "naive": {
+          "precision": 0.244755,
+          "recall": 0.243902,
+          "alerts": 286,
+          "hits": 70
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 24,
+            "pr_auc": 0.192311,
+            "precision_at_naive_recall": 0.26616
+          },
+          {
+            "seed": 1301,
+            "trees": 36,
+            "pr_auc": 0.189603,
+            "precision_at_naive_recall": 0.297872
+          },
+          {
+            "seed": 7717,
+            "trees": 33,
+            "pr_auc": 0.191249,
+            "precision_at_naive_recall": 0.26616
+          }
+        ]
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "rows_train": 115589,
+        "base": 0.005327,
+        "naive": {
+          "precision": 0.187919,
+          "recall": 0.189189,
+          "alerts": 149,
+          "hits": 28
+        },
+        "runs": [
+          {
+            "seed": 4217,
+            "trees": 31,
+            "pr_auc": 0.146913,
+            "precision_at_naive_recall": 0.294737
+          },
+          {
+            "seed": 1301,
+            "trees": 53,
+            "pr_auc": 0.138831,
+            "precision_at_naive_recall": 0.297872
+          },
+          {
+            "seed": 7717,
+            "trees": 49,
+            "pr_auc": 0.146864,
+            "precision_at_naive_recall": 0.282828
+          }
+        ]
+      }
+    ],
+    "pr_auc_mean": 0.193907,
+    "pr_auc_seed_spread": 0.003193,
+    "pr_auc_by_fold": [
+      0.246463,
+      0.191054,
+      0.144203
+    ],
+    "oof_naive": {
+      "precision": 0.238318,
+      "recall": 0.238318,
+      "alerts": 642,
+      "hits": 153
+    },
+    "oof_precision_at_naive_recall": 0.291106,
+    "beats_naive_oof": true,
+    "best_iterations": [
+      5,
+      24,
+      31
+    ],
+    "seconds": 2
+  }
+]

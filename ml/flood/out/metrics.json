@@ -1,16 +1,26 @@
 {
   "direction": "FLOOD_RISK",
-  "variant": "v1",
+  "protocol": "pu_label_fold_ensemble_equal_alerts_holdout_year",
+  "label": "ADR 0012: сутки пикета, признанные водой, а не плановой проверкой",
+  "variant": "recent_reg2",
   "config": {
-    "grid": "day",
     "groups": [
       "pump",
       "evt",
       "obj",
       "cx",
-      "cal"
+      "cal",
+      "check",
+      "weather",
+      "recent"
     ],
-    "train_window_days": 0
+    "params": {
+      "num_leaves": 4,
+      "min_data_in_leaf": 1000,
+      "lambda_l2": 30.0,
+      "learning_rate": 0.02,
+      "feature_fraction": 0.5
+    }
   },
   "features": [
     "pump_changes_1h",
@@ -47,144 +57,318 @@
     "unit_pumps",
     "unit_flood_sensors",
     "unit_age_days",
-    "cal_hour",
+    "recent_evt_hours_6h",
+    "recent_evt_hours_12h",
+    "recent_check_hours_24h",
+    "recent_pump_on_share_6h",
+    "check_hours_168h",
+    "check_hours_720h",
+    "weather_precip_24h",
+    "weather_precip_72h",
+    "weather_precip_168h",
+    "weather_rain_72h",
+    "weather_snowfall_72h",
+    "weather_temp_mean_24h",
+    "weather_temp_max_72h",
+    "weather_snow_depth_cm",
+    "weather_melt_72h_cm",
     "cal_season",
     "cal_month",
-    "cal_day_of_year",
-    "cal_day_of_week",
-    "cal_is_day_off",
-    "cal_is_holiday",
-    "cal_day_off_chain"
+    "cal_day_of_year"
   ],
+  "models_in_ensemble": 9,
   "horizon_hours": 24,
   "reopened": null,
-  "previous_opening": null,
-  "opened_at": "2026-09-24T16:08:43",
-  "trees": 68,
-  "valid": {
-    "pr_auc": 0.284174,
-    "naive": {
-      "precision": 0.253247,
-      "recall": 0.254072,
-      "alerts": 308,
-      "hits": 78
+  "opened_at": "2026-09-24T21:57:56",
+  "cv": {
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "recent_evt_hours_6h",
+      "recent_evt_hours_12h",
+      "recent_check_hours_24h",
+      "recent_pump_on_share_6h",
+      "check_hours_168h",
+      "check_hours_720h",
+      "weather_precip_24h",
+      "weather_precip_72h",
+      "weather_precip_168h",
+      "weather_rain_72h",
+      "weather_snowfall_72h",
+      "weather_temp_mean_24h",
+      "weather_temp_max_72h",
+      "weather_snow_depth_cm",
+      "weather_melt_72h_cm",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.011788,
+        "pr_auc": 0.238916,
+        "naive": {
+          "precision": 0.251534,
+          "recall": 0.250765,
+          "alerts": 326,
+          "hits": 82
+        },
+        "at_threshold": {
+          "precision": 0.251366,
+          "recall": 0.281346,
+          "alerts": 366,
+          "hits": 92
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.013374,
+        "pr_auc": 0.26423,
+        "naive": {
+          "precision": 0.266129,
+          "recall": 0.266129,
+          "alerts": 372,
+          "hits": 99
+        },
+        "at_threshold": {
+          "precision": 0.285366,
+          "recall": 0.314516,
+          "alerts": 410,
+          "hits": 117
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.009251,
+        "pr_auc": 0.144931,
+        "naive": {
+          "precision": 0.159533,
+          "recall": 0.159533,
+          "alerts": 257,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.212291,
+          "recall": 0.14786,
+          "alerts": 179,
+          "hits": 38
+        }
+      }
+    ],
+    "pr_auc_mean": 0.216026,
+    "pr_auc_seed_spread": 0.000463,
+    "oof_naive": {
+      "precision": 0.232461,
+      "recall": 0.232218,
+      "alerts": 955,
+      "hits": 222
     },
-    "at_threshold": {
-      "precision": 0.385366,
-      "recall": 0.257329,
-      "alerts": 205,
-      "hits": 79
-    }
+    "oof_threshold": 0.092818,
+    "oof_at_threshold": {
+      "precision": 0.258639,
+      "recall": 0.258368,
+      "alerts": 955,
+      "hits": 247
+    },
+    "beats_naive_both_oof": true
   },
   "test": {
-    "days": 181,
-    "rows": 13793,
-    "base": 0.03625,
-    "pr_auc": 0.311149,
-    "pr_auc_seeds": [
-      0.311149,
-      0.315013,
-      0.311874
-    ],
+    "period": "2025-07-01..2026-07-01",
+    "days": 365,
+    "rows": 28272,
+    "base": 0.019631,
+    "pr_auc": 0.351947,
     "naive": {
-      "precision": 0.297521,
-      "recall": 0.288,
-      "alerts": 484,
-      "hits": 144,
-      "alerts_per_day": 2.67
+      "precision": 0.329091,
+      "recall": 0.326126,
+      "alerts": 550,
+      "hits": 181,
+      "alerts_per_day": 1.51
     },
     "at_valid_threshold": {
-      "precision": 0.38255,
-      "recall": 0.342,
-      "alerts": 447,
-      "hits": 171,
-      "alerts_per_day": 2.47
+      "precision": 0.317186,
+      "recall": 0.495495,
+      "alerts": 867,
+      "hits": 275,
+      "alerts_per_day": 2.38
     },
-    "at_naive_recall": {
-      "precision": 0.45283,
-      "recall": 0.288,
-      "alerts": 318,
-      "hits": 144
-    },
-    "at_naive_alerts": {
-      "precision": 0.373967,
-      "recall": 0.362,
-      "alerts": 484,
-      "hits": 181
-    },
-    "beats_naive": true,
-    "lift_precision": 1.522
+    "beats_naive": false,
+    "seasons": {
+      "зима": {
+        "base": 0.015583,
+        "naive": {
+          "precision": 0.267241,
+          "recall": 0.269565,
+          "alerts": 116,
+          "hits": 31
+        },
+        "model": {
+          "precision": 0.289474,
+          "recall": 0.382609,
+          "alerts": 152,
+          "hits": 44
+        }
+      },
+      "весна": {
+        "base": 0.033821,
+        "naive": {
+          "precision": 0.348361,
+          "recall": 0.346939,
+          "alerts": 244,
+          "hits": 85
+        },
+        "model": {
+          "precision": 0.313725,
+          "recall": 0.587755,
+          "alerts": 459,
+          "hits": 144
+        }
+      },
+      "лето": {
+        "base": 0.018176,
+        "naive": {
+          "precision": 0.373913,
+          "recall": 0.361345,
+          "alerts": 115,
+          "hits": 43
+        },
+        "model": {
+          "precision": 0.319149,
+          "recall": 0.504202,
+          "alerts": 188,
+          "hits": 60
+        }
+      },
+      "осень": {
+        "base": 0.010703,
+        "naive": {
+          "precision": 0.293333,
+          "recall": 0.289474,
+          "alerts": 75,
+          "hits": 22
+        },
+        "model": {
+          "precision": 0.397059,
+          "recall": 0.355263,
+          "alerts": 68,
+          "hits": 27
+        }
+      }
+    }
   },
   "gain": {
-    "evt_hours_since_last": 16158.8,
-    "evt_hours_2160h": 9226.5,
-    "evt_hours_720h": 7807.2,
-    "unit_age_days": 5203.7,
-    "evt_hours_8760h": 4536.0,
-    "evt_moments_168h": 4261.3,
-    "cal_is_day_off": 3497.8,
-    "unit_pumps": 3125.6,
-    "cal_day_of_year": 2405.2,
-    "obj_events_168h": 2064.0,
-    "evt_hours_168h": 1646.7,
-    "cal_day_of_week": 1534.5,
-    "pump_on_share_24h": 1271.3,
-    "obj_pump_on_minutes_24h": 1183.0,
-    "pump_unavailable_24h": 1131.6,
-    "pump_on_growth_24_720": 1051.1,
-    "pump_on_share_168h": 934.7,
-    "pump_unavailable_168h": 866.7,
-    "cal_day_off_chain": 863.3,
-    "obj_pump_changes_24h": 733.1,
-    "obj_events_24h": 534.2,
-    "obj_pump_unavailable_24h": 513.4,
-    "unit_flood_sensors": 475.4,
-    "cx_events_168h": 443.0,
-    "evt_hours_24h": 435.7,
-    "pump_all_running_168h": 384.9,
-    "cal_month": 361.6,
-    "pump_changes_24h": 352.5,
-    "obj_pump_all_running_24h": 349.1,
-    "pump_all_running_24h": 244.4,
-    "cal_season": 222.2,
-    "pump_changes_6h": 161.2,
-    "cx_pump_all_running_168h": 159.9,
-    "cx_events_24h": 131.0,
-    "pump_blink_hours_168h": 62.1,
-    "cx_pump_unavailable_24h": 57.1,
-    "pump_changes_1h": 43.1,
-    "cal_is_holiday": 42.4,
-    "pump_blink_hours_24h": 14.0,
-    "cx_pump_blink_24h": 7.5,
-    "obj_pump_blink_24h": 0.0,
-    "cal_hour": 0.0
+    "evt_hours_since_last": 23965.1,
+    "evt_hours_2160h": 14513.8,
+    "evt_hours_8760h": 5858.9,
+    "evt_hours_720h": 4821.9,
+    "evt_hours_168h": 4666.1,
+    "pump_unavailable_24h": 3207.8,
+    "unit_age_days": 2849.3,
+    "unit_pumps": 1381.4,
+    "pump_on_growth_24_720": 1056.5,
+    "evt_moments_168h": 910.3,
+    "recent_pump_on_share_6h": 733.7,
+    "obj_events_168h": 727.3,
+    "pump_on_share_168h": 670.9,
+    "pump_unavailable_168h": 636.9,
+    "pump_on_share_24h": 632.6,
+    "unit_flood_sensors": 591.4,
+    "obj_pump_on_minutes_24h": 584.5,
+    "evt_hours_24h": 419.0,
+    "check_hours_168h": 418.8,
+    "check_hours_720h": 394.7,
+    "weather_temp_mean_24h": 370.7,
+    "weather_rain_72h": 342.6,
+    "recent_check_hours_24h": 338.9,
+    "weather_precip_72h": 298.1,
+    "weather_temp_max_72h": 296.3,
+    "weather_melt_72h_cm": 279.6,
+    "weather_snowfall_72h": 235.7,
+    "obj_pump_unavailable_24h": 210.1,
+    "weather_precip_24h": 168.3,
+    "weather_snow_depth_cm": 166.5,
+    "weather_precip_168h": 164.1,
+    "cal_day_of_year": 152.1,
+    "pump_all_running_168h": 134.5,
+    "obj_pump_changes_24h": 97.8,
+    "pump_all_running_24h": 72.8,
+    "pump_changes_24h": 71.3,
+    "obj_pump_all_running_24h": 37.3,
+    "cal_month": 33.4,
+    "pump_changes_6h": 16.4,
+    "obj_events_24h": 14.9,
+    "recent_evt_hours_12h": 3.1,
+    "pump_changes_1h": 2.6,
+    "cx_pump_all_running_168h": 1.1,
+    "cal_season": 0.7,
+    "obj_pump_blink_24h": 0.3,
+    "pump_blink_hours_24h": 0.0,
+    "pump_blink_hours_168h": 0.0,
+    "cx_events_24h": 0.0,
+    "cx_events_168h": 0.0,
+    "cx_pump_blink_24h": 0.0,
+    "cx_pump_unavailable_24h": 0.0,
+    "recent_evt_hours_6h": 0.0
   },
   "shap": {
-    "background": -4.271032,
-    "max_additivity_gap": 7.105427357601002e-15,
-    "rows_checked": 13793
+    "background": -4.925066,
+    "max_additivity_gap": 8.881784197001252e-15,
+    "rows_checked": 20000
   },
   "decision": {
-    "outcome": "model",
-    "threshold": 0.143891,
+    "outcome": "naive_rule",
+    "threshold": 0.092818,
     "levels": {
-      "MEDIUM": 0.021203,
-      "HIGH": 0.143891,
+      "MEDIUM": 0.011471,
+      "HIGH": 0.092818,
       "CRITICAL": 0.3
     },
     "scale": "raw",
-    "rule": "HIGH это порог равной полноты с планкой на проверочном отрезке",
+    "rule": "HIGH даёт столько же тревог, сколько наивное правило, на трёх проверочных годах",
     "chosen": {
-      "cell_precision": 0.38255,
-      "cell_recall": 0.342,
-      "alerts": 447,
-      "alerts_per_day": 2.47
+      "cell_precision": 0.317186,
+      "cell_recall": 0.495495,
+      "alerts": 867,
+      "alerts_per_day": 2.38
     }
   },
   "targets": {
-    "precision": 0.297521,
-    "recall": 0.288,
-    "basis": "наивная планка «событие было вчера» на отложенной выборке"
+    "precision": 0.329091,
+    "recall": 0.326126,
+    "basis": "наивная планка «вода была вчера» на отложенном году"
   },
-  "model_version": "flood-v1-2026-09-24"
+  "model_version": "flood-pu-recent_reg2-2026-09-24"
 }

@@ -1,112 +1,112 @@
 {
-  "period_end": "2026-01-01",
+  "period_end": "2025-07-01",
   "window_hours": 24,
   "subsets": {
     "все часы": {
-      "base_pct": 2.644,
-      "rows": 3788376,
+      "base_pct": 1.01,
+      "rows": 3440880,
       "signals": {
         "насос единицы мигал": {
-          "rows": 12708,
-          "events_ahead": 1370,
-          "event_ahead_pct": 10.781,
-          "lift": 4.08
+          "rows": 11345,
+          "events_ahead": 699,
+          "event_ahead_pct": 6.161,
+          "lift": 6.1
         },
         "насос единицы недоступен": {
-          "rows": 189190,
-          "events_ahead": 20921,
-          "event_ahead_pct": 11.058,
-          "lift": 4.18
+          "rows": 170185,
+          "events_ahead": 9310,
+          "event_ahead_pct": 5.471,
+          "lift": 5.42
         },
         "все насосы станции работали": {
-          "rows": 186263,
-          "events_ahead": 11946,
-          "event_ahead_pct": 6.414,
-          "lift": 2.43
+          "rows": 176102,
+          "events_ahead": 3504,
+          "event_ahead_pct": 1.99,
+          "lift": 1.97
         },
         "насос соседа по объекту мигал": {
-          "rows": 40090,
-          "events_ahead": 3186,
-          "event_ahead_pct": 7.947,
-          "lift": 3.01
+          "rows": 37105,
+          "events_ahead": 1932,
+          "event_ahead_pct": 5.207,
+          "lift": 5.16
         },
         "насос соседа по объекту недоступен": {
-          "rows": 407726,
-          "events_ahead": 21595,
-          "event_ahead_pct": 5.296,
-          "lift": 2.0
+          "rows": 369538,
+          "events_ahead": 8341,
+          "event_ahead_pct": 2.257,
+          "lift": 2.24
         },
         "все насосы у соседа по объекту": {
-          "rows": 411429,
-          "events_ahead": 17933,
-          "event_ahead_pct": 4.359,
-          "lift": 1.65
+          "rows": 388081,
+          "events_ahead": 5231,
+          "event_ahead_pct": 1.348,
+          "lift": 1.34
         },
         "насос в соседнем объекте комплекса мигал": {
-          "rows": 14933,
-          "events_ahead": 494,
-          "event_ahead_pct": 3.308,
-          "lift": 1.25
+          "rows": 14715,
+          "events_ahead": 89,
+          "event_ahead_pct": 0.605,
+          "lift": 0.6
         },
         "насос в соседнем объекте комплекса недоступен": {
-          "rows": 226416,
-          "events_ahead": 4909,
-          "event_ahead_pct": 2.168,
-          "lift": 0.82
+          "rows": 198779,
+          "events_ahead": 787,
+          "event_ahead_pct": 0.396,
+          "lift": 0.39
         }
       }
     },
     "без события в прошлые сутки": {
-      "base_pct": 2.199,
-      "rows": 3687938,
+      "base_pct": 0.828,
+      "rows": 3406046,
       "signals": {
         "насос единицы мигал": {
-          "rows": 10350,
-          "events_ahead": 720,
-          "event_ahead_pct": 6.957,
-          "lift": 3.16
+          "rows": 10232,
+          "events_ahead": 490,
+          "event_ahead_pct": 4.789,
+          "lift": 5.78
         },
         "насос единицы недоступен": {
-          "rows": 103154,
-          "events_ahead": 2194,
-          "event_ahead_pct": 2.127,
-          "lift": 0.97
+          "rows": 135876,
+          "events_ahead": 2820,
+          "event_ahead_pct": 2.075,
+          "lift": 2.51
         },
         "все насосы станции работали": {
-          "rows": 165394,
-          "events_ahead": 7845,
-          "event_ahead_pct": 4.743,
-          "lift": 2.16
+          "rows": 170476,
+          "events_ahead": 2585,
+          "event_ahead_pct": 1.516,
+          "lift": 1.83
         },
         "насос соседа по объекту мигал": {
-          "rows": 36037,
-          "events_ahead": 1703,
-          "event_ahead_pct": 4.726,
-          "lift": 2.15
+          "rows": 34704,
+          "events_ahead": 1045,
+          "event_ahead_pct": 3.011,
+          "lift": 3.64
         },
         "насос соседа по объекту недоступен": {
-          "rows": 359680,
-          "events_ahead": 11323,
-          "event_ahead_pct": 3.148,
-          "lift": 1.43
+          "rows": 350617,
+          "events_ahead": 4813,
+          "event_ahead_pct": 1.373,
+          "lift": 1.66
         },
         "все насосы у соседа по объекту": {
-          "rows": 389460,
-          "events_ahead": 13484,
-          "event_ahead_pct": 3.462,
-          "lift": 1.57
+          "rows": 381725,
+          "events_ahead": 4351,
+          "event_ahead_pct": 1.14,
+          "lift": 1.38
         },
         "насос в соседнем объекте комплекса мигал": {
-          "rows": 14423,
-          "events_ahead": 460,
-          "event_ahead_pct": 3.189,
-          "lift": 1.45
+          "rows": 14613,
+          "events_ahead": 79,
+          "event_ahead_pct": 0.541,
+          "lift": 0.65
         },
         "насос в соседнем объекте комплекса недоступен": {
-          "rows": 217550,
-          "events_ahead": 4234,
-          "event_ahead_pct": 1.946,
-          "lift": 0.89
+          "rows": 197223,
+          "events_ahead": 658,
+          "event_ahead_pct": 0.334,
+          "lift": 0.4
         }
       }
     }
