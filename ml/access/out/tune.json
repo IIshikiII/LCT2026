@@ -1,0 +1,872 @@
+{
+  "study": "access_daily",
+  "trials_finished": 60,
+  "trials_pruned": 40,
+  "best_trial": 54,
+  "best_value_single_seed": 0.08449,
+  "best_params": {
+    "learning_rate": 0.010758195362439845,
+    "num_leaves": 24,
+    "min_data_in_leaf": 903,
+    "feature_fraction": 0.5755094375147003,
+    "bagging_fraction": 0.5226020985525434,
+    "lambda_l2": 0.0029062343151906264,
+    "scale_pos_weight": 1.921363729703176
+  },
+  "check_three_seeds": {
+    "current": {
+      "pr_auc_mean": 0.078225,
+      "pr_auc_se": 0.00379
+    },
+    "tuned": {
+      "pr_auc_mean": 0.083765,
+      "pr_auc_se": 0.004472
+    },
+    "pairs": 18,
+    "mean_gain": 0.00554,
+    "se": 0.001255,
+    "gain_over_2se": true
+  },
+  "trials": [
+    {
+      "number": 0,
+      "state": "COMPLETE",
+      "value": 0.082389,
+      "params": {
+        "learning_rate": 0.028636293117753026,
+        "num_leaves": 40,
+        "min_data_in_leaf": 1651,
+        "feature_fraction": 0.8224688626953158,
+        "bagging_fraction": 0.9232890600286794,
+        "lambda_l2": 9.97108558474966,
+        "scale_pos_weight": 1.6852890116727446
+      }
+    },
+    {
+      "number": 1,
+      "state": "COMPLETE",
+      "value": 0.052954,
+      "params": {
+        "learning_rate": 0.03226331332722296,
+        "num_leaves": 16,
+        "min_data_in_leaf": 1050,
+        "feature_fraction": 0.7867166412520522,
+        "bagging_fraction": 0.6530072609555881,
+        "lambda_l2": 0.14321573214275315,
+        "scale_pos_weight": 39.132548044396096
+      }
+    },
+    {
+      "number": 2,
+      "state": "COMPLETE",
+      "value": 0.067591,
+      "params": {
+        "learning_rate": 0.09661532947314676,
+        "num_leaves": 64,
+        "min_data_in_leaf": 248,
+        "feature_fraction": 0.7292215243248208,
+        "bagging_fraction": 0.9349779448720987,
+        "lambda_l2": 0.14643168821676852,
+        "scale_pos_weight": 4.510787786510656
+      }
+    },
+    {
+      "number": 3,
+      "state": "COMPLETE",
+      "value": 0.079311,
+      "params": {
+        "learning_rate": 0.07112809063752015,
+        "num_leaves": 16,
+        "min_data_in_leaf": 404,
+        "feature_fraction": 0.864419479059255,
+        "bagging_fraction": 0.7526434194637608,
+        "lambda_l2": 9.896893044350922,
+        "scale_pos_weight": 2.27827838752458
+      }
+    },
+    {
+      "number": 4,
+      "state": "COMPLETE",
+      "value": 0.082913,
+      "params": {
+        "learning_rate": 0.011485572351783909,
+        "num_leaves": 11,
+        "min_data_in_leaf": 396,
+        "feature_fraction": 0.7082727344379538,
+        "bagging_fraction": 0.5196387844794597,
+        "lambda_l2": 0.003428310912164013,
+        "scale_pos_weight": 1.213926640507974
+      }
+    },
+    {
+      "number": 5,
+      "state": "PRUNED",
+      "value": 0.03233866666666666,
+      "params": {
+        "learning_rate": 0.02581769054132645,
+        "num_leaves": 10,
+        "min_data_in_leaf": 55,
+        "feature_fraction": 0.5625955379208252,
+        "bagging_fraction": 0.9429203753276879,
+        "lambda_l2": 0.12514769311521787,
+        "scale_pos_weight": 17.52000037859031
+      }
+    },
+    {
+      "number": 6,
+      "state": "PRUNED",
+      "value": 0.071489,
+      "params": {
+        "learning_rate": 0.010323690130332049,
+        "num_leaves": 75,
+        "min_data_in_leaf": 900,
+        "feature_fraction": 0.7090087194275925,
+        "bagging_fraction": 0.5056464807968086,
+        "lambda_l2": 0.008072004822182996,
+        "scale_pos_weight": 4.506501669971897
+      }
+    },
+    {
+      "number": 7,
+      "state": "PRUNED",
+      "value": 0.07462099999999999,
+      "params": {
+        "learning_rate": 0.03972073964783978,
+        "num_leaves": 11,
+        "min_data_in_leaf": 827,
+        "feature_fraction": 0.5911795238988853,
+        "bagging_fraction": 0.7090565764704733,
+        "lambda_l2": 0.027393511764305704,
+        "scale_pos_weight": 1.937264127216797
+      }
+    },
+    {
+      "number": 8,
+      "state": "PRUNED",
+      "value": 0.07602866666666667,
+      "params": {
+        "learning_rate": 0.028710586493285385,
+        "num_leaves": 10,
+        "min_data_in_leaf": 1313,
+        "feature_fraction": 0.665347486626775,
+        "bagging_fraction": 0.6581138823103876,
+        "lambda_l2": 0.42600943894065124,
+        "scale_pos_weight": 3.1748273742889905
+      }
+    },
+    {
+      "number": 9,
+      "state": "PRUNED",
+      "value": 0.05982200000000001,
+      "params": {
+        "learning_rate": 0.054763629752929144,
+        "num_leaves": 43,
+        "min_data_in_leaf": 353,
+        "feature_fraction": 0.9979340790322,
+        "bagging_fraction": 0.9001806828426739,
+        "lambda_l2": 0.0010941013087107856,
+        "scale_pos_weight": 9.723429271050131
+      }
+    },
+    {
+      "number": 10,
+      "state": "PRUNED",
+      "value": 0.06286599999999999,
+      "params": {
+        "learning_rate": 0.015538123498359927,
+        "num_leaves": 37,
+        "min_data_in_leaf": 481,
+        "feature_fraction": 0.6511226376862678,
+        "bagging_fraction": 0.5660532475665501,
+        "lambda_l2": 0.11801736935588851,
+        "scale_pos_weight": 12.723175286598961
+      }
+    },
+    {
+      "number": 11,
+      "state": "COMPLETE",
+      "value": 0.082652,
+      "params": {
+        "learning_rate": 0.01232140260017972,
+        "num_leaves": 16,
+        "min_data_in_leaf": 1031,
+        "feature_fraction": 0.8134930626932969,
+        "bagging_fraction": 0.6815558657630807,
+        "lambda_l2": 0.003421618287456965,
+        "scale_pos_weight": 2.076045246850199
+      }
+    },
+    {
+      "number": 12,
+      "state": "COMPLETE",
+      "value": 0.082985,
+      "params": {
+        "learning_rate": 0.012903760766946583,
+        "num_leaves": 16,
+        "min_data_in_leaf": 717,
+        "feature_fraction": 0.6717103111875641,
+        "bagging_fraction": 0.5338278593453256,
+        "lambda_l2": 0.021375561309903392,
+        "scale_pos_weight": 2.114132104228476
+      }
+    },
+    {
+      "number": 13,
+      "state": "COMPLETE",
+      "value": 0.083202,
+      "params": {
+        "learning_rate": 0.010332504382972226,
+        "num_leaves": 11,
+        "min_data_in_leaf": 732,
+        "feature_fraction": 0.5734126912723329,
+        "bagging_fraction": 0.5744483301307179,
+        "lambda_l2": 0.002685395343760223,
+        "scale_pos_weight": 1.1236111884458917
+      }
+    },
+    {
+      "number": 14,
+      "state": "PRUNED",
+      "value": 0.07740966666666667,
+      "params": {
+        "learning_rate": 0.019410760906975313,
+        "num_leaves": 13,
+        "min_data_in_leaf": 376,
+        "feature_fraction": 0.6398271320146323,
+        "bagging_fraction": 0.5431337930634217,
+        "lambda_l2": 0.022774758913142495,
+        "scale_pos_weight": 3.0967046471623547
+      }
+    },
+    {
+      "number": 15,
+      "state": "PRUNED",
+      "value": 0.077423,
+      "params": {
+        "learning_rate": 0.010809281615646765,
+        "num_leaves": 11,
+        "min_data_in_leaf": 590,
+        "feature_fraction": 0.5076930074399885,
+        "bagging_fraction": 0.6506429271401608,
+        "lambda_l2": 0.0032499810934823676,
+        "scale_pos_weight": 2.455564710678778
+      }
+    },
+    {
+      "number": 16,
+      "state": "COMPLETE",
+      "value": 0.083142,
+      "params": {
+        "learning_rate": 0.010477446554598622,
+        "num_leaves": 16,
+        "min_data_in_leaf": 1863,
+        "feature_fraction": 0.7444361938177413,
+        "bagging_fraction": 0.5016997129441598,
+        "lambda_l2": 0.0553600235104821,
+        "scale_pos_weight": 2.201456303054928
+      }
+    },
+    {
+      "number": 17,
+      "state": "COMPLETE",
+      "value": 0.083254,
+      "params": {
+        "learning_rate": 0.012210271551145969,
+        "num_leaves": 19,
+        "min_data_in_leaf": 1804,
+        "feature_fraction": 0.6962002133112245,
+        "bagging_fraction": 0.6521482927919362,
+        "lambda_l2": 0.03491884246885169,
+        "scale_pos_weight": 2.328627473128944
+      }
+    },
+    {
+      "number": 18,
+      "state": "PRUNED",
+      "value": 0.07741466666666667,
+      "params": {
+        "learning_rate": 0.02070901884486209,
+        "num_leaves": 8,
+        "min_data_in_leaf": 1378,
+        "feature_fraction": 0.5051000946342923,
+        "bagging_fraction": 0.6861241386718069,
+        "lambda_l2": 0.0035917810039664253,
+        "scale_pos_weight": 1.1743461071911716
+      }
+    },
+    {
+      "number": 19,
+      "state": "PRUNED",
+      "value": 0.07780533333333334,
+      "params": {
+        "learning_rate": 0.01797644681621967,
+        "num_leaves": 20,
+        "min_data_in_leaf": 1853,
+        "feature_fraction": 0.6367434918491255,
+        "bagging_fraction": 0.7120074373206611,
+        "lambda_l2": 0.020575363308346604,
+        "scale_pos_weight": 1.044553976169339
+      }
+    },
+    {
+      "number": 20,
+      "state": "PRUNED",
+      "value": 0.07729033333333334,
+      "params": {
+        "learning_rate": 0.014839673700545517,
+        "num_leaves": 13,
+        "min_data_in_leaf": 1226,
+        "feature_fraction": 0.5695755070541983,
+        "bagging_fraction": 0.6100893788525759,
+        "lambda_l2": 0.01916920411342524,
+        "scale_pos_weight": 2.030288102160106
+      }
+    },
+    {
+      "number": 21,
+      "state": "PRUNED",
+      "value": 0.077424,
+      "params": {
+        "learning_rate": 0.01030075587920258,
+        "num_leaves": 10,
+        "min_data_in_leaf": 1294,
+        "feature_fraction": 0.7508141960846186,
+        "bagging_fraction": 0.5483649346863533,
+        "lambda_l2": 0.46458046886374815,
+        "scale_pos_weight": 1.308450274853524
+      }
+    },
+    {
+      "number": 22,
+      "state": "PRUNED",
+      "value": 0.06658166666666666,
+      "params": {
+        "learning_rate": 0.012937282986914947,
+        "num_leaves": 11,
+        "min_data_in_leaf": 1121,
+        "feature_fraction": 0.7868797075675665,
+        "bagging_fraction": 0.5260237631124243,
+        "lambda_l2": 0.04377532227628241,
+        "scale_pos_weight": 4.700106949182427
+      }
+    },
+    {
+      "number": 23,
+      "state": "PRUNED",
+      "value": 0.06799899999999999,
+      "params": {
+        "learning_rate": 0.010331726322374142,
+        "num_leaves": 11,
+        "min_data_in_leaf": 1192,
+        "feature_fraction": 0.6505808998467276,
+        "bagging_fraction": 0.5578582979633435,
+        "lambda_l2": 0.024428612886995237,
+        "scale_pos_weight": 7.298536881306611
+      }
+    },
+    {
+      "number": 24,
+      "state": "COMPLETE",
+      "value": 0.083636,
+      "params": {
+        "learning_rate": 0.012762219106902136,
+        "num_leaves": 21,
+        "min_data_in_leaf": 1776,
+        "feature_fraction": 0.6774035225084325,
+        "bagging_fraction": 0.5940469671945829,
+        "lambda_l2": 0.009249138105951724,
+        "scale_pos_weight": 1.9404229764119787
+      }
+    },
+    {
+      "number": 25,
+      "state": "PRUNED",
+      "value": 0.07755000000000001,
+      "params": {
+        "learning_rate": 0.011878897914978185,
+        "num_leaves": 40,
+        "min_data_in_leaf": 1345,
+        "feature_fraction": 0.6408640731129461,
+        "bagging_fraction": 0.5802796551034801,
+        "lambda_l2": 0.0019905911177671353,
+        "scale_pos_weight": 1.721861198890684
+      }
+    },
+    {
+      "number": 26,
+      "state": "PRUNED",
+      "value": 0.07224933333333335,
+      "params": {
+        "learning_rate": 0.015022595800647012,
+        "num_leaves": 33,
+        "min_data_in_leaf": 1986,
+        "feature_fraction": 0.7144075922566466,
+        "bagging_fraction": 0.6500857054225335,
+        "lambda_l2": 0.052286025255615445,
+        "scale_pos_weight": 3.9602375092147564
+      }
+    },
+    {
+      "number": 27,
+      "state": "PRUNED",
+      "value": 0.078148,
+      "params": {
+        "learning_rate": 0.010094041216525771,
+        "num_leaves": 24,
+        "min_data_in_leaf": 1430,
+        "feature_fraction": 0.699943197275891,
+        "bagging_fraction": 0.5546599388066762,
+        "lambda_l2": 0.04053529724299049,
+        "scale_pos_weight": 1.4730070739760261
+      }
+    },
+    {
+      "number": 28,
+      "state": "PRUNED",
+      "value": 0.078084,
+      "params": {
+        "learning_rate": 0.014437647458835858,
+        "num_leaves": 29,
+        "min_data_in_leaf": 1615,
+        "feature_fraction": 0.7672177584173157,
+        "bagging_fraction": 0.5502480802836341,
+        "lambda_l2": 0.008997476502795842,
+        "scale_pos_weight": 1.4998350688693294
+      }
+    },
+    {
+      "number": 29,
+      "state": "PRUNED",
+      "value": 0.07752466666666667,
+      "params": {
+        "learning_rate": 0.011822284267882328,
+        "num_leaves": 7,
+        "min_data_in_leaf": 993,
+        "feature_fraction": 0.580910664593044,
+        "bagging_fraction": 0.5805909107415036,
+        "lambda_l2": 0.008184794899683982,
+        "scale_pos_weight": 1.4748653724623464
+      }
+    },
+    {
+      "number": 30,
+      "state": "PRUNED",
+      "value": 0.078007,
+      "params": {
+        "learning_rate": 0.022281736272414924,
+        "num_leaves": 21,
+        "min_data_in_leaf": 1846,
+        "feature_fraction": 0.6037707326676067,
+        "bagging_fraction": 0.6385893968982467,
+        "lambda_l2": 0.1195048726677418,
+        "scale_pos_weight": 2.4118285245556454
+      }
+    },
+    {
+      "number": 31,
+      "state": "PRUNED",
+      "value": 0.07732800000000001,
+      "params": {
+        "learning_rate": 0.010430502759009426,
+        "num_leaves": 18,
+        "min_data_in_leaf": 1008,
+        "feature_fraction": 0.659654693231268,
+        "bagging_fraction": 0.6508015587472833,
+        "lambda_l2": 0.030919120796552003,
+        "scale_pos_weight": 2.9726527711241575
+      }
+    },
+    {
+      "number": 32,
+      "state": "PRUNED",
+      "value": 0.07603333333333333,
+      "params": {
+        "learning_rate": 0.017643441368024506,
+        "num_leaves": 16,
+        "min_data_in_leaf": 1305,
+        "feature_fraction": 0.7479903789552432,
+        "bagging_fraction": 0.6141987129395923,
+        "lambda_l2": 0.048129652933699175,
+        "scale_pos_weight": 3.5230467183862184
+      }
+    },
+    {
+      "number": 33,
+      "state": "PRUNED",
+      "value": 0.07814466666666665,
+      "params": {
+        "learning_rate": 0.01192787589811081,
+        "num_leaves": 26,
+        "min_data_in_leaf": 1325,
+        "feature_fraction": 0.6637628064493988,
+        "bagging_fraction": 0.6347814698970448,
+        "lambda_l2": 0.104070855440699,
+        "scale_pos_weight": 1.1496952040393127
+      }
+    },
+    {
+      "number": 34,
+      "state": "COMPLETE",
+      "value": 0.083909,
+      "params": {
+        "learning_rate": 0.01002394620218897,
+        "num_leaves": 9,
+        "min_data_in_leaf": 1005,
+        "feature_fraction": 0.5052463995375258,
+        "bagging_fraction": 0.5606869652323521,
+        "lambda_l2": 0.0025523584095343875,
+        "scale_pos_weight": 1.8026734615136848
+      }
+    },
+    {
+      "number": 35,
+      "state": "PRUNED",
+      "value": 0.077877,
+      "params": {
+        "learning_rate": 0.015840609124404506,
+        "num_leaves": 9,
+        "min_data_in_leaf": 808,
+        "feature_fraction": 0.5007336920302456,
+        "bagging_fraction": 0.5775450367498086,
+        "lambda_l2": 0.006252730798226196,
+        "scale_pos_weight": 1.7180688518243332
+      }
+    },
+    {
+      "number": 36,
+      "state": "PRUNED",
+      "value": 0.085618,
+      "params": {
+        "learning_rate": 0.011013222659770705,
+        "num_leaves": 16,
+        "min_data_in_leaf": 558,
+        "feature_fraction": 0.5871243474477736,
+        "bagging_fraction": 0.5965172784247116,
+        "lambda_l2": 0.0014295011771713877,
+        "scale_pos_weight": 1.4295092223950843
+      }
+    },
+    {
+      "number": 37,
+      "state": "PRUNED",
+      "value": 0.077943,
+      "params": {
+        "learning_rate": 0.011003795737552044,
+        "num_leaves": 12,
+        "min_data_in_leaf": 1618,
+        "feature_fraction": 0.5741116360434771,
+        "bagging_fraction": 0.5726838036005193,
+        "lambda_l2": 0.0012544328636277247,
+        "scale_pos_weight": 2.0561815670873944
+      }
+    },
+    {
+      "number": 38,
+      "state": "PRUNED",
+      "value": 0.07828866666666666,
+      "params": {
+        "learning_rate": 0.010532939888513863,
+        "num_leaves": 7,
+        "min_data_in_leaf": 580,
+        "feature_fraction": 0.5208933112417593,
+        "bagging_fraction": 0.6573321077441838,
+        "lambda_l2": 0.0018160433082116095,
+        "scale_pos_weight": 1.4397944736053019
+      }
+    },
+    {
+      "number": 39,
+      "state": "COMPLETE",
+      "value": 0.083207,
+      "params": {
+        "learning_rate": 0.012236243283286685,
+        "num_leaves": 15,
+        "min_data_in_leaf": 1232,
+        "feature_fraction": 0.5815946722282004,
+        "bagging_fraction": 0.5111085075663768,
+        "lambda_l2": 0.0028545615619623133,
+        "scale_pos_weight": 1.4129384441765178
+      }
+    },
+    {
+      "number": 40,
+      "state": "PRUNED",
+      "value": 0.07865166666666666,
+      "params": {
+        "learning_rate": 0.010849905689868045,
+        "num_leaves": 13,
+        "min_data_in_leaf": 1319,
+        "feature_fraction": 0.5263318202968412,
+        "bagging_fraction": 0.5978094667560725,
+        "lambda_l2": 0.005211642172820884,
+        "scale_pos_weight": 2.346111194558853
+      }
+    },
+    {
+      "number": 41,
+      "state": "PRUNED",
+      "value": 0.07744966666666667,
+      "params": {
+        "learning_rate": 0.012633381958630455,
+        "num_leaves": 9,
+        "min_data_in_leaf": 1202,
+        "feature_fraction": 0.5228063651137242,
+        "bagging_fraction": 0.5166766897117303,
+        "lambda_l2": 0.0103823764913328,
+        "scale_pos_weight": 1.5603089196692368
+      }
+    },
+    {
+      "number": 42,
+      "state": "PRUNED",
+      "value": 0.0856744,
+      "params": {
+        "learning_rate": 0.013284695191395059,
+        "num_leaves": 16,
+        "min_data_in_leaf": 1084,
+        "feature_fraction": 0.683037034015608,
+        "bagging_fraction": 0.527119164184537,
+        "lambda_l2": 0.0013553970102114339,
+        "scale_pos_weight": 1.1618601708802467
+      }
+    },
+    {
+      "number": 43,
+      "state": "PRUNED",
+      "value": 0.07816466666666666,
+      "params": {
+        "learning_rate": 0.011596141739143037,
+        "num_leaves": 9,
+        "min_data_in_leaf": 1777,
+        "feature_fraction": 0.5186292218564171,
+        "bagging_fraction": 0.5693168225656418,
+        "lambda_l2": 0.002546798048651171,
+        "scale_pos_weight": 1.336513085926361
+      }
+    },
+    {
+      "number": 44,
+      "state": "COMPLETE",
+      "value": 0.083715,
+      "params": {
+        "learning_rate": 0.01086070482694435,
+        "num_leaves": 14,
+        "min_data_in_leaf": 1281,
+        "feature_fraction": 0.5942897595272911,
+        "bagging_fraction": 0.5698157458005076,
+        "lambda_l2": 0.011008606769009615,
+        "scale_pos_weight": 1.301880925497816
+      }
+    },
+    {
+      "number": 45,
+      "state": "PRUNED",
+      "value": 0.07755666666666666,
+      "params": {
+        "learning_rate": 0.01034974343352956,
+        "num_leaves": 9,
+        "min_data_in_leaf": 698,
+        "feature_fraction": 0.5180205164892598,
+        "bagging_fraction": 0.5623406351411069,
+        "lambda_l2": 0.0015245268255550555,
+        "scale_pos_weight": 2.4185371262780686
+      }
+    },
+    {
+      "number": 46,
+      "state": "PRUNED",
+      "value": 0.07827533333333334,
+      "params": {
+        "learning_rate": 0.011139670801687275,
+        "num_leaves": 12,
+        "min_data_in_leaf": 1156,
+        "feature_fraction": 0.6615682273002986,
+        "bagging_fraction": 0.5432608735020883,
+        "lambda_l2": 0.0038512946192185344,
+        "scale_pos_weight": 1.7695891768767091
+      }
+    },
+    {
+      "number": 47,
+      "state": "PRUNED",
+      "value": 0.07832166666666666,
+      "params": {
+        "learning_rate": 0.011787053961989738,
+        "num_leaves": 17,
+        "min_data_in_leaf": 1374,
+        "feature_fraction": 0.5002832731409027,
+        "bagging_fraction": 0.5613628379847302,
+        "lambda_l2": 0.006890228988439975,
+        "scale_pos_weight": 1.5726592225436784
+      }
+    },
+    {
+      "number": 48,
+      "state": "PRUNED",
+      "value": 0.07863166666666666,
+      "params": {
+        "learning_rate": 0.012533233839134152,
+        "num_leaves": 10,
+        "min_data_in_leaf": 1697,
+        "feature_fraction": 0.6235205141151281,
+        "bagging_fraction": 0.5612503783355508,
+        "lambda_l2": 0.002503337464893734,
+        "scale_pos_weight": 1.7455625073559835
+      }
+    },
+    {
+      "number": 49,
+      "state": "PRUNED",
+      "value": 0.078011,
+      "params": {
+        "learning_rate": 0.01235119609629174,
+        "num_leaves": 8,
+        "min_data_in_leaf": 1096,
+        "feature_fraction": 0.5656265441823004,
+        "bagging_fraction": 0.5403093234321276,
+        "lambda_l2": 0.001482503412695995,
+        "scale_pos_weight": 1.1966907962660045
+      }
+    },
+    {
+      "number": 50,
+      "state": "PRUNED",
+      "value": 0.0860888,
+      "params": {
+        "learning_rate": 0.010104693618917146,
+        "num_leaves": 12,
+        "min_data_in_leaf": 666,
+        "feature_fraction": 0.59628231420893,
+        "bagging_fraction": 0.5265943917864132,
+        "lambda_l2": 0.006710313552025733,
+        "scale_pos_weight": 1.5825500217387576
+      }
+    },
+    {
+      "number": 51,
+      "state": "COMPLETE",
+      "value": 0.08333,
+      "params": {
+        "learning_rate": 0.010814372878686352,
+        "num_leaves": 16,
+        "min_data_in_leaf": 1245,
+        "feature_fraction": 0.5835412965373966,
+        "bagging_fraction": 0.5032530696264914,
+        "lambda_l2": 0.0016958199671659976,
+        "scale_pos_weight": 1.1491011300627385
+      }
+    },
+    {
+      "number": 52,
+      "state": "PRUNED",
+      "value": 0.077907,
+      "params": {
+        "learning_rate": 0.012684752581139247,
+        "num_leaves": 8,
+        "min_data_in_leaf": 955,
+        "feature_fraction": 0.5221262783365715,
+        "bagging_fraction": 0.5668489464996378,
+        "lambda_l2": 0.0013211308056015022,
+        "scale_pos_weight": 1.9484564657638128
+      }
+    },
+    {
+      "number": 53,
+      "state": "PRUNED",
+      "value": 0.07867,
+      "params": {
+        "learning_rate": 0.012528326990830512,
+        "num_leaves": 20,
+        "min_data_in_leaf": 1978,
+        "feature_fraction": 0.6631303331126863,
+        "bagging_fraction": 0.5969790837568054,
+        "lambda_l2": 0.006721062747399469,
+        "scale_pos_weight": 1.1872113148073058
+      }
+    },
+    {
+      "number": 54,
+      "state": "COMPLETE",
+      "value": 0.08449,
+      "params": {
+        "learning_rate": 0.010758195362439845,
+        "num_leaves": 24,
+        "min_data_in_leaf": 903,
+        "feature_fraction": 0.5755094375147003,
+        "bagging_fraction": 0.5226020985525434,
+        "lambda_l2": 0.0029062343151906264,
+        "scale_pos_weight": 1.921363729703176
+      }
+    },
+    {
+      "number": 55,
+      "state": "COMPLETE",
+      "value": 0.083554,
+      "params": {
+        "learning_rate": 0.010047504943332867,
+        "num_leaves": 12,
+        "min_data_in_leaf": 858,
+        "feature_fraction": 0.5059446567405742,
+        "bagging_fraction": 0.5594628326003667,
+        "lambda_l2": 0.0017882928473493865,
+        "scale_pos_weight": 1.6408757290963047
+      }
+    },
+    {
+      "number": 56,
+      "state": "COMPLETE",
+      "value": 0.08372,
+      "params": {
+        "learning_rate": 0.010007522685462254,
+        "num_leaves": 15,
+        "min_data_in_leaf": 1654,
+        "feature_fraction": 0.5789663271151378,
+        "bagging_fraction": 0.5633831014987281,
+        "lambda_l2": 0.0010719770647009377,
+        "scale_pos_weight": 1.1693217902409774
+      }
+    },
+    {
+      "number": 57,
+      "state": "PRUNED",
+      "value": 0.07822899999999999,
+      "params": {
+        "learning_rate": 0.011430846363791068,
+        "num_leaves": 15,
+        "min_data_in_leaf": 1023,
+        "feature_fraction": 0.5346753037561918,
+        "bagging_fraction": 0.5522652535764725,
+        "lambda_l2": 0.0037829298557500225,
+        "scale_pos_weight": 1.310860660568034
+      }
+    },
+    {
+      "number": 58,
+      "state": "COMPLETE",
+      "value": 0.083462,
+      "params": {
+        "learning_rate": 0.011108997080034707,
+        "num_leaves": 14,
+        "min_data_in_leaf": 542,
+        "feature_fraction": 0.5412485283130483,
+        "bagging_fraction": 0.542907897739434,
+        "lambda_l2": 0.0026377883241984167,
+        "scale_pos_weight": 1.2856598170963578
+      }
+    },
+    {
+      "number": 59,
+      "state": "COMPLETE",
+      "value": 0.084316,
+      "params": {
+        "learning_rate": 0.01435484308469541,
+        "num_leaves": 13,
+        "min_data_in_leaf": 1180,
+        "feature_fraction": 0.5926756713185628,
+        "bagging_fraction": 0.5707956165230419,
+        "lambda_l2": 0.0029292745930781113,
+        "scale_pos_weight": 1.1164414203895439
+      }
+    }
+  ]
+}

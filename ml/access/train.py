@@ -27,6 +27,10 @@
 Запуск из корня репозитория:
 
     .venv/bin/python ml/access/train.py
+    .venv/bin/python ml/access/train.py --panel rolling
+
+Ключ `--panel rolling` учит модель на скользящей панели `panel.py --points`
+(`TODO.md` §3b, шаг 6Б) и пишет `out/rolling_*` вместо `out/daily_*`.
 """
 
 from __future__ import annotations
@@ -46,6 +50,16 @@ import cv  # noqa: E402
 MODEL = cv.OUT / "daily_model.txt"
 METRICS = cv.OUT / "daily_metrics.json"
 SELECTED = cv.OUT / "daily_selected.json"
+PANEL = cv.PANEL
+
+
+def use_panel(kind: str) -> None:
+    """Переключает вход и выход: `daily` или `rolling`."""
+    global MODEL, METRICS, SELECTED, PANEL
+    MODEL = cv.OUT / f"{kind}_model.txt"
+    METRICS = cv.OUT / f"{kind}_metrics.json"
+    SELECTED = cv.OUT / f"{kind}_selected.json"
+    PANEL = cv.OUT / f"{kind}_panel.parquet"
 
 LADDER = (10, 20, 30)
 SEEDS = (cv.SEED, 1301, 7717)
@@ -164,8 +178,14 @@ def shap_check(booster, x: np.ndarray) -> dict[str, object]:
 
 
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--panel", choices=("daily", "rolling"), default="daily")
+    use_panel(parser.parse_args().panel)
+
     t = time.time()
-    panel = cv.load()
+    panel = cv.load(PANEL)
     print(f"панель: {panel.x.shape[0]} строк, {len(panel.columns)} признаков, "
           f"{time.time() - t:.0f} c")
 
@@ -192,7 +212,7 @@ def main() -> None:
     working = main_run["at_naive_recall"]
 
     result = {
-        "grid": "daily",
+        "grid": PANEL.stem.removesuffix("_panel"),
         "horizon_hours": 24,
         "lead_hours": 24,
         "seed": cv.SEED,

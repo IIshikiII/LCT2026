@@ -13,9 +13,28 @@
 Скрипт читает только результат `data.py` в `out/`. Результат:
 `out/daily_panel.parquet`, `out/daily_panel_stats.json`.
 
+## Скользящая точка расчёта (`--points`)
+
+Конвейер бэкенда считает прогноз раз в 15 минут, а суточная панель учит модель
+только на 00:00 (`TODO.md` §3b, шаг 6Б). С ключом `--points 0,6,12,18` скрипт
+строит вторую панель, `out/rolling_panel.parquet`: строка это «участок, сутки и
+точка расчёта t» в 00:00, 06:00, 12:00 и 18:00.
+
+- Метка: событие на участке в окне (t, t + 24 ч].
+- Наивная планка: событие в окне (t − 24 ч, t].
+- Признаки суток считаются до полуночи суток точки расчёта, как в суточной
+  панели. Их окно кончается на последней полуночи и в обучении, и в работе.
+- Признаки свежести считаются на момент t: тревоги и события за 1 и 6 часов до
+  t, режим охраны в момент t, часы с последней тревоги и с последнего события.
+  Час точки расчёта идёт признаком: он говорит, насколько устарели признаки
+  суток.
+- Строка выпадает, когда режим охраны объекта неизвестен хотя бы часть окна
+  метки или окно метки выходит за срок жизни участка.
+
 Запуск из корня репозитория:
 
     .venv/bin/python ml/access/panel.py
+    .venv/bin/python ml/access/panel.py --points 0,6,12,18
 """
 
 from __future__ import annotations
@@ -33,6 +52,8 @@ import data
 
 PANEL = data.OUT / "daily_panel.parquet"
 STATS = data.OUT / "daily_panel_stats.json"
+ROLLING_PANEL = data.OUT / "rolling_panel.parquet"
+ROLLING_STATS = data.OUT / "rolling_panel_stats.json"
 
 KEY = "object_id, gallery, section"
 
@@ -206,7 +227,12 @@ def build_context(con: duckdb.DuckDBPyConnection) -> None:
     )
 
 
-def build_panel(con: duckdb.DuckDBPyConnection) -> None:
+def build_panel(con: duckdb.DuckDBPyConnection, guard_filter: bool = True) -> None:
+    """Суточная панель `panel_daily`.
+
+    `guard_filter=False` оставляет сутки с неизвестным режимом охраны: их
+    отбрасывает скользящая панель по своему окну метки.
+    """
     con.execute(
         f"""
         CREATE OR REPLACE TABLE dense AS
@@ -423,13 +449,125 @@ def build_panel(con: duckdb.DuckDBPyConnection) -> None:
           ON si.object_id = r.object_id AND si.gallery = r.gallery AND si.section = r.section
         JOIN calendar k ON k.day = r.day + {LEAD_DAYS}
         WHERE r.label IS NOT NULL
-          AND NOT EXISTS (
+          AND (NOT {guard_filter} OR NOT EXISTS (
             SELECT 1 FROM guard_unknown u
             WHERE u.object_id = r.object_id
               AND u.t_from < r.day + INTERVAL {LEAD_DAYS + 1} DAY
               AND u.t_to > r.day + INTERVAL {LEAD_DAYS} DAY
-        )
+        ))
         ORDER BY r.object_id, r.gallery, r.section, r.day
+        """
+    )
+
+
+def build_rolling(con: duckdb.DuckDBPyConnection, points: tuple[int, ...]) -> None:
+    """Скользящая панель `panel_rolling` поверх суточной без фильтра режима.
+
+    Строка суточной панели на сутки d размножается на точки t = d + h. Признаки
+    суток берутся как есть: их окно кончается в полночь суток d, раньше t.
+    Метка, планка и свежесть считаются на момент t заново.
+    """
+    hours = ", ".join(str(h) for h in points)
+    con.execute(
+        f"""
+        CREATE OR REPLACE TABLE rolling_base AS
+        SELECT p.* EXCLUDE (label, naive, as_of),
+               h AS as_of_hour,
+               p.day::TIMESTAMP + h * INTERVAL 1 HOUR AS as_of
+        FROM panel_daily p, (SELECT unnest([{hours}]) AS h)
+        """
+    )
+    con.execute(
+        """
+        CREATE OR REPLACE TABLE rolling_counts AS
+        SELECT b.object_id, b.gallery, b.section, b.as_of,
+            count(DISTINCT r.hour) FILTER (
+                WHERE r.hour >= b.as_of AND r.hour < b.as_of + INTERVAL 24 HOUR) AS ev_next,
+            count(DISTINCT r.hour) FILTER (
+                WHERE r.hour >= b.as_of - INTERVAL 24 HOUR AND r.hour < b.as_of) AS ev_prev,
+            coalesce(sum(r.n_moments) FILTER (
+                WHERE r.hour >= b.as_of - INTERVAL 1 HOUR AND r.hour < b.as_of), 0) AS ev_1h,
+            coalesce(sum(r.n_moments) FILTER (
+                WHERE r.hour >= b.as_of - INTERVAL 6 HOUR AND r.hour < b.as_of), 0) AS ev_6h
+        FROM rolling_base b
+        LEFT JOIN armed r
+          ON r.object_id = b.object_id AND r.gallery = b.gallery AND r.section = b.section
+         AND r.hour >= b.as_of - INTERVAL 24 HOUR AND r.hour < b.as_of + INTERVAL 24 HOUR
+        GROUP BY ALL
+        """
+    )
+    con.execute(
+        """
+        CREATE OR REPLACE TABLE rolling_alarms AS
+        SELECT b.object_id, b.gallery, b.section, b.as_of,
+            coalesce(sum(a.n_moments) FILTER (
+                WHERE a.hour >= b.as_of - INTERVAL 1 HOUR), 0) AS al_1h,
+            coalesce(sum(a.n_moments), 0) AS al_6h
+        FROM rolling_base b
+        LEFT JOIN alarm a
+          ON a.object_id = b.object_id AND a.gallery = b.gallery AND a.section = b.section
+         AND a.hour >= b.as_of - INTERVAL 6 HOUR AND a.hour < b.as_of
+        GROUP BY ALL
+        """
+    )
+    con.execute(
+        """
+        CREATE OR REPLACE TABLE rolling_last AS
+        SELECT b.object_id, b.gallery, b.section, b.as_of,
+               la.hour AS last_alarm_hour, le.hour AS last_event_hour
+        FROM rolling_base b
+        ASOF LEFT JOIN alarm la
+          ON la.object_id = b.object_id AND la.gallery = b.gallery
+         AND la.section = b.section AND la.hour < b.as_of
+        ASOF LEFT JOIN armed le
+          ON le.object_id = b.object_id AND le.gallery = b.gallery
+         AND le.section = b.section AND le.hour < b.as_of
+        """
+    )
+    con.execute(
+        """
+        CREATE OR REPLACE TABLE rolling_guard AS
+        WITH covered AS (SELECT DISTINCT object_id FROM disarm_window),
+        pts AS (SELECT DISTINCT object_id, as_of FROM rolling_base)
+        SELECT pts.object_id, pts.as_of,
+            CASE WHEN pts.object_id IN (SELECT object_id FROM covered) THEN
+                CAST(EXISTS (SELECT 1 FROM disarm_window w
+                             WHERE w.object_id = pts.object_id
+                               AND w.t_from <= pts.as_of AND w.t_to > pts.as_of) AS INTEGER)
+            END AS is_disarmed_at_t
+        FROM pts
+        """
+    )
+    con.execute(
+        """
+        CREATE OR REPLACE TABLE panel_rolling AS
+        SELECT b.*,
+            CAST(c.ev_next > 0 AS INTEGER) AS label,
+            -- свежесть на момент t
+            al.al_1h AS alarms_last_1h,
+            al.al_6h AS alarms_last_6h,
+            c.ev_1h AS events_last_1h,
+            c.ev_6h AS events_last_6h,
+            g.is_disarmed_at_t,
+            coalesce(date_diff('hour', l.last_alarm_hour, b.as_of),
+                     24 * (b.unit_age_days + 1) + b.as_of_hour) AS hours_since_last_alarm_t,
+            coalesce(date_diff('hour', l.last_event_hour, b.as_of),
+                     24 * (b.unit_age_days + 1) + b.as_of_hour) AS hours_since_last_event_t,
+            -- наивная планка: событие в окне (t − 24 ч, t]
+            CAST(c.ev_prev > 0 AS INTEGER) AS naive
+        FROM rolling_base b
+        JOIN rolling_counts c USING (object_id, gallery, section, as_of)
+        JOIN rolling_alarms al USING (object_id, gallery, section, as_of)
+        JOIN rolling_last l USING (object_id, gallery, section, as_of)
+        LEFT JOIN rolling_guard g USING (object_id, as_of)
+        JOIN unit u USING (object_id, gallery, section)
+        WHERE b.as_of + INTERVAL 24 HOUR <= u.hour_to + INTERVAL 1 HOUR
+          AND NOT EXISTS (
+            SELECT 1 FROM guard_unknown gu
+            WHERE gu.object_id = b.object_id
+              AND gu.t_from < b.as_of + INTERVAL 24 HOUR AND gu.t_to > b.as_of
+          )
+        ORDER BY b.object_id, b.gallery, b.section, b.as_of
         """
     )
 
@@ -453,27 +591,16 @@ def attach(con: duckdb.DuckDBPyConnection) -> None:
         )
 
 
-def main() -> None:
-    con = duckdb.connect()
-    con.execute("PRAGMA threads=8")
-    con.execute("PRAGMA memory_limit='6GB'")
-    attach(con)
-
-    t = time.time()
-    build_day_grid(con)
-    build_daily_counts(con)
-    build_panel(con)
-    print(f"панель собрана за {time.time() - t:.0f} c")
-
+def _stats(con: duckdb.DuckDBPyConnection, table: str) -> dict[str, object]:
     row = con.execute(
-        """
+        f"""
         SELECT count(*) AS rows, sum(label) AS positives,
                avg(label) AS base, count(DISTINCT (object_id, gallery, section)) AS units,
                min(day) AS day_from, max(day) AS day_to, avg(naive) AS naive_share
-        FROM panel_daily
+        FROM {table}
         """
     ).fetchone()
-    stats = {
+    return {
         "rows": int(row[0]),
         "positives": int(row[1]),
         "base": round(float(row[2]), 6),
@@ -482,11 +609,41 @@ def main() -> None:
         "day_to": str(row[5]),
         "naive_share": round(float(row[6]), 6),
     }
-    con.execute(f"COPY panel_daily TO '{PANEL.as_posix()}' (FORMAT PARQUET)")
-    STATS.write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--points", default="", help="часы точек расчёта, например 0,6,12,18")
+    args = parser.parse_args()
+    points = tuple(int(h) for h in args.points.split(",")) if args.points else ()
+
+    con = duckdb.connect()
+    con.execute("PRAGMA threads=8")
+    con.execute("PRAGMA memory_limit='6GB'")
+    attach(con)
+
+    t = time.time()
+    build_day_grid(con)
+    build_daily_counts(con)
+    if points:
+        build_panel(con, guard_filter=False)
+        build_rolling(con, points)
+        table, path, stats_path = "panel_rolling", ROLLING_PANEL, ROLLING_STATS
+    else:
+        build_panel(con)
+        table, path, stats_path = "panel_daily", PANEL, STATS
+    print(f"панель собрана за {time.time() - t:.0f} c")
+
+    stats = _stats(con, table)
+    if points:
+        stats["points"] = list(points)
+    con.execute(f"COPY {table} TO '{path.as_posix()}' (FORMAT PARQUET)")
+    stats_path.write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(json.dumps(stats, ensure_ascii=False, indent=2))
-    print(f"панель в {PANEL}")
+    print(f"панель в {path}")
 
 
 if __name__ == "__main__":
