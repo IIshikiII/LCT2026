@@ -28,6 +28,13 @@ mlflow = ["mlflow>=2.17", "psycopg[binary]>=3.2"]
 research = [
     { include-group = "ml" },
     { include-group = "mlflow" },
+    # duckdb читает выгрузку и строит витрины направлений. Без него не идёт ни
+    # один скрипт `ml/`: они начинаются с `import duckdb`.
+    "duckdb>=1.1",
+    # polars и umap-learn зовут тетради разведочного анализа. Тетрадь 01 пишет
+    # колонки u1 и u2 из UMAP в channel_features.parquet.
+    "polars>=1.9",
+    "umap-learn>=0.5",
     "pandas>=2.2",
     "matplotlib>=3.9",
     "seaborn>=0.13",

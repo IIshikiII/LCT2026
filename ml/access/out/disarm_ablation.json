@@ -1,0 +1,92 @@
+{
+  "seeds": [
+    4217,
+    1301,
+    7717
+  ],
+  "selected": [
+    "days_since_last_armed",
+    "armed_day_share_30d",
+    "days_since_last_alarm",
+    "alarm_day_share_7d",
+    "obj_alarms_7d",
+    "obj_units_alarmed_7d",
+    "disarm_hours_7d",
+    "day_of_year",
+    "disarm_share_30d",
+    "unit_age_days",
+    "alarm_day_share_365d",
+    "day_of_month",
+    "n_channels",
+    "n_armed_90d",
+    "day_of_week",
+    "obj_alarms_1d",
+    "disarm_hours_1d",
+    "armed_same_weekday_1w",
+    "n_alarms_7d",
+    "is_day_off",
+    "week_of_year",
+    "n_alarms_365d",
+    "alarm_day_share_90d",
+    "month",
+    "n_armed_1d",
+    "night_share_365d",
+    "day_off_chain",
+    "n_alarms_1d",
+    "n_armed_30d",
+    "n_alarms_30d"
+  ],
+  "variants": {
+    "полный": {
+      "features": 30,
+      "pr_auc_mean": 0.09553,
+      "pr_auc_spread": 0.005854,
+      "pr_auc_runs": [
+        0.094561,
+        0.098942,
+        0.093088
+      ],
+      "precision_at_naive_recall_mean": 0.27001,
+      "precision_runs": [
+        0.233446,
+        0.301053,
+        0.27553
+      ],
+      "trees": [
+        7,
+        121,
+        155
+      ],
+      "dropped": []
+    },
+    "без disarm": {
+      "features": 27,
+      "pr_auc_mean": 0.084897,
+      "pr_auc_spread": 0.011603,
+      "pr_auc_runs": [
+        0.089039,
+        0.088215,
+        0.077436
+      ],
+      "precision_at_naive_recall_mean": 0.232162,
+      "precision_runs": [
+        0.248696,
+        0.2288,
+        0.218989
+      ],
+      "trees": [
+        38,
+        27,
+        118
+      ],
+      "dropped": [
+        "disarm_hours_7d",
+        "disarm_share_30d",
+        "disarm_hours_1d"
+      ],
+      "delta_pr_auc": 0.010633,
+      "delta_precision": 0.037848,
+      "above_spread": false
+    }
+  }
+}
