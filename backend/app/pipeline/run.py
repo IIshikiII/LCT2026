@@ -354,6 +354,22 @@ def _demo_levels(direction: Direction, computed: list[Computed]) -> list[Compute
     return [replace(item, level=levels[item.facility_id]) for item in computed]
 
 
+def _relative(computed: list[Computed]) -> list[Computed]:
+    """Строка прогноза «в N раз выше среднего по сети». ADR 0018.
+
+    Плагин со своей строкой (пожар) её сохраняет. Среднее берётся по объектам
+    направления в этом прогоне: суточное направление считает их все сразу.
+    """
+    values = [c.probability for c in computed if not math.isnan(c.probability)]
+    if len(values) < 2:
+        return computed
+    mean = sum(values) / len(values)
+    return [
+        c if c.summary else replace(c, summary=cards.relative_summary(c.probability, mean))
+        for c in computed
+    ]
+
+
 def _run_direction(
     conn: Connection,
     direction: Direction,
@@ -390,6 +406,7 @@ def _run_direction(
         return 0
 
     computed = _demo_levels(direction, computed)
+    computed = _relative(computed)
     fresh = {item.facility_id: (item.probability, item.features) for item in computed}
     bands = level_bands(predictor, conn, point, fresh)
     written = 0

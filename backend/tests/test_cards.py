@@ -94,3 +94,18 @@ def test_a_section_does_not_burn_twice_in_a_day() -> None:
     starts = {r.at for r in rows if r.value == "Обнаружен дым"}
     assert len({r.kind for r in rows}) <= 1
     assert len(starts) <= 2
+
+
+@pytest.mark.parametrize(
+    ("probability", "text"),
+    [
+        (0.046, "Риск в 5,8 раза выше среднего по сети"),
+        (0.016, "Риск в 2 раза выше среднего по сети"),
+        (0.04, "Риск в 5 раз выше среднего по сети"),
+        (0.1, "Риск в 12 раз выше среднего по сети"),
+        (0.008, "Риск на уровне среднего по сети"),
+        (0.004, "Риск ниже среднего по сети"),
+    ],
+)
+def test_the_forecast_reads_as_times_the_network_average(probability: float, text: str) -> None:
+    assert cards.relative_summary(probability, 0.008) == text

@@ -90,5 +90,35 @@ def rank_levels(probabilities: dict[str, float]) -> dict[str, str]:
     return levels
 
 
+def _times(ratio: float) -> str:
+    """«в 2 раза», «в 5 раз», «в 1,5 раза»: число с одним знаком до десяти."""
+    shown = round(ratio) if ratio >= 10 else round(ratio, 1)
+    if shown == int(shown):
+        n = int(shown)
+        word = "раза" if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else "раз"
+        return f"в {n} {word}"
+    return f"в {str(shown).replace('.', ',')} раза"
+
+
+def relative_summary(probability: float, mean: float) -> str:
+    """Строка прогноза для диспетчера: во сколько раз риск объекта выше или
+    ниже среднего по сети. ADR 0018.
+
+    Событие редкое, и сама вероятность мала даже у опасного объекта: 4,6 % при
+    среднем 0,8 %. Кратность к среднему читается как опасность. Ниже среднего
+    кратность не пишется: у подтопления несколько опасных пикетов поднимают
+    среднее, и спокойный пикет выходил бы «в 69 раз ниже», что ничего не даёт
+    диспетчеру.
+    """
+    if math.isnan(probability) or mean <= 0:
+        return "Риск не оценён"
+    ratio = probability / mean
+    if ratio >= 1.25:
+        return f"Риск {_times(ratio)} выше среднего по сети"
+    if ratio <= 0.8:
+        return "Риск ниже среднего по сети"
+    return "Риск на уровне среднего по сети"
+
+
 def _value(p: float) -> float:
     return -1.0 if math.isnan(p) else p
