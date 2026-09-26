@@ -26,7 +26,7 @@ function Row({
     <li className="flex items-baseline justify-between gap-3 border-b border-line/60 py-1.5 last:border-b-0">
       <span className="min-w-0 truncate text-[13px] text-text-dim">{label}</span>
       <span className="flex flex-col items-end leading-tight">
-        <span className="mono text-[13px]" style={{ color: ok ? 'var(--risk-low)' : 'var(--risk-high)' }}>
+        <span className="mono text-[13px]" style={{ color: ok ? 'var(--color-risk-low)' : 'var(--color-risk-high)' }}>
           {value}
           <span className="ml-1">{ok ? '✓' : '!'}</span>
         </span>

@@ -44,7 +44,7 @@ function ScoreCell({
     <span className="flex flex-col items-end leading-tight">
       <span
         className="mono text-[13px]"
-        style={{ color: ok ? 'var(--risk-low)' : 'var(--risk-high)' }}
+        style={{ color: ok ? 'var(--color-risk-low)' : 'var(--color-risk-high)' }}
         title={ok ? `${label} выше цели` : `${label} ниже цели ${fmtScore(target)}`}
       >
         {fmtScore(value)}
