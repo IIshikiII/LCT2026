@@ -17,6 +17,7 @@ import { useMeta, useMetaQuery } from '@/shared/api/queries'
 import { useAuth } from '@/shared/auth/context'
 import { Spinner } from '@/shared/ui/states'
 import { LoginScreen } from '@/screens/login/LoginScreen'
+import { AlertToasts } from './Alerts'
 import { Header } from './Header'
 import { Rail } from './Rail'
 import { RightPanel } from './RightPanel'
@@ -55,6 +56,8 @@ function SignedIn() {
 
         <RightPanel meta={meta} />
       </div>
+
+      <AlertToasts meta={meta} />
     </div>
   )
 }

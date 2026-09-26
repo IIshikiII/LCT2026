@@ -172,6 +172,23 @@ export const ModelMetricSchema = dto({
   note: opt(z.string()),
 })
 
+/**
+ * Уведомление о тревоге. Текст, фильтр журнала и шаг повтора готовит сервер:
+ * фронт не знает, какие уровень и статус тревожны.
+ */
+export const AlertSchema = dto({
+  code: z.string(),
+  level: z.string(),
+  count: z.number(),
+  title: z.string(),
+  hint: opt(z.string()),
+  filter: z.record(z.string(), z.array(z.string())),
+  repeatMinutes: z.number(),
+  newestAt: z.string().nullable().optional(),
+})
+
+export const AlertListSchema = z.array(AlertSchema)
+
 export const PipelineHealthSchema = dto({
   lastRunAt: z.string(),
   lastRunMs: z.number(),

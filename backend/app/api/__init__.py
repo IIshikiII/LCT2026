@@ -15,6 +15,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api import (
+    alerts,
     auth,
     dashboard,
     facilities,
@@ -35,6 +36,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     orders.router,
     metrics.router,
     dashboard.router,
+    alerts.router,
     stream.router,
 )
 

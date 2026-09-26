@@ -210,6 +210,22 @@ export interface ModelMetric {
 }
 
 /** Состояние конвейера расчёта — доказательство метрик «< 5 мин» и «>= 24 ч». */
+/**
+ * Уведомление о тревоге, `GET /alerts`. Живёт, пока сервер его отдаёт.
+ * `filter` это параметры журнала, которые показывают ровно эти инциденты.
+ */
+export interface Alert {
+  code: string
+  level: string
+  count: number
+  title: string
+  hint?: string
+  filter: Record<string, string[]>
+  /** через сколько минут напомнить снова, пока тревога жива */
+  repeatMinutes: number
+  newestAt?: string | null
+}
+
 export interface PipelineHealth {
   lastRunAt: string
   lastRunMs: number

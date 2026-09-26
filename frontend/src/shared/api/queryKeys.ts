@@ -24,6 +24,7 @@ export const queryKeys = {
   pipelineHealth: () => ['metrics', 'pipeline'] as const,
   dashboardSummary: () => ['dashboard', 'summary'] as const,
   topRisks: (limit: number) => ['dashboard', 'top-risks', limit] as const,
+  alerts: () => ['alerts'] as const,
 
   testStand: () => ['test-stand'] as const,
 } as const

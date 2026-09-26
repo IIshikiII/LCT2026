@@ -160,6 +160,16 @@ function allowed(actions: ActionDef[], user: MockUser): ActionDef[] {
   return actions.filter((action) => user.permissions.includes(action.code))
 }
 
+/** «1 критический инцидент не взят», «3 критических инцидента не взяты». */
+function criticalTitle(n: number): string {
+  const tail = n % 100
+  if (n % 10 === 1 && tail !== 11) return `${n} критический инцидент не взят в работу`
+  if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(tail)) {
+    return `${n} критических инцидента не взяты в работу`
+  }
+  return `${n} критических инцидентов не взяты в работу`
+}
+
 function seesPrediction(user: MockUser, record: PredictionRecord): boolean {
   return visibleTo(user, record.facility.district, record.facility.collector)
 }
@@ -637,6 +647,31 @@ export const handlers = [
   http.get(
     url('/metrics/pipeline'),
     guarded(async () => ok(db().pipeline)),
+  ),
+
+  /*
+   * Уведомление о тревоге: критические прогнозы, которые никто не взял в
+   * работу. Правило то же, что у сервера (`backend/app/api/alerts.py`).
+   */
+  http.get(
+    url('/alerts'),
+    guarded(async (user) => {
+      const count = db().predictions.filter(
+        (p) => seesPrediction(user, p) && p.level === 'CRITICAL' && p.status === 'NEW',
+      ).length
+      if (count === 0) return ok([])
+      return ok([
+        {
+          code: 'critical_untaken',
+          level: 'CRITICAL',
+          count,
+          title: criticalTitle(count),
+          hint: 'Возьмите инциденты в работу в журнале прогнозов',
+          filter: { level: ['CRITICAL'], status: ['NEW'] },
+          repeatMinutes: 5,
+        },
+      ])
+    }),
   ),
 
   http.get(

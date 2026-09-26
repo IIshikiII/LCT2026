@@ -12,6 +12,7 @@ const paths = {
   journal: 'M3 3h12v12H3zM3 6.5h12M6.5 3v12',
   orders: 'M4 3h10v12H4zM6.5 6.5h5M6.5 9h5M6.5 11.5h3',
   close: 'M4 4l10 10M14 4L4 14',
+  bell: 'M9 2.5a4.5 4.5 0 0 0-4.5 4.5v3.2L3 12.8h12l-1.5-2.6V7A4.5 4.5 0 0 0 9 2.5zM7.2 15.2a1.9 1.9 0 0 0 3.6 0',
   chevronDown: 'M4 6.5l5 5 5-5',
   chevronLeft: 'M11 3.5l-5 5 5 5',
   chevronRight: 'M7 3.5l5 5-5 5',

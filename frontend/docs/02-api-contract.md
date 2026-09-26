@@ -288,6 +288,8 @@ GET /metrics/pipeline    → { lastRunAt, lastRunMs, freshnessMinutes,
                              streamLagMs?, streamEvents?, targetStreamLagMs? }
 GET /dashboard/summary   → { byLevel, byDirection, byStatus, byOrderStatus, total }
 GET /dashboard/top-risks?limit=10 → Prediction[]
+GET /alerts              → Alert[]: { code, level, count, title, hint?,
+                             filter, repeatMinutes, newestAt? }
 ```
 
 Пустые `precision` и `recall` значат «точность не измерена». Тогда `note`
@@ -300,6 +302,12 @@ GET /dashboard/top-risks?limit=10 → Prediction[]
 выше. Порядок уровней берётся из `riskLevels` меты, а не из кода. Любая
 сортировка по колонке добирает равные значения новизной. `sort=risk` значит ту
 же критичность. Тот же порядок у `/dashboard/top-risks`.
+
+`/alerts` отдаёт действующие тревоги. Пустой список значит тревоги нет. Что
+тревожно, решает сервер: сейчас это прогнозы критического уровня, которые
+никто не взял в работу (backend ADR 0019). `filter` это параметры журнала,
+которые показывают ровно эти инциденты, `repeatMinutes` это шаг напоминания.
+Фронт опрашивает ручку раз в 30 секунд и кодов уровней и статусов не знает.
 
 `byLevel`, `byDirection`, `byStatus`, `byOrderStatus` — это `Record<string, number>`,
 а не массивы с фиксированными ключами. Появилось направление — появился ключ,

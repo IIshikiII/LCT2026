@@ -148,6 +148,31 @@ class PipelineHealth(Dto):
     target_stream_lag_ms: int = 300_000
 
 
+class AlertFilter(Dto):
+    """Фильтр журнала, который показывает инциденты уведомления."""
+
+    level: list[str]
+    status: list[str]
+
+
+class Alert(Dto):
+    """Уведомление о тревоге. ТЗ §10, ADR 0019.
+
+    Текст и фильтр готовит сервер: фронт не знает, какой уровень и какой
+    статус тревожны. `repeat_minutes` задаёт шаг, с которым интерфейс
+    напоминает, пока тревога жива.
+    """
+
+    code: str
+    level: str
+    count: int
+    title: str
+    hint: str
+    filter: AlertFilter
+    repeat_minutes: int
+    newest_at: str | None = None
+
+
 class DashboardSummary(Dto):
     by_level: dict[str, int]
     by_direction: dict[str, int]

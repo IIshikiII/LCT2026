@@ -51,3 +51,19 @@
 [data-cluster-open='true'] .maplibregl-ctrl-bottom-right {
   transform: translateX(-288px);
 }
+
+/*
+ * Появление уведомления о тревоге: короткий сдвиг сверху. Анимация идёт только
+ * в ответ на событие и выключена при `prefers-reduced-motion` (класс
+ * `motion-safe:`).
+ */
+@keyframes alert-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
