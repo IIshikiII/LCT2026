@@ -164,12 +164,21 @@ def create_for(
     return order_id
 
 
-def create_missing(conn: Connection, run_at: datetime) -> list[str]:
+def create_missing(conn: Connection, run_at: datetime, run_id: int | None = None) -> list[str]:
     """Создаёт заявки по всем прогнозам этого прогона.
+
+    Прогноз прогона это строка с его `run_id`: новая карточка или карточка
+    происшествия, которую прогон обновил (ADR 0017). Без `run_id` прогнозом
+    прогона считается строка с ключом `run_at`, как до ADR 0017.
 
     Повторный запуск в том же окне заявок не плодит: правило открытой заявки
     закрывает и это. Требование идемпотентности из §7.
     """
+    condition = (
+        prediction.c.run_id == run_id
+        if run_id is not None
+        else prediction.c.computed_at_bucket == run_at
+    )
     rows = conn.execute(
         select(
             prediction.c.id,
@@ -178,7 +187,7 @@ def create_missing(conn: Connection, run_at: datetime) -> list[str]:
             prediction.c.level,
             prediction.c.horizon_hours,
             prediction.c.computed_at,
-        ).where(prediction.c.computed_at_bucket == run_at)
+        ).where(condition)
     ).all()
 
     created: list[str] = []

@@ -1,7 +1,7 @@
 /**
  * Критерий приёмки (spec §12): виджет показывает Precision и Recall против
- * целевых 0.7 и 0.5, а виджет конвейера — время расчёта против 5 минут и
- * минимальный горизонт против 24 часов.
+ * целевых 0.7 и 0.5, а виджет конвейера — время расчёта и задержку потока
+ * против 5 минут и минимальный горизонт против 24 часов.
  *
  * Это то, по чему жюри проверяет метрики ТЗ, не открывая ноутбук с моделью.
  */
@@ -32,14 +32,29 @@ describe('виджет метрик моделей', () => {
     renderWithProviders(<ModelMetrics />)
     await screen.findAllByRole('listitem')
 
-    const metrics = db().metrics
-    const good = metrics.find((m) => m.precision >= m.targetPrecision)
-    const bad = metrics.find((m) => m.precision < m.targetPrecision)
+    const metrics = db().metrics.filter((m) => m.precision !== undefined)
+    const good = metrics.find((m) => (m.precision ?? 0) >= m.targetPrecision)
+    const bad = metrics.find((m) => (m.precision ?? 0) < m.targetPrecision)
     expect(good, 'в сиде должно быть направление с Precision выше цели').toBeDefined()
     expect(bad, 'и хотя бы одно ниже — иначе красное состояние не показать').toBeDefined()
 
     expect(screen.getAllByText(/✓/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/!/).length).toBeGreaterThan(0)
+  })
+})
+
+describe('направление без замера точности', () => {
+  it('пишет «не измерена» и пояснение сервера, а не ноль и не молчание', async () => {
+    renderWithProviders(<ModelMetrics />)
+    await screen.findAllByRole('listitem')
+
+    const unmeasured = db().metrics.filter((m) => m.precision === undefined)
+    expect(unmeasured.length, 'в сиде должно быть направление без замера').toBeGreaterThan(0)
+    // Две ячейки на строку: Precision и Recall.
+    expect(screen.getAllByText('не измерена')).toHaveLength(unmeasured.length * 2)
+    for (const metric of unmeasured) {
+      expect(screen.getByText(metric.note ?? '')).toBeInTheDocument()
+    }
   })
 })
 
@@ -49,8 +64,10 @@ describe('виджет конвейера', () => {
 
     expect(await screen.findByText('Время формирования прогноза')).toBeInTheDocument()
     expect(screen.getByText('Минимальный горизонт')).toBeInTheDocument()
-    expect(screen.getByText(/цель < 5 мин/)).toBeInTheDocument()
+    // Пять минут стоят и у времени расчёта, и у задержки потока (ТЗ §9, ADR 0017).
+    expect(screen.getAllByText(/цель < 5 мин/)).toHaveLength(2)
     expect(screen.getByText(/цель ≥ 24 ч/)).toBeInTheDocument()
+    expect(screen.getByText('Задержка потока')).toBeInTheDocument()
   })
 })
 

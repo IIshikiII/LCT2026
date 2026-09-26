@@ -1,0 +1,50 @@
+[
+  {
+    "ppr_object": 3,
+    "object_id": 4610,
+    "window": [
+      "2026-01-29",
+      "2026-02-09"
+    ],
+    "records_per_day_before": 958.1,
+    "records_per_day_inside": 6723.4,
+    "inside_to_before": 7.017,
+    "gas_readings_from_1pct_14d_after": 136
+  },
+  {
+    "ppr_object": 9,
+    "object_id": 5675,
+    "window": [
+      "2026-04-23",
+      "2026-05-07"
+    ],
+    "records_per_day_before": 17263.4,
+    "records_per_day_inside": 5901.3,
+    "inside_to_before": 0.342,
+    "gas_readings_from_1pct_14d_after": 0
+  },
+  {
+    "ppr_object": 10,
+    "object_id": 5011,
+    "window": [
+      "2026-05-15",
+      "2026-05-26"
+    ],
+    "records_per_day_before": 2.0,
+    "records_per_day_inside": 0.0,
+    "inside_to_before": 0.0,
+    "gas_readings_from_1pct_14d_after": 0
+  },
+  {
+    "ppr_object": 14,
+    "object_id": 5657,
+    "window": [
+      "2026-06-04",
+      "2026-06-18"
+    ],
+    "records_per_day_before": 9857.5,
+    "records_per_day_inside": 2048.7,
+    "inside_to_before": 0.208,
+    "gas_readings_from_1pct_14d_after": 915
+  }
+]

@@ -11,13 +11,19 @@ from sqlalchemy.exc import OperationalError
 
 from app import migrate
 from app.db import engine
+from app.features import fire, flood
 from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
 from app.synth.generate import generate
 from app.tables import alarm_event, collector, facility
 from tests.conftest import reset_database
 
 NOW = datetime(2026, 9, 18, 12, 0, tzinfo=UTC)
-VALID_ALARM_TYPES = set(ACCESS_ALARM_TYPES) | {SECURITY_ARMED, SECURITY_DISARMED}
+VALID_ALARM_TYPES = (
+    set(ACCESS_ALARM_TYPES)
+    | {SECURITY_ARMED, SECURITY_DISARMED}
+    | set(flood.ALL_TYPES)
+    | {*fire.SIGNAL_TYPES, fire.PHASE_OFF}
+)
 
 
 @pytest.fixture
@@ -96,3 +102,21 @@ def test_a_risky_facility_has_more_alarms_than_a_calm_one(db: None) -> None:
         )
 
     assert max(counts.values()) > 3 * (sum(counts.values()) / len(counts))
+
+
+def test_pumps_blink_before_the_flood(db: None) -> None:
+    """Синтетика подтопления держит форму данных: мигание идёт до затопления."""
+    with engine().begin() as conn:
+        result = generate(conn, seed=5, facility_count=24, now=NOW)
+
+    assert result.sensor_count > 0
+    with engine().connect() as conn:
+        kinds = {
+            row[0]
+            for row in conn.execute(
+                select(alarm_event.c.alarm_type).where(
+                    alarm_event.c.alarm_type.in_(flood.ALL_TYPES)
+                )
+            )
+        }
+    assert {flood.PUMP_ON, flood.PUMP_OFF, flood.FLOODED} <= kinds

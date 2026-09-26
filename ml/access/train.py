@@ -30,7 +30,7 @@
     .venv/bin/python ml/access/train.py --panel rolling
 
 Ключ `--panel rolling` учит модель на скользящей панели `panel.py --points`
-(`TODO.md` §3b, шаг 6Б) и пишет `out/rolling_*` вместо `out/daily_*`.
+и пишет `out/rolling_*` вместо `out/daily_*`.
 """
 
 from __future__ import annotations

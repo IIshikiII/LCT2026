@@ -24,6 +24,10 @@ log = logging.getLogger(__name__)
 
 SUFFIX = ".joblib"
 CALIBRATION_FILENAME = "calibration.joblib"
+# Файлы рядом с моделью, которые моделью не являются. Выбор файла модели их
+# пропускает: иначе без `latest.joblib` загрузка взяла бы классификатор воды.
+PU_CLASSIFIER_FILENAME = "pu_classifier.joblib"
+SIDE_FILENAMES = frozenset({CALIBRATION_FILENAME, PU_CLASSIFIER_FILENAME})
 
 
 def _local_dir(direction: str) -> Path:
@@ -62,7 +66,7 @@ def _newest_local(direction: str) -> Path | None:
     if not folder.is_dir():
         return None
 
-    files = list(folder.glob(f"*{SUFFIX}"))
+    files = [item for item in folder.glob(f"*{SUFFIX}") if item.name not in SIDE_FILENAMES]
     if not files:
         return None
 
@@ -225,7 +229,7 @@ def load_calibrator(direction: str) -> Any | None:
 
     Калибратор не ходит в реестр MLflow и не версионируется: файл лежит
     рядом с моделью, `ARTIFACTS_DIR/<направление>/calibration.joblib`, и
-    его кладёт туда обучение (`ml/access/05_calibrate.py`). Файла нет
+    его кладёт туда выкладка, если обучение его оставило. Файла нет
     значит направление не откалибровано, и это законное состояние, а не
     отказ: вызывающий код обязан вернуться к сырой вероятности модели.
     """
@@ -246,3 +250,29 @@ def load_calibrator(direction: str) -> Any | None:
 
     log.info("калибратор прочитан из файла", extra={"direction": direction, "path": str(path)})
     return calibrator
+
+
+def load_artifact(direction: str, filename: str) -> Any | None:
+    """Отдаёт файл направления рядом с моделью. Отдаёт None без файла.
+
+    Так читается всё, что модель тянет за собой и что в реестр MLflow не
+    ходит: классификатор воды подтопления (ADR 0013) и подобное. Битый файл
+    даёт запись в журнале и None, а не падение прогона.
+    """
+    path = _local_dir(direction) / filename
+    if not path.is_file():
+        return None
+
+    try:
+        import joblib
+
+        payload = joblib.load(path)
+    except Exception as error:  # noqa: BLE001 — битый файл не должен ронять прогон
+        log.warning(
+            "файл направления не прочитан",
+            extra={"direction": direction, "path": str(path), "error": str(error)},
+        )
+        return None
+
+    log.info("файл направления прочитан", extra={"direction": direction, "path": str(path)})
+    return payload

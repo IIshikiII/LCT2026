@@ -19,6 +19,7 @@ from app.main import API_PREFIX, app
 from app.tables import action_log
 from app.tables import prediction as prediction_table
 from app.tables import work_order as order_table
+from tests import roles
 
 pytestmark = pytest.mark.usefixtures("seeded")
 
@@ -58,13 +59,37 @@ def prediction_row(prediction_id: str) -> Any:
 def orders_of(prediction_id: str) -> list[Any]:
     with engine().connect() as conn:
         return list(
-            conn.execute(
-                select(order_table).where(order_table.c.prediction_id == prediction_id)
-            )
+            conn.execute(select(order_table).where(order_table.c.prediction_id == prediction_id))
         )
 
 
+def close_by_crew(order_id: str, **body: Any) -> Any:
+    """Закрывает заявку от имени группы реагирования.
+
+    Закрыть заявку отметкой о факте может только она: отметка идёт в
+    дообучение как ярлык «факт наступил», и ставит его тот, кто был на
+    объекте. Диспетчер получает на это действие 403. ADR 0007.
+    """
+    roles.sign_in("crew")
+    try:
+        return act("orders", order_id, "close", **body)
+    finally:
+        roles.sign_in(roles.DEFAULT_USER)
+
+
+def closed(order_id: str, **body: Any) -> Any:
+    response = close_by_crew(order_id, **body)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
 def decide(prediction_id: str, level: str, **extra: Any) -> Any:
+    """Берёт прогноз в работу, если он ещё ничей, и принимает решение.
+
+    Решать можно только то, что взял на себя, поэтому два шага идут вместе.
+    """
+    if client.get(f"{API_PREFIX}/predictions/{prediction_id}").json()["status"] == "NEW":
+        ok("predictions", prediction_id, "take")
     body: dict[str, Any] = {"dispatcherLevel": level, "comment": "разобрал и решил"}
     body.update(extra)
     return ok("predictions", prediction_id, "decide", **body)
@@ -78,7 +103,7 @@ def test_take_records_the_dispatcher() -> None:
     body = ok("predictions", "P-1", "take")
 
     assert body["status"] == "IN_REVIEW"
-    assert prediction_row("P-1").assignee == "dispatcher"
+    assert prediction_row("P-1").assignee == "ods"
 
 
 def test_release_returns_the_prediction_to_the_queue() -> None:
@@ -149,7 +174,14 @@ def test_lowering_a_high_level_rejects_the_auto_order() -> None:
     assert [order.status for order in orders_of("P-1")] == ["REJECTED"]
 
 
+def test_deciding_a_prediction_nobody_took_answers_409() -> None:
+    """Пока прогноз ничей, решать по нему нельзя: имя исполнителя обязательно."""
+    response = act("predictions", "P-1", "decide", dispatcherLevel="LOW", comment="мимо очереди")
+    assert response.status_code == 409
+
+
 def test_the_level_must_exist_in_the_reference_book() -> None:
+    ok("predictions", "P-1", "take")
     response = act(
         "predictions", "P-1", "decide", dispatcherLevel="ОЧЕНЬ_СТРАШНО", comment="ерунда"
     )
@@ -173,11 +205,13 @@ def test_a_terminal_prediction_offers_no_actions() -> None:
 
 
 def test_a_required_field_is_checked_on_the_server() -> None:
+    ok("predictions", "P-1", "take")
     response = act("predictions", "P-1", "decide", comment="без уровня")
     assert response.status_code == 422
 
 
 def test_min_length_is_checked_on_the_server() -> None:
+    ok("predictions", "P-1", "take")
     response = act("predictions", "P-1", "decide", dispatcherLevel="LOW", comment="да")
     assert response.status_code == 422
 
@@ -202,7 +236,7 @@ def test_the_order_lifecycle_runs_to_the_end() -> None:
     """
     decide("P-1", "CRITICAL")
     assert ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)["status"] == "IN_PROGRESS"
-    assert ok("orders", "O-1", "close", **CLOSE_BODY)["status"] == "CLOSED_CONFIRMED"
+    assert closed("O-1", **CLOSE_BODY)["status"] == "CLOSED_CONFIRMED"
 
 
 def test_a_dispatcher_order_is_born_confirmed() -> None:
@@ -228,7 +262,7 @@ def test_deciding_a_high_level_confirms_the_waiting_order() -> None:
 def test_closing_with_a_confirmed_fact_closes_the_prediction() -> None:
     decide("P-1", "CRITICAL")
     ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
-    body = ok("orders", "O-1", "close", **CLOSE_BODY)
+    body = closed("O-1", **CLOSE_BODY)
 
     assert body["outcome"]["factConfirmed"] is True
     assert body["outcome"]["actualCause"] == "INTRUSION"
@@ -239,7 +273,7 @@ def test_closing_without_the_fact_closes_the_prediction_the_other_way() -> None:
     """Бригада выехала и факта не нашла. Это тоже итог, а не ошибка."""
     decide("P-1", "CRITICAL")
     ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
-    body = ok("orders", "O-1", "close", **{**CLOSE_BODY, "factConfirmed": False})
+    body = closed("O-1", **{**CLOSE_BODY, "factConfirmed": False})
 
     assert body["status"] == "CLOSED_NOT_CONFIRMED"
     assert prediction_row("P-1").status == "CLOSED_NOT_CONFIRMED"
@@ -248,7 +282,7 @@ def test_closing_without_the_fact_closes_the_prediction_the_other_way() -> None:
 def test_close_refuses_a_string_instead_of_a_boolean() -> None:
     decide("P-1", "CRITICAL")
     ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
-    response = act("orders", "O-1", "close", **{**CLOSE_BODY, "factConfirmed": "да"})
+    response = close_by_crew("O-1", **{**CLOSE_BODY, "factConfirmed": "да"})
     assert response.status_code == 422
 
 
@@ -257,7 +291,7 @@ def test_close_needs_the_confirmation_flag() -> None:
     ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
     body = dict(CLOSE_BODY)
     del body["factConfirmed"]
-    assert act("orders", "O-1", "close", **body).status_code == 422
+    assert close_by_crew("O-1", **body).status_code == 422
 
 
 def test_assign_on_a_finished_order_answers_409() -> None:
@@ -292,6 +326,7 @@ def test_every_action_lands_in_the_audit_log() -> None:
     decide("P-1", "CRITICAL")
     ok("orders", "O-1", "assign", crew="Бригада 3", dueAt=DUE)
 
+    # take, decide, assign
     assert len(logged()) == before + 3
 
 

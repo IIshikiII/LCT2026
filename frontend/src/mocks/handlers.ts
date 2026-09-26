@@ -6,12 +6,32 @@
  * хендлер сюда, иначе VITE_USE_MOCKS=true перестанет быть правдой.
  */
 import { HttpResponse, delay, http } from 'msw'
-import type { DashboardSummary, FacilityFeature, Prediction } from '@/shared/api/types'
+import type {
+  ActionDef,
+  CurrentUser,
+  DashboardSummary,
+  FacilityFeature,
+  Prediction,
+} from '@/shared/api/types'
 import { db, resetDb, type OrderRecord, type PredictionRecord } from './db'
 import { orderActions } from './db/actions'
-import { COLLECTORS } from './db/catalog'
+import { COLLECTORS, collectorLabel } from './db/catalog'
 import { toWorkOrder } from './db/orders'
-import { MOCK_DISPATCHER, buildDetail, buildSeries } from './db/predictions'
+import { buildDetail, buildSeries } from './db/predictions'
+import { codeAt as totpCodeAt, verify as totpVerify } from './db/totp'
+import {
+  CODE_LENGTH,
+  DEMO_PASSWORD,
+  MOCK_USERS,
+  createSet,
+  deleteSet,
+  generateSecret,
+  resetUsers,
+  setNumbers,
+  userByName,
+  visibleTo,
+  type MockUser,
+} from './db/users'
 import { devFlags } from './devFlags'
 
 /** Базовый путь. Звёздочка — чтобы работало и на относительном URL, и на полном. */
@@ -32,7 +52,142 @@ async function ok(payload: unknown): Promise<Response> {
 
 async function fail(status: number, message: string): Promise<Response> {
   await networkDelay()
-  return HttpResponse.json({ error: message }, { status })
+  return HttpResponse.json({ detail: message }, { status })
+}
+
+/* ------------------------------------------------------------------ вход */
+
+/**
+ * Токен заглушки. Подписи нет и быть не может: подписывать нечем, а разбирать
+ * его будет тот же процесс. Формат оставлен читаемым намеренно — в отладчике
+ * видно, под кем идёт запрос.
+ */
+const tokenFor = (username: string) => `mock.access.${username}`
+const mfaTokenFor = (username: string) => `mock.mfa.${username}`
+
+// Латиница ради размера QR: кириллица в ссылке кодируется по шесть знаков на
+// букву и раздувает код с 45 модулей до 57. То же значение у сервера.
+const ISSUER = 'ARM ODS'
+
+/** Ссылка для аутентификатора. Формат тот же, что у сервера. */
+function otpauthUrl(username: string, secret: string): string {
+  const label = encodeURIComponent(`${ISSUER}:${username}`)
+  return (
+    `otpauth://totp/${label}?secret=${secret}` +
+    `&issuer=${encodeURIComponent(ISSUER)}&algorithm=SHA1&digits=${CODE_LENGTH}&period=30`
+  )
+}
+
+/**
+ * Текущий код учётной записи заглушки.
+ *
+ * Нужен тестам: они не умеют держать телефон. Приложение этой функцией не
+ * пользуется, и в браузере её никто не зовёт.
+ */
+export async function mockCodeFor(username: string): Promise<string> {
+  const user = userByName(username)
+  const secret = user?.pendingSecret ?? user?.secret
+  if (!secret) throw new Error(`у записи ${username} нет ключа второго фактора`)
+  return totpCodeAt(secret)
+}
+
+/** Наборы учётных записей в том виде, в каком их отдаёт сервер. */
+function testStand() {
+  return {
+    enabled: true,
+    password: DEMO_PASSWORD,
+    sets: setNumbers().map((set) => ({
+      set,
+      accounts: MOCK_USERS.filter((user) => user.demoSet === set).map((user) => ({
+        username: user.username,
+        fullName: user.fullName,
+        role: user.role,
+        roleLabel: user.roleLabel,
+        scopeKind: user.scopeKind,
+        scopeValue: user.scopeValue,
+        mfaEnrolled: Boolean(user.secret),
+      })),
+    })),
+  }
+}
+
+function toCurrentUser(user: MockUser): CurrentUser {
+  return {
+    username: user.username,
+    fullName: user.fullName,
+    role: user.role,
+    roleLabel: user.roleLabel,
+    scopeKind: user.scopeKind,
+    scopeValue: user.scopeValue,
+    permissions: user.permissions,
+  }
+}
+
+function nameFromToken(prefix: string, token: string | null): string | null {
+  if (!token || !token.startsWith(prefix)) return null
+  return token.slice(prefix.length) || null
+}
+
+/** Кто выполняет запрос. `null` значит «токена нет или он не тот». */
+function actorOf(request: Request): MockUser | null {
+  const header = request.headers.get('Authorization') ?? ''
+  const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : null
+  const username = nameFromToken('mock.access.', token)
+  return username ? (userByName(username) ?? null) : null
+}
+
+/**
+ * Оборачивает хендлер проверкой токена.
+ *
+ * Заглушка отказывает так же, как сервер: 401 без токена. Иначе экран входа
+ * можно было бы обойти, и `VITE_USE_MOCKS=true` перестал бы быть правдой.
+ */
+function guarded(
+  handler: (user: MockUser, input: { request: Request; params: Record<string, string> }) => Promise<Response>,
+) {
+  return async (input: { request: Request; params: unknown }): Promise<Response> => {
+    const user = actorOf(input.request)
+    if (!user) return fail(401, 'Требуется вход в систему')
+    return handler(user, {
+      request: input.request,
+      params: (input.params ?? {}) as Record<string, string>,
+    })
+  }
+}
+
+/** Оставляет действия, на которые у роли есть право. */
+function allowed(actions: ActionDef[], user: MockUser): ActionDef[] {
+  return actions.filter((action) => user.permissions.includes(action.code))
+}
+
+/** «1 критический инцидент не взят», «3 критических инцидента не взяты». */
+function criticalTitle(n: number): string {
+  const tail = n % 100
+  if (n % 10 === 1 && tail !== 11) return `${n} критический инцидент не взят в работу`
+  if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(tail)) {
+    return `${n} критических инцидента не взяты в работу`
+  }
+  return `${n} критических инцидентов не взяты в работу`
+}
+
+function seesPrediction(user: MockUser, record: PredictionRecord): boolean {
+  return visibleTo(user, record.facility.district, record.facility.collector)
+}
+
+function seesOrder(user: MockUser, order: OrderRecord): boolean {
+  return visibleTo(user, order.facility.district, order.facility.collector)
+}
+
+/** Карточка прогноза с кнопками, отобранными по правам роли. */
+function detailFor(record: PredictionRecord, user: MockUser) {
+  const detail = buildDetail(record)
+  return { ...detail, actions: allowed(detail.actions, user) }
+}
+
+/** Заявка с кнопками, отобранными по правам роли. */
+function orderFor(order: OrderRecord, user: MockUser) {
+  const dto = toWorkOrder(order)
+  return { ...dto, actions: allowed(dto.actions, user) }
 }
 
 /* ------------------------------------------------------- выборка и разбор */
@@ -92,7 +247,20 @@ const predictionSortValue: Record<string, (p: PredictionRecord) => string | numb
   status: (p) => p.status,
   facility: (p) => p.facility.address,
   summary: (p) => p.summary,
-  risk: (p) => p.probability,
+  risk: (p) => severity(p),
+}
+
+/** Критичность уровня из меты: чем выше `order`, тем опаснее. */
+function severity(p: PredictionRecord): number {
+  return db().meta.riskLevels.find((l) => l.code === p.level)?.order ?? 0
+}
+
+/**
+ * Порядок журнала как у сервера: сначала критичность, потом новизна. Равные
+ * значения любой сортировки добираются новизной.
+ */
+function byRiskThenTime(a: PredictionRecord, b: PredictionRecord): number {
+  return severity(b) - severity(a) || b.computedAt.localeCompare(a.computedAt)
 }
 
 const orderSortValue: Record<string, (o: OrderRecord) => string | number> = {
@@ -137,238 +305,417 @@ function toPrediction(record: PredictionRecord): Prediction {
 /* ---------------------------------------------------------------- ручки */
 
 export const handlers = [
-  /* мета */
-  http.get(url('/meta'), async () => {
-    if (devFlags.get('breakMeta')) {
-      return fail(500, 'Дев-панель: /meta намеренно сломана')
+  /* вход в систему */
+
+  /**
+   * Первый шаг. Пароль проверяется, потому что экран входа обязан отказывать.
+   * Ответ говорит, что делать дальше: прислать код или сначала завести ключ.
+   */
+  http.post(url('/auth/login'), async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
+    const user = userByName(String(body['username'] ?? ''))
+    if (!user || body['password'] !== DEMO_PASSWORD) {
+      // Ответ один на оба случая: разные подсказки дали бы перебор имён.
+      return fail(401, 'Логин или пароль не подошли')
     }
-    return ok(db().meta)
+
+    if (!user.secret) {
+      // Ключ ещё не заведён. Секрет живёт до подтверждения кодом и в запись не
+      // попадает: запись с непроверенным ключом заперла бы человека снаружи.
+      user.pendingSecret = generateSecret()
+      return ok({
+        status: 'ENROLL_REQUIRED',
+        mfaToken: mfaTokenFor(user.username),
+        secret: user.pendingSecret,
+        otpauthUrl: otpauthUrl(user.username, user.pendingSecret),
+      })
+    }
+
+    return ok({ status: 'MFA_REQUIRED', mfaToken: mfaTokenFor(user.username) })
   }),
+
+  /**
+   * Второй шаг. Код считается по-настоящему, по RFC 6238.
+   *
+   * Секрет заглушка выдала сама, значит и проверить код она может. Режима
+   * «подойдут любые шесть цифр» здесь нет: он превращал бы второй фактор на
+   * стенде в декорацию.
+   */
+  http.post(url('/auth/mfa'), async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
+    const username = nameFromToken('mock.mfa.', String(body['mfaToken'] ?? ''))
+    const user = username ? userByName(username) : undefined
+    if (!user) return fail(401, 'Время на ввод кода истекло, войдите заново')
+
+    const secret = user.pendingSecret ?? user.secret
+    if (!secret) return fail(401, 'Ключ второго фактора не заведён')
+
+    const code = String(body['code'] ?? '')
+    if (!(await totpVerify(secret, code))) {
+      return fail(401, 'Код не подошёл. Проверьте время на телефоне и повторите')
+    }
+
+    if (user.pendingSecret) {
+      // Код подошёл: ключ записан, следующий вход пойдёт сразу к коду.
+      user.secret = user.pendingSecret
+      user.pendingSecret = undefined
+    }
+
+    return ok({
+      accessToken: tokenFor(user.username),
+      tokenType: 'Bearer',
+      expiresIn: 8 * 60 * 60,
+      user: toCurrentUser(user),
+    })
+  }),
+
+  /**
+   * Панель тестового стенда. Открыта без токена: она рисуется на экране входа.
+   *
+   * В заглушках стенд включён всегда. Настоящий сервер смотрит на флаг
+   * `TEST_STAND` и без него отдаёт пустой список.
+   */
+  http.get(url('/auth/test-accounts'), async () => ok(testStand())),
+
+  http.post(url('/auth/test-accounts'), async () => {
+    createSet()
+    return ok(testStand())
+  }),
+
+  http.delete(url('/auth/test-accounts/:set'), async ({ params }) => {
+    if (!deleteSet(Number(params['set']))) return fail(404, 'Набора нет')
+    return ok(testStand())
+  }),
+
+  http.get(url('/auth/me'), guarded(async (user) => ok(toCurrentUser(user)))),
+
+  http.post(url('/auth/logout'), guarded(async () => ok({ status: 'ok' }))),
+
+  /* мета */
+  http.get(
+    url('/meta'),
+    guarded(async () => {
+      if (devFlags.get('breakMeta')) {
+        return fail(500, 'Дев-панель: /meta намеренно сломана')
+      }
+      return ok(db().meta)
+    }),
+  ),
 
   /* прогнозы */
-  http.get(url('/predictions'), async ({ request }) => {
-    if (devFlags.get('failLists')) return fail(500, 'Дев-панель: списки намеренно падают')
+  http.get(
+    url('/predictions'),
+    guarded(async (user, { request }) => {
+      if (devFlags.get('failLists')) return fail(500, 'Дев-панель: списки намеренно падают')
 
-    const filtered = db().predictions.filter((p) => matchesFilters(p, request))
-    const sorted = applySort(filtered, param(request, 'sort'), predictionSortValue)
-    const page = paginate(sorted, request)
-    return ok({ ...page, items: page.items.map(toPrediction) })
-  }),
+      const filtered = db().predictions.filter(
+        (p) => seesPrediction(user, p) && matchesFilters(p, request),
+      )
+      const sort = param(request, 'sort')
+      const sorted = sort
+        ? applySort([...filtered].sort(byRiskThenTime), sort, predictionSortValue)
+        : [...filtered].sort(byRiskThenTime)
+      const page = paginate(sorted, request)
+      return ok({ ...page, items: page.items.map(toPrediction) })
+    }),
+  ),
 
-  http.get(url('/predictions/:id/timeseries'), async ({ params }) => {
-    const record = db().predictionById.get(String(params['id']))
-    if (!record) return fail(404, 'Прогноз не найден')
-    return ok(buildSeries(record))
-  }),
+  http.get(
+    url('/predictions/:id/timeseries'),
+    guarded(async (user, { params }) => {
+      const record = db().predictionById.get(String(params['id']))
+      if (!record || !seesPrediction(user, record)) return fail(404, 'Прогноз не найден')
+      return ok(buildSeries(record))
+    }),
+  ),
 
-  http.get(url('/predictions/:id'), async ({ params }) => {
-    const record = db().predictionById.get(String(params['id']))
-    if (!record) return fail(404, 'Прогноз не найден')
-    return ok(buildDetail(record))
-  }),
+  http.get(
+    url('/predictions/:id'),
+    guarded(async (user, { params }) => {
+      const record = db().predictionById.get(String(params['id']))
+      if (!record || !seesPrediction(user, record)) return fail(404, 'Прогноз не найден')
+      return ok(detailFor(record, user))
+    }),
+  ),
 
   /**
    * Единый эндпоинт действий (ADR 0004). Код действия разбирается здесь, на
    * «бэкенде»; фронт о его смысле не знает и знать не должен.
    */
-  http.post(url('/predictions/:id/actions/:code'), async ({ params, request }) => {
-    const record = db().predictionById.get(String(params['id']))
-    if (!record) return fail(404, 'Прогноз не найден')
-
-    const code = String(params['code'])
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
-
-    if (code === 'take') {
-      record.status = 'IN_REVIEW'
-      record.assignee = MOCK_DISPATCHER
-    } else if (code === 'release') {
-      record.status = 'NEW'
-      record.assignee = undefined
-    } else if (code === 'decide') {
-      // Выезд назначает итоговый уровень, а не согласие диспетчера. Четыре
-      // случая таблицы ADR 0006 сходятся в два действия над заявкой.
-      const level = String(body['dispatcherLevel'] ?? record.level)
-      record.verdict = level === record.level ? 'AGREED' : 'CORRECTED'
-      record.dispatcherLevel = level
-      record.decidedAt = new Date().toISOString()
-      record.assignee = record.assignee ?? MOCK_DISPATCHER
-
-      const needsOrder = level === 'HIGH' || level === 'CRITICAL'
-      record.status = needsOrder ? 'ORDER_OPEN' : 'DECIDED'
-
-      const order = record.orderId ? db().orderById.get(record.orderId) : undefined
-      if (order && (order.status === 'AUTO_CREATED' || order.status === 'CONFIRMED')) {
-        // Решение по прогнозу и подтверждает заявку, и отклоняет её.
-        order.status = needsOrder ? 'CONFIRMED' : 'REJECTED'
-        order.actions = orderActions(order.status, order.causesRef)
+  http.post(
+    url('/predictions/:id/actions/:code'),
+    guarded(async (user, { params, request }) => {
+      const code = String(params['code'])
+      if (!user.permissions.includes(code)) {
+        return fail(403, `роль «${user.roleLabel}» не выполняет действие ${code}`)
       }
-    } else {
-      // Неизвестный код — не ошибка: помечаем, что прогноз в работе.
-      record.status = 'IN_REVIEW'
-    }
 
-    console.info('[mocks] действие над прогнозом', { id: record.id, code, body })
-    return ok(buildDetail(record))
-  }),
+      const record = db().predictionById.get(String(params['id']))
+      if (!record || !seesPrediction(user, record)) return fail(404, 'Прогноз не найден')
 
-  /* карта */
-  http.get(url('/facilities/lines'), async () =>
-    ok({
-      type: 'FeatureCollection',
-      features: COLLECTORS.map((c) => ({
-        type: 'Feature',
-        geometry: { type: 'LineString', coordinates: c.line },
-        properties: { collector: c.label },
-      })),
+      const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
+
+      if (code === 'take') {
+        record.status = 'IN_REVIEW'
+        record.assignee = user.fullName
+      } else if (code === 'release') {
+        record.status = 'NEW'
+        record.assignee = undefined
+      } else if (code === 'decide') {
+        // Выезд назначает итоговый уровень, а не согласие диспетчера. Четыре
+        // случая таблицы ADR 0006 сходятся в два действия над заявкой.
+        const level = String(body['dispatcherLevel'] ?? record.level)
+        record.verdict = level === record.level ? 'AGREED' : 'CORRECTED'
+        record.dispatcherLevel = level
+        record.decidedAt = new Date().toISOString()
+        record.assignee = record.assignee ?? user.fullName
+
+        const needsOrder = level === 'HIGH' || level === 'CRITICAL'
+        record.status = needsOrder ? 'ORDER_OPEN' : 'DECIDED'
+
+        const order = record.orderId ? db().orderById.get(record.orderId) : undefined
+        if (order && (order.status === 'AUTO_CREATED' || order.status === 'CONFIRMED')) {
+          // Решение по прогнозу и подтверждает заявку, и отклоняет её.
+          order.status = needsOrder ? 'CONFIRMED' : 'REJECTED'
+          order.actions = orderActions(order.status, order.causesRef)
+        }
+      }
+
+      console.info('[mocks] действие над прогнозом', { id: record.id, code, body })
+      return ok(detailFor(record, user))
     }),
   ),
 
-  http.get(url('/facilities'), async ({ request }) => {
-    if (devFlags.get('failLists')) return fail(500, 'Дев-панель: списки намеренно падают')
+  /* карта */
+  http.get(
+    url('/facilities/lines'),
+    guarded(async (user) =>
+      ok({
+        type: 'FeatureCollection',
+        features: COLLECTORS.filter((c) =>
+          visibleTo(user, c.district, collectorLabel(c.code)),
+        ).map((c) => ({
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: c.line },
+          properties: { collector: c.label },
+        })),
+      }),
+    ),
+  ),
 
-    const direction = listParam(request, 'direction')
-    const level = listParam(request, 'level')
-    const district = param(request, 'district')
-    const box = parseBbox(param(request, 'bbox'))
+  http.get(
+    url('/facilities'),
+    guarded(async (user, { request }) => {
+      if (devFlags.get('failLists')) return fail(500, 'Дев-панель: списки намеренно падают')
 
-    // На карте показываем по одной точке на объект — с самым тяжёлым прогнозом.
-    const worst = new Map<string, PredictionRecord>()
-    for (const record of db().predictions) {
-      if (direction.length && !direction.includes(record.direction)) continue
-      if (level.length && !level.includes(record.level)) continue
-      if (district && record.facility.district !== district) continue
-      if (box && !insideBbox(box, record.facility.lon, record.facility.lat)) continue
-      const current = worst.get(record.facility.id)
-      if (!current || current.probability < record.probability) {
-        worst.set(record.facility.id, record)
+      const direction = listParam(request, 'direction')
+      const level = listParam(request, 'level')
+      const district = param(request, 'district')
+      const box = parseBbox(param(request, 'bbox'))
+
+      // На карте показываем по одной точке на объект — с самым тяжёлым прогнозом.
+      const worst = new Map<string, PredictionRecord>()
+      for (const record of db().predictions) {
+        if (!seesPrediction(user, record)) continue
+        if (direction.length && !direction.includes(record.direction)) continue
+        if (level.length && !level.includes(record.level)) continue
+        if (district && record.facility.district !== district) continue
+        if (box && !insideBbox(box, record.facility.lon, record.facility.lat)) continue
+        const current = worst.get(record.facility.id)
+        if (!current || current.probability < record.probability) {
+          worst.set(record.facility.id, record)
+        }
       }
-    }
 
-    const features: FacilityFeature[] = [...worst.values()].map((record) => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [record.facility.lon, record.facility.lat] },
-      properties: {
-        facilityId: record.facility.id,
-        predictionId: record.id,
-        direction: record.direction,
-        level: record.level,
-        probability: record.probability,
-        address: record.facility.address,
-        collector: record.facility.collector,
-      },
-    }))
+      const features: FacilityFeature[] = [...worst.values()].map((record) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [record.facility.lon, record.facility.lat] },
+        properties: {
+          facilityId: record.facility.id,
+          predictionId: record.id,
+          direction: record.direction,
+          level: record.level,
+          probability: record.probability,
+          address: record.facility.address,
+          collector: record.facility.collector,
+        },
+      }))
 
-    return ok({ type: 'FeatureCollection', features })
-  }),
+      return ok({ type: 'FeatureCollection', features })
+    }),
+  ),
 
-  http.get(url('/facilities/:id'), async ({ params }) => {
-    const id = String(params['id'])
-    const record = db().predictions.find((p) => p.facility.id === id)
-    if (!record) return fail(404, 'Объект не найден')
-    return ok(record.facility)
-  }),
+  http.get(
+    url('/facilities/:id'),
+    guarded(async (user, { params }) => {
+      const id = String(params['id'])
+      const record = db().predictions.find((p) => p.facility.id === id && seesPrediction(user, p))
+      if (!record) return fail(404, 'Объект не найден')
+      return ok(record.facility)
+    }),
+  ),
 
   /* заявки */
-  http.get(url('/orders'), async ({ request }) => {
-    if (devFlags.get('failLists')) return fail(500, 'Дев-панель: списки намеренно падают')
+  http.get(
+    url('/orders'),
+    guarded(async (user, { request }) => {
+      if (devFlags.get('failLists')) return fail(500, 'Дев-панель: списки намеренно падают')
 
-    const status = listParam(request, 'status')
-    const dueBefore = param(request, 'dueBefore')
+      const status = listParam(request, 'status')
+      const dueBefore = param(request, 'dueBefore')
 
-    const filtered = db().orders.filter((o) => {
-      if (status.length && !status.includes(o.status)) return false
-      if (dueBefore && o.dueAt > `${dueBefore}T23:59:59.999Z`) return false
-      return true
-    })
+      const filtered = db().orders.filter((o) => {
+        if (!seesOrder(user, o)) return false
+        if (status.length && !status.includes(o.status)) return false
+        if (dueBefore && o.dueAt > `${dueBefore}T23:59:59.999Z`) return false
+        return true
+      })
 
-    const sorted = applySort(filtered, param(request, 'sort'), orderSortValue)
-    const page = paginate(sorted, request)
-    return ok({ ...page, items: page.items.map(toWorkOrder) })
-  }),
+      const sorted = applySort(filtered, param(request, 'sort'), orderSortValue)
+      const page = paginate(sorted, request)
+      return ok({ ...page, items: page.items.map((order) => orderFor(order, user)) })
+    }),
+  ),
 
-  http.get(url('/orders/:id'), async ({ params }) => {
-    const order = db().orderById.get(String(params['id']))
-    if (!order) return fail(404, 'Заявка не найдена')
-    return ok(toWorkOrder(order))
-  }),
+  http.get(
+    url('/orders/:id'),
+    guarded(async (user, { params }) => {
+      const order = db().orderById.get(String(params['id']))
+      if (!order || !seesOrder(user, order)) return fail(404, 'Заявка не найдена')
+      return ok(orderFor(order, user))
+    }),
+  ),
 
-  http.post(url('/orders/:id/actions/:code'), async ({ params, request }) => {
-    const order = db().orderById.get(String(params['id']))
-    if (!order) return fail(404, 'Заявка не найдена')
-
-    const code = String(params['code'])
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
-
-    if (code === 'assign') {
-      // Бригада и срок называются одним действием. Раньше «исполнителя»
-      // спрашивали при подтверждении, а «бригаду» при начале работ.
-      order.status = 'IN_PROGRESS'
-      order.dueAt = String(body['dueAt'] ?? order.dueAt)
-    } else if (code === 'reject') {
-      order.status = 'REJECTED'
-    } else if (code === 'close') {
-      // Исход бригады выбирает терминальный статус и закрывает прогноз тем же
-      // исходом. ADR 0006: два поля с одним смыслом разошлись бы на первой
-      // же правке, поэтому у прогноза своего поля исхода нет.
-      const confirmed = body['factConfirmed'] === true
-      order.status = confirmed ? 'CLOSED_CONFIRMED' : 'CLOSED_NOT_CONFIRMED'
-      order.outcome = {
-        actualCause: String(body['actualCause'] ?? ''),
-        // Принимаем только boolean — форма шлёт именно его, а заглушка не
-        // должна быть терпимее сервера в поле, от которого зависит обучение.
-        factConfirmed: confirmed,
-        comment: String(body['comment'] ?? ''),
-        closedAt: new Date().toISOString(),
+  http.post(
+    url('/orders/:id/actions/:code'),
+    guarded(async (user, { params, request }) => {
+      const code = String(params['code'])
+      if (!user.permissions.includes(code)) {
+        return fail(403, `роль «${user.roleLabel}» не выполняет действие ${code}`)
       }
-      const prediction = db().predictionById.get(order.predictionId)
-      if (prediction) {
-        prediction.status = order.status
+
+      const order = db().orderById.get(String(params['id']))
+      if (!order || !seesOrder(user, order)) return fail(404, 'Заявка не найдена')
+
+      const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
+
+      if (code === 'assign') {
+        // Бригада и срок называются одним действием. Раньше «исполнителя»
+        // спрашивали при подтверждении, а «бригаду» при начале работ.
+        order.status = 'IN_PROGRESS'
+        order.dueAt = String(body['dueAt'] ?? order.dueAt)
+      } else if (code === 'reject') {
+        order.status = 'REJECTED'
+      } else if (code === 'close') {
+        // Исход бригады выбирает терминальный статус и закрывает прогноз тем же
+        // исходом. ADR 0006: два поля с одним смыслом разошлись бы на первой
+        // же правке, поэтому у прогноза своего поля исхода нет.
+        const confirmed = body['factConfirmed'] === true
+        order.status = confirmed ? 'CLOSED_CONFIRMED' : 'CLOSED_NOT_CONFIRMED'
+        order.outcome = {
+          actualCause: String(body['actualCause'] ?? ''),
+          // Принимаем только boolean — форма шлёт именно его, а заглушка не
+          // должна быть терпимее сервера в поле, от которого зависит обучение.
+          factConfirmed: confirmed,
+          comment: String(body['comment'] ?? ''),
+          closedAt: new Date().toISOString(),
+        }
+        const prediction = db().predictionById.get(order.predictionId)
+        if (prediction) {
+          prediction.status = order.status
+        }
       }
-    }
 
-    order.actions = orderActions(order.status, order.causesRef)
+      order.actions = orderActions(order.status, order.causesRef)
 
-    console.info('[mocks] действие над заявкой', { id: order.id, code, body })
-    return ok(toWorkOrder(order))
-  }),
+      console.info('[mocks] действие над заявкой', { id: order.id, code, body })
+      return ok(orderFor(order, user))
+    }),
+  ),
 
   /* метрики и дашборд */
-  http.get(url('/metrics/models'), async () => ok(db().metrics)),
 
-  http.get(url('/metrics/pipeline'), async () => ok(db().pipeline)),
+  /**
+   * Качество модели от роли не зависит: оно измерено на всей сети. Резать его
+   * границей видимости значило бы показывать четыре разных Precision.
+   */
+  http.get(
+    url('/metrics/models'),
+    guarded(async () => ok(db().metrics)),
+  ),
 
-  http.get(url('/dashboard/summary'), async () => {
-    const { predictions, orders } = db()
-    const summary: DashboardSummary = {
-      byLevel: {},
-      byDirection: {},
-      byStatus: {},
-      byOrderStatus: {},
-      total: predictions.length,
-    }
-    for (const p of predictions) {
-      summary.byLevel[p.level] = (summary.byLevel[p.level] ?? 0) + 1
-      summary.byDirection[p.direction] = (summary.byDirection[p.direction] ?? 0) + 1
-      summary.byStatus[p.status] = (summary.byStatus[p.status] ?? 0) + 1
-    }
-    for (const o of orders) {
-      summary.byOrderStatus[o.status] = (summary.byOrderStatus[o.status] ?? 0) + 1
-    }
-    return ok(summary)
-  }),
+  http.get(
+    url('/metrics/pipeline'),
+    guarded(async () => ok(db().pipeline)),
+  ),
 
-  http.get(url('/dashboard/top-risks'), async ({ request }) => {
-    const limit = Number(param(request, 'limit') ?? '10') || 10
-    const top = [...db().predictions]
-      .filter((p) => p.status !== 'REJECTED' && p.status !== 'CLOSED')
-      .sort((a, b) => b.probability - a.probability)
-      .slice(0, limit)
-      .map(toPrediction)
-    return ok(top)
-  }),
+  /*
+   * Уведомление о тревоге: критические прогнозы, которые никто не взял в
+   * работу. Правило то же, что у сервера (`backend/app/api/alerts.py`).
+   */
+  http.get(
+    url('/alerts'),
+    guarded(async (user) => {
+      const count = db().predictions.filter(
+        (p) => seesPrediction(user, p) && p.level === 'CRITICAL' && p.status === 'NEW',
+      ).length
+      if (count === 0) return ok([])
+      return ok([
+        {
+          code: 'critical_untaken',
+          level: 'CRITICAL',
+          count,
+          title: criticalTitle(count),
+          hint: 'Возьмите инциденты в работу в журнале прогнозов',
+          filter: { level: ['CRITICAL'], status: ['NEW'] },
+          repeatMinutes: 5,
+        },
+      ])
+    }),
+  ),
+
+  http.get(
+    url('/dashboard/summary'),
+    guarded(async (user) => {
+      const { predictions, orders } = db()
+      const visible = predictions.filter((p) => seesPrediction(user, p))
+      const summary: DashboardSummary = {
+        byLevel: {},
+        byDirection: {},
+        byStatus: {},
+        byOrderStatus: {},
+        total: visible.length,
+      }
+      for (const p of visible) {
+        summary.byLevel[p.level] = (summary.byLevel[p.level] ?? 0) + 1
+        summary.byDirection[p.direction] = (summary.byDirection[p.direction] ?? 0) + 1
+        summary.byStatus[p.status] = (summary.byStatus[p.status] ?? 0) + 1
+      }
+      for (const order of orders.filter((o) => seesOrder(user, o))) {
+        summary.byOrderStatus[order.status] = (summary.byOrderStatus[order.status] ?? 0) + 1
+      }
+      return ok(summary)
+    }),
+  ),
+
+  http.get(
+    url('/dashboard/top-risks'),
+    guarded(async (user, { request }) => {
+      const limit = Number(param(request, 'limit') ?? '10') || 10
+      const top = db()
+        .predictions.filter(
+          (p) => seesPrediction(user, p) && p.status !== 'REJECTED' && p.status !== 'CLOSED',
+        )
+        .sort(byRiskThenTime)
+        .slice(0, limit)
+        .map(toPrediction)
+      return ok(top)
+    }),
+  ),
 ]
 
 /** Сброс состояния между тестами и по кнопке дев-панели. */
 export function resetMockDb(): void {
   resetDb()
+  resetUsers()
 }

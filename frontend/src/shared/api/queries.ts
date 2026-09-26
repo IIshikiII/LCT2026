@@ -6,8 +6,9 @@
  * метрики моделей — реже.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { z } from 'zod'
 import { FALLBACK_META } from '@/shared/config/fallbacks'
-import { apiGet, apiPost } from './client'
+import { apiDelete, apiGet, apiPost } from './client'
 import { endpoints } from './endpoints'
 import {
   facilityParams,
@@ -18,8 +19,10 @@ import {
 } from './filters'
 import { queryKeys } from './queryKeys'
 import {
+  AlertListSchema,
   AppMetaSchema,
   DashboardSummarySchema,
+  LoginChallengeSchema,
   FacilityCollectionSchema,
   LineCollectionSchema,
   ModelMetricListSchema,
@@ -27,20 +30,26 @@ import {
   PredictionDetailSchema,
   PredictionListSchema,
   PredictionPageSchema,
+  SessionResponseSchema,
+  TestStandSchema,
   TimeSeriesResponseSchema,
   WorkOrderPageSchema,
   WorkOrderSchema,
 } from './schemas'
 import type {
+  Alert,
   AppMeta,
   DashboardSummary,
   FacilityCollection,
   LineCollection,
+  LoginChallenge,
   ModelMetric,
   PageResult,
   PipelineHealth,
   Prediction,
   PredictionDetail,
+  SessionResponse,
+  TestStand,
   TimeSeriesResponse,
   WorkOrder,
 } from './types'
@@ -238,6 +247,21 @@ export function usePipelineHealth() {
   })
 }
 
+/**
+ * Уведомления о тревоге. Опрос вдвое чаще журнала: тревога не ждёт минуту.
+ * Работает и в фоне вкладки, чтобы число в заголовке окна было свежим.
+ */
+export const ALERTS_POLL_MS = 30_000
+
+export function useAlerts() {
+  return useQuery({
+    queryKey: queryKeys.alerts(),
+    queryFn: ({ signal }) => apiGet<Alert[]>(endpoints.alerts(), AlertListSchema, { signal }),
+    refetchInterval: ALERTS_POLL_MS,
+    refetchIntervalInBackground: true,
+  })
+}
+
 export function useDashboardSummary() {
   return useQuery({
     queryKey: queryKeys.dashboardSummary(),
@@ -254,5 +278,81 @@ export function useTopRisks(limit = 10) {
         params: { limit },
         signal,
       }),
+  })
+}
+
+/* ---------------------------------------------------------------- сессия */
+
+/**
+ * Первый шаг входа: логин и пароль.
+ *
+ * Сессии здесь ещё нет. Ответ говорит, что делать дальше: прислать код или
+ * сначала завести ключ. Разделение живёт на сервере, фронт только читает
+ * поле `status`.
+ */
+export function useLogin() {
+  return useMutation({
+    mutationFn: (body: { username: string; password: string }) =>
+      apiPost<LoginChallenge>(endpoints.login(), LoginChallengeSchema, body),
+  })
+}
+
+/** Второй шаг входа. Он же подтверждает только что заведённый ключ. */
+export function useConfirmCode() {
+  return useMutation({
+    mutationFn: (body: { mfaToken: string; code: string }) =>
+      apiPost<SessionResponse>(endpoints.mfa(), SessionResponseSchema, body),
+  })
+}
+
+/**
+ * Выход. Токен снимает браузер, сервер записывает событие в журнал.
+ *
+ * Кэш запросов чистится целиком: в нём лежат данные прежней роли, и показать
+ * их следующему вошедшему нельзя.
+ */
+export function useLogout() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiPost<unknown>(endpoints.logout(), z.unknown(), {}),
+    onSettled: () => qc.clear(),
+  })
+}
+
+/* --------------------------------------------------------- тестовый стенд */
+
+/**
+ * Наборы учёток для жюри. Эндпоинт открыт и отвечает всегда, но при
+ * выключенном флаге отдаёт `enabled: false`, и панель не рисуется.
+ *
+ * Опрос по времени здесь не нужен: список меняется только кнопками рядом.
+ */
+export function useTestStand() {
+  return useQuery({
+    queryKey: queryKeys.testStand(),
+    queryFn: ({ signal }) =>
+      apiGet<TestStand>(endpoints.testAccounts(), TestStandSchema, { signal }),
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
+    retry: false,
+  })
+}
+
+/** Заводит следующий набор. Ответ — список целиком, его и кладём в кэш. */
+export function useCreateTestSet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiPost<TestStand>(endpoints.testAccounts(), TestStandSchema, {}),
+    onSuccess: (stand) => qc.setQueryData(queryKeys.testStand(), stand),
+  })
+}
+
+export function useDeleteTestSet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (set: number) =>
+      apiDelete<TestStand>(endpoints.testAccountSet(set), TestStandSchema),
+    onSuccess: (stand) => qc.setQueryData(queryKeys.testStand(), stand),
   })
 }

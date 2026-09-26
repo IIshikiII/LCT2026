@@ -54,6 +54,95 @@ return raw as T           // отдаём как есть, а не бросае�
 
 ## Ручки
 
+### Вход в систему
+
+```
+POST /auth/login  { username, password } → LoginChallenge   (открыт)
+POST /auth/mfa    { mfaToken, code }     → SessionResponse   (открыт)
+GET  /auth/me                            → CurrentUser
+POST /auth/logout                        → { status }
+```
+
+Вход идёт двумя шагами. Первый проверяет пароль и отдаёт промежуточный токен,
+второй проверяет одноразовый код и отдаёт токен сессии. Промежуточный токен не
+открывает ни одного эндпоинта данных.
+
+```ts
+interface LoginChallenge {
+  status: string      // MFA_REQUIRED | ENROLL_REQUIRED
+  mfaToken: string
+  secret?: string     // приходит один раз, только при ENROLL_REQUIRED
+  otpauthUrl?: string
+}
+
+interface SessionResponse {
+  accessToken: string
+  tokenType: string   // Bearer
+  expiresIn: number   // секунды
+  user: CurrentUser
+}
+
+interface CurrentUser {
+  username: string
+  fullName: string
+  role: string        // код роли
+  roleLabel: string   // подпись роли, фронт её не составляет
+  scopeKind: string   // ALL | DISTRICT | COMPLEX
+  scopeValue?: string
+  permissions: string[]
+}
+```
+
+Поле `otpauthUrl` интерфейс рисует QR-кодом: камера аутентификатора заводит
+запись за одно движение. Строка `secret` остаётся для ручного ввода.
+
+Токен уходит заголовком `Authorization: Bearer <токен>`. Подставляет его
+`shared/api/client.ts`, читая сессию из `sessionStorage`. Ответ 401 снимает
+сессию, и каркас показывает экран входа: истёкший токен не должен давать экран
+ошибки с бесполезной кнопкой «повторить».
+
+Текст отказа приходит полем `detail`, и клиент показывает именно его. Код
+ответа в сообщении остаётся только тогда, когда тело не разобралось: так
+отвечает прокси, а не наш сервер.
+
+Все остальные ручки требуют токен. Ответ 403 значит «роль не выполняет это
+действие», ответ 404 на существующий объект значит «он вне области видимости
+роли». Разбор — `backend/docs/adr/0007-roles-and-auth.md`.
+
+### Тестовый стенд
+
+```
+GET    /auth/test-accounts         → TestStand   (открыт)
+POST   /auth/test-accounts         → TestStand   (открыт)
+DELETE /auth/test-accounts/{set}   → TestStand   (открыт)
+```
+
+```ts
+interface TestStand {
+  enabled: boolean          // false — панель не рисуется
+  password: string          // общий пароль всех наборов
+  sets: {
+    set: number
+    accounts: {
+      username: string
+      fullName: string
+      role: string
+      roleLabel: string
+      scopeKind: string
+      scopeValue?: string
+      mfaEnrolled: boolean  // ключ второго фактора уже заведён
+    }[]
+  }[]
+}
+```
+
+Ручки открыты намеренно: панель рисуется на экране входа. Наполняет их флаг
+`TEST_STAND` на сервере, и без него `enabled` равен `false`, а создание и
+удаление отвечают 404. Разбор — `backend/docs/adr/0007-roles-and-auth.md`.
+
+Ответ каждой из трёх ручек — список целиком, поэтому фронт не угадывает, что
+изменилось, а кладёт ответ в кэш.
+
 ### Метаданные
 
 ```
@@ -81,8 +170,9 @@ interface AppMeta {
 `optionsRef` в `FieldDef`.
 
 `statuses` различает сущности полем `scope`: один и тот же код может встретиться
-дважды. Сейчас так ведёт себя только `REJECTED`. Терминальные статусы разные:
-у заявки `DONE`, у прогноза `CLOSED`.
+дважды. Так ведут себя `CLOSED_CONFIRMED` и `CLOSED_NOT_CONFIRMED`: они есть и у
+прогноза, и у заявки. Терминальны `DECIDED` и оба `CLOSED` у прогноза,
+`REJECTED` и оба `CLOSED` у заявки.
 
 Ещё два поля статуса необязательные, но меняют вид экрана:
 
@@ -140,6 +230,10 @@ POST /orders/{id}/actions/{code}
 Не заводить ручку под кнопку. Бэкенд знает, что делать с кодом; фронт знает только
 `ActionDef` из ответа. Ответ — сущность целиком, чтобы фронт не угадывал, что
 изменилось: он просто кладёт её в кэш.
+
+Состав действий зависит и от статуса, и от роли. Диспетчер получает `take`,
+`release`, `decide`, `assign` и `reject`; группа реагирования получает `close`;
+техник не получает ничего. Фронт ролью не ветвится: он рисует то, что пришло.
 См. [adr/0004-single-action-endpoint.md](adr/0004-single-action-endpoint.md).
 
 ### Объекты и карта
@@ -185,14 +279,35 @@ POST /orders/{id}/actions/{code}                  → WorkOrder
 ### Метрики и дашборд
 
 ```
-GET /metrics/models      → ModelMetric[]   { direction, precision, recall,
-                                             targetPrecision, targetRecall, evaluatedAt }
+GET /metrics/models      → ModelMetric[]   { direction, precision?, recall?,
+                                             targetPrecision, targetRecall, evaluatedAt,
+                                             method?, note? }
 GET /metrics/pipeline    → { lastRunAt, lastRunMs, freshnessMinutes,
                              maxComputeMs, minHorizonHours,
-                             targetComputeMs, targetHorizonHours }
+                             targetComputeMs, targetHorizonHours,
+                             streamLagMs?, streamEvents?, targetStreamLagMs? }
 GET /dashboard/summary   → { byLevel, byDirection, byStatus, byOrderStatus, total }
 GET /dashboard/top-risks?limit=10 → Prediction[]
+GET /alerts              → Alert[]: { code, level, count, title, hint?,
+                             filter, repeatMinutes, newestAt? }
 ```
+
+Пустые `precision` и `recall` значат «точность не измерена». Тогда `note`
+говорит почему, а `method` называет способ работы направления:
+`offline_holdout` у модели, `expert_rules` у экспертных правил. Виджет пишет
+«не измерена» и показывает `note` как есть. Ноль вместо пустоты читался бы как
+провал, молчание — как пропуск.
+
+Журнал без параметра `sort` идёт по критичности, при равной критичности новее
+выше. Порядок уровней берётся из `riskLevels` меты, а не из кода. Любая
+сортировка по колонке добирает равные значения новизной. `sort=risk` значит ту
+же критичность. Тот же порядок у `/dashboard/top-risks`.
+
+`/alerts` отдаёт действующие тревоги. Пустой список значит тревоги нет. Что
+тревожно, решает сервер: сейчас это прогнозы критического уровня, которые
+никто не взял в работу (backend ADR 0019). `filter` это параметры журнала,
+которые показывают ровно эти инциденты, `repeatMinutes` это шаг напоминания.
+Фронт опрашивает ручку раз в 30 секунд и кодов уровней и статусов не знает.
 
 `byLevel`, `byDirection`, `byStatus`, `byOrderStatus` — это `Record<string, number>`,
 а не массивы с фиксированными ключами. Появилось направление — появился ключ,

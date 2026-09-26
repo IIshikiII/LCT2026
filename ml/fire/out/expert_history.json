@@ -1,0 +1,64 @@
+{
+  "calibration_before": "2025-07-01",
+  "quiet_next_day_rate": 0.000372,
+  "levels": {
+    "LOW": {
+      "calibration": {
+        "episodes": 972,
+        "per_year": 149.5,
+        "per_day": 0.41,
+        "next_day_signal_rate": 0.0957
+      },
+      "holdout": {
+        "episodes": 368,
+        "per_year": 368.0,
+        "per_day": 1.008,
+        "next_day_signal_rate": 0.1005
+      }
+    },
+    "MEDIUM": {
+      "calibration": {
+        "episodes": 462,
+        "per_year": 71.1,
+        "per_day": 0.195,
+        "next_day_signal_rate": 0.1558
+      },
+      "holdout": {
+        "episodes": 289,
+        "per_year": 289.0,
+        "per_day": 0.792,
+        "next_day_signal_rate": 0.2249
+      }
+    },
+    "HIGH": {
+      "calibration": {
+        "episodes": 230,
+        "per_year": 35.4,
+        "per_day": 0.097,
+        "next_day_signal_rate": 0.1304
+      },
+      "holdout": {
+        "episodes": 86,
+        "per_year": 86.0,
+        "per_day": 0.236,
+        "next_day_signal_rate": 0.0581
+      }
+    },
+    "CRITICAL": {
+      "calibration": {
+        "episodes": 10,
+        "per_year": 1.5,
+        "per_day": 0.004,
+        "next_day_signal_rate": 0.0
+      },
+      "holdout": {
+        "episodes": 7,
+        "per_year": 7.0,
+        "per_day": 0.019,
+        "next_day_signal_rate": 0.0
+      }
+    }
+  },
+  "burst_only_per_year": 460.1,
+  "gas_ignition_object_days_total": 4
+}

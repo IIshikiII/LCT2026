@@ -71,6 +71,9 @@ export function buildMeta(): AppMeta {
       'probability',
       'horizon',
       'status',
+      'assignee',
+      'dispatcher',
+      'outcome',
       'order',
     ],
 

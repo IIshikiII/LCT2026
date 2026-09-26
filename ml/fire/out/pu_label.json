@@ -1,0 +1,87 @@
+{
+  "c": 0.2886,
+  "cutoff": 0.027,
+  "events_train": 4665,
+  "labeled_positive_train": 738,
+  "unlabeled_train": 3927,
+  "unlabeled_called_event_train": 1543,
+  "real_unit_days_train": 2281,
+  "real_unit_days_test": 1303,
+  "workday_to_day_off_rate_label": 1.93,
+  "workday_to_day_off_rate_all_signals": 4.424,
+  "known_events_kept_last_train_year": 0.938,
+  "ppr_check_2026_h1": {
+    "events_in_window": 0,
+    "check_share_in_window": null,
+    "events_out_of_window": 0,
+    "check_share_out_of_window": null
+  },
+  "passes": {
+    "volume": true,
+    "no_work_week": false,
+    "keeps_known_events": true
+  },
+  "passes_all": false,
+  "feature_means": {
+    "labeled_positive": {
+      "n_moments": 8.136,
+      "n_hours": 1.516,
+      "n_channels": 1.263,
+      "has_smoke": 0.817,
+      "has_heat": 0.145,
+      "has_temp": 0.045,
+      "span_minutes": 75.738,
+      "n_episodes": 1.354,
+      "object_units_share": 0.032,
+      "other_units_within_1h_share": 0.045,
+      "walk_gap_minutes": 769.727,
+      "faults_same_day": 1.82,
+      "signal_yesterday": 0.18
+    },
+    "unlabeled_called_event": {
+      "n_moments": 5.527,
+      "n_hours": 1.402,
+      "n_channels": 1.345,
+      "has_smoke": 0.868,
+      "has_heat": 0.097,
+      "has_temp": 0.041,
+      "span_minutes": 47.013,
+      "n_episodes": 1.281,
+      "object_units_share": 0.035,
+      "other_units_within_1h_share": 0.029,
+      "walk_gap_minutes": 625.163,
+      "faults_same_day": 1.169,
+      "signal_yesterday": 0.09
+    },
+    "unlabeled_called_check": {
+      "n_moments": 2.301,
+      "n_hours": 1.134,
+      "n_channels": 1.764,
+      "has_smoke": 0.968,
+      "has_heat": 0.031,
+      "has_temp": 0.002,
+      "span_minutes": 13.969,
+      "n_episodes": 1.077,
+      "object_units_share": 0.627,
+      "other_units_within_1h_share": 0.414,
+      "walk_gap_minutes": 1.871,
+      "faults_same_day": 0.242,
+      "signal_yesterday": 0.017
+    }
+  },
+  "gain": {
+    "object_units_share": 12241.3,
+    "other_units_within_1h_share": 3675.3,
+    "walk_gap_minutes": 2766.6,
+    "span_minutes": 2418.1,
+    "n_moments": 727.6,
+    "signal_yesterday": 577.6,
+    "faults_same_day": 495.1,
+    "n_channels": 305.4,
+    "has_heat": 274.1,
+    "n_hours": 156.3,
+    "has_smoke": 154.3,
+    "has_temp": 120.5,
+    "n_episodes": 108.3
+  }
+}

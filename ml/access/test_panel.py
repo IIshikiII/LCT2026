@@ -205,7 +205,7 @@ def test_unknown_guard_mode_drops_the_day() -> None:
     assert days == {dt.date(2024, 2, 28), dt.date(2024, 3, 2)}
 
 
-# --- скользящая точка расчёта, TODO.md §3b шаг 6Б ---------------------------
+# --- скользящая точка расчёта ------------------------------------------------
 
 ROLL_HOUR = 12
 ROLL_AT = _at(POINT, ROLL_HOUR)

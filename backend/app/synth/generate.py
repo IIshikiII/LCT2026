@@ -5,8 +5,8 @@
 и API нечем кормить на чистой базе после `docker compose up`. Этот модуль
 наполняет три таблицы, которых достаточно для прогона: `collector`, `facility`
 и `alarm_event` с событиями доступа (`app/features/access.py` держит словарь
-типов). Полноту не выгрузки, а витрины: `sensor_reading`, `inspection`,
-`weather_hourly` и прочие таблицы направлений здесь не наполняются, потому что
+типов). Полноту не выгрузки, а витрины: `sensor_reading`, `inspection`
+и прочие таблицы направлений здесь не наполняются, потому что
 конвейер направления доступа их не читает, а расширять генератор ради данных,
 которые никто не проверит, значит выбросить эту работу, когда придёт настоящая
 выгрузка (см. `docs/05-gap-tasks.md`, задача 10).
@@ -35,9 +35,9 @@ now)`, чтобы `hours_since_last_alarm` не растил взгляд в п�
 ## Профиль риска
 
 Часть объектов размечена «рискованными» (`RISKY_SHARE`): у них выше частота
-тревог доступа и чаще встречается связка «дверь, объёмный датчик, движение»
-(`smvu-insights.md` §2, признак `has_access_sequence` в
-`app/features/access.py`). Без такого расслоения модель на синтетике не
+тревог доступа и чаще встречается связка «контакт входа, затем движение»
+(ответ 2.8, правило события в `app/features/access.py`). Без такого
+расслоения модель на синтетике не
 увидела бы разницы между объектом и не о чем было бы объяснять через SHAP.
 """
 
@@ -52,17 +52,29 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection
 
 from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
-from app.meta.catalog import DISTRICTS
-from app.tables import alarm_event, collector, facility
+from app.synth.fire import fire_rows
+from app.synth.flood import flood_rows
+from app.synth.geo import OKRUGS, point_on
+from app.synth.weather import weather_rows
+from app.tables import (
+    action_log,
+    alarm_event,
+    collector,
+    facility,
+    flood_water_day,
+    maintenance_window,
+    prediction,
+    sensor,
+    sensor_reading,
+    weather_hourly,
+    work_order,
+)
 
 DEFAULT_SEED = 20260101
 DEFAULT_FACILITY_COUNT = 60
 FACILITIES_PER_COLLECTOR = 6
 HISTORY_DAYS = 120
 RISKY_SHARE = 0.2
-MOSCOW_LAT = 55.751244
-MOSCOW_LON = 37.618423
-SPREAD_DEGREES = 0.35
 FACILITY_TYPES = ("chamber", "manhole")
 SEQUENCE_GAP_MINUTES = 5
 
@@ -74,43 +86,50 @@ class SynthResult:
     collector_count: int
     facility_count: int
     alarm_event_count: int
+    sensor_count: int = 0
 
 
 @dataclass(frozen=True)
 class _CollectorSeed:
-    """Один коллектор до превращения в строку таблицы. Держит трассу типизированно,
-    чтобы `_facility_rows` могла разложить точку без `type: ignore`."""
+    """Один коллектор до превращения в строку таблицы. Держит трассу целиком,
+    чтобы `_facility_rows` могла разложить по ней объекты без `type: ignore`."""
 
     code: str
     label: str
     district: str
-    start: tuple[float, float]
-    end: tuple[float, float]
+    line: tuple[tuple[float, float], ...]
 
     def as_row(self) -> dict[str, object]:
         return {
             "code": self.code,
             "label": self.label,
             "district": self.district,
-            "line": [list(self.start), list(self.end)],
+            "line": [list(point) for point in self.line],
         }
 
 
-def _collector_seeds(rng: random.Random, count: int) -> list[_CollectorSeed]:
+def _collector_seeds(count: int) -> list[_CollectorSeed]:
+    """Коллекторы по округам, по настоящим трассам.
+
+    Случайных координат вокруг центра Москвы здесь больше нет. Они разбрасывали
+    объекты по городу без оглядки на границы: на карте точка «Центрального»
+    коллектора висела в чистом поле, а подложка округа была в стороне. Трассы
+    берутся те же, что у заглушек фронтенда, и целиком лежат внутри своих
+    полигонов.
+    """
     seeds = []
     for i in range(count):
-        district = DISTRICTS[i % len(DISTRICTS)]
-        start_lat = MOSCOW_LAT + rng.uniform(-SPREAD_DEGREES, SPREAD_DEGREES)
-        start_lon = MOSCOW_LON + rng.uniform(-SPREAD_DEGREES, SPREAD_DEGREES)
-        end_lat = start_lat + rng.uniform(-0.03, 0.03)
-        end_lon = start_lon + rng.uniform(-0.03, 0.03)
+        okrug = OKRUGS[i % len(OKRUGS)]
+        # Номер витка нужен, когда коллекторов больше девяти: второй коллектор
+        # округа идёт по той же трассе и отличается только названием.
+        turn = i // len(OKRUGS) + 1
+        suffix = "" if turn == 1 else f"-{turn}"
         seeds.append(
             _CollectorSeed(
-                code=f"K-{district.code}-{i + 1}",
-                label=f"Коллектор {district.label.lower()} {i + 1}",
-                district=district.code,
-                start=(start_lon, start_lat),
-                end=(end_lon, end_lat),
+                code=f"K-{okrug.code}-{turn}",
+                label=f"Коллектор {okrug.label.lower()}{suffix}",
+                district=okrug.code,
+                line=okrug.line,
             )
         )
     return seeds
@@ -122,11 +141,13 @@ def _facility_rows(
     rows: list[dict[str, object]] = []
     for i in range(count):
         source = collectors[i % len(collectors)]
-        lon_a, lat_a = source.start
-        lon_b, lat_b = source.end
-        share = rng.random()
-        lon = lon_a + (lon_b - lon_a) * share
-        lat = lat_a + (lat_b - lat_a) * share
+        # Объекты раскладываются по трассе равномерно, а не случайно: пикеты
+        # идут вдоль коллектора подряд, и кучное скопление в одной точке
+        # выглядело бы на карте ошибкой данных.
+        step = i // len(collectors)
+        per_collector = max(1, ceil(count / len(collectors)))
+        share = (step + 0.5) / per_collector
+        lon, lat = point_on(source.line, share)
         rows.append(
             {
                 "id": f"F-{i + 1:04d}",
@@ -183,7 +204,7 @@ def _access_alarms(
         if cursor >= end:
             break
         if is_risky and rng.random() < 0.4:
-            # Связка «дверь, объёмный датчик, движение» в коротком окне.
+            # Связка «контакт входа, затем движение» в коротком окне.
             events.append(
                 {
                     "sensor_id": sensor_ids["DOOR_OPEN"],
@@ -192,17 +213,7 @@ def _access_alarms(
                     "alarm_type": "DOOR_OPEN",
                 }
             )
-            step = timedelta(minutes=rng.uniform(1, SEQUENCE_GAP_MINUTES))
-            cursor += step
-            events.append(
-                {
-                    "sensor_id": sensor_ids["VOLUMETRIC"],
-                    "facility_id": facility_id,
-                    "occurred_at": cursor,
-                    "alarm_type": "VOLUMETRIC",
-                }
-            )
-            cursor += step
+            cursor += timedelta(minutes=rng.uniform(1, SEQUENCE_GAP_MINUTES))
             events.append(
                 {
                     "sensor_id": sensor_ids["MOTION"],
@@ -234,7 +245,6 @@ def _alarm_event_rows(
         is_risky = rng.random() < RISKY_SHARE
         sensor_ids = {
             "DOOR_OPEN": f"{facility_id}-DOOR",
-            "VOLUMETRIC": f"{facility_id}-VOL",
             "MOTION": f"{facility_id}-MOTION",
         }
         security_sensor_id = f"{facility_id}-SECURITY"
@@ -254,14 +264,26 @@ def generate(
     facility_count: int = DEFAULT_FACILITY_COUNT,
     now: datetime | None = None,
 ) -> SynthResult:
-    """Наполняет `collector`, `facility` и `alarm_event` синтетикой доступа."""
+    """Наполняет `collector`, `facility`, `sensor`, `alarm_event` и
+    `sensor_reading` синтетикой доступа, подтопления и пожара."""
     rng = random.Random(seed)
     now = (now or datetime.now(UTC)).replace(microsecond=0)
 
     collector_count = ceil(facility_count / FACILITIES_PER_COLLECTOR)
-    collector_seeds = _collector_seeds(rng, collector_count)
+    collector_seeds = _collector_seeds(collector_count)
     facility_rows = _facility_rows(rng, facility_count, collector_seeds)
     event_rows = _alarm_event_rows(rng, facility_rows, now)
+    # Насосы и затопления идут своим генератором (`app/synth/flood.py`), поток
+    # доступа от них не меняется. Номера строк после слияния раздаются заново.
+    sensor_rows, flood_events = flood_rows(seed, facility_rows, now, HISTORY_DAYS)
+    # Пожарная сигнализация, температура, окна ППР (ADR 0016).
+    fire = fire_rows(seed, facility_rows, now, HISTORY_DAYS)
+    event_rows = sorted(
+        [*event_rows, *flood_events, *fire["events"]],
+        key=lambda item: (item["facility_id"], item["occurred_at"], item["alarm_type"]),
+    )
+    for next_id, row in enumerate(event_rows, start=1):
+        row["id"] = next_id
     collector_rows = [seed.as_row() for seed in collector_seeds]
 
     if collector_rows:
@@ -274,16 +296,82 @@ def generate(
             pg_insert(facility).on_conflict_do_nothing(index_elements=["id"]),
             facility_rows,
         )
+    if sensor_rows:
+        conn.execute(
+            pg_insert(sensor).on_conflict_do_nothing(index_elements=["id"]),
+            sensor_rows,
+        )
+    if fire["sensors"]:
+        conn.execute(
+            pg_insert(sensor).on_conflict_do_nothing(index_elements=["id"]),
+            fire["sensors"],
+        )
+    # Номера показаний строятся из порядка, как у событий: повторный посев с
+    # тем же `now` бьёт в те же ключи и уходит через `ON CONFLICT`.
+    readings = sorted(fire["readings"], key=lambda r: (r["sensor_id"], r["observed_at"]))
+    for next_id, row in enumerate(readings, start=1):
+        row["id"] = next_id
+    if readings:
+        conn.execute(
+            pg_insert(sensor_reading).on_conflict_do_nothing(index_elements=["id", "observed_at"]),
+            readings,
+        )
+    if fire["windows"]:
+        conn.execute(
+            maintenance_window.delete().where(maintenance_window.c.source.like("синтетика%"))
+        )
+        conn.execute(maintenance_window.insert(), fire["windows"])
+    for item in fire["commissioning"]:
+        conn.execute(
+            collector.update()
+            .where(collector.c.code == item["code"])
+            .values(commissioning_until=item["until"])
+        )
     if event_rows:
         conn.execute(
-            pg_insert(alarm_event).on_conflict_do_nothing(
-                index_elements=["id", "occurred_at"]
-            ),
+            pg_insert(alarm_event).on_conflict_do_nothing(index_elements=["id", "occurred_at"]),
             event_rows,
         )
+    # Погода нужна признакам подтопления (ADR 0013). Настоящий ряд грузит
+    # команда `load-weather`, и посев его не перезаписывает.
+    conn.execute(
+        pg_insert(weather_hourly).on_conflict_do_nothing(
+            index_elements=["observed_at", "district"]
+        ),
+        weather_rows(seed, now, HISTORY_DAYS),
+    )
 
     return SynthResult(
         collector_count=len(collector_rows),
         facility_count=len(facility_rows),
         alarm_event_count=len(event_rows),
+        sensor_count=len(sensor_rows),
     )
+
+
+def wipe_synthetic(conn: Connection) -> int:
+    """Снимает прежнюю синтетику вместе со всем, что на ней стоит.
+
+    Нужно, когда меняется сама раскладка объектов. Обычный посев вставляет с
+    `on_conflict_do_nothing` и старые строки не трогает, поэтому после перехода
+    на настоящие трассы округов в базе остались бы прежние координаты.
+
+    Порядок важен: сначала то, что ссылается на объекты, потом сами объекты.
+    Учётные записи и прогоны конвейера не трогаются — они не про географию.
+    """
+    removed = 0
+    tables = (
+        action_log,
+        work_order,
+        prediction,
+        flood_water_day,
+        alarm_event,
+        sensor_reading,
+        maintenance_window,
+        sensor,
+        facility,
+        collector,
+    )
+    for table in tables:
+        removed += int(conn.execute(table.delete()).rowcount)
+    return removed

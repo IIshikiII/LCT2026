@@ -2,12 +2,32 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import secrets
 from dataclasses import dataclass
 
 
 def _split(value: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
+def _auth_secret() -> str:
+    """Ключ подписи токенов.
+
+    Переменная не названа значит ключ создаётся случайным на этот запуск. Так
+    разработчик поднимает сервер без настройки, а перезапуск снимает все
+    сессии. Общий ключ по умолчанию был бы хуже: он одинаков на всех машинах и
+    подделать токен с ним может кто угодно.
+    """
+    named = os.environ.get("AUTH_SECRET", "")
+    if named:
+        return named
+    logging.getLogger("app.auth").warning(
+        "переменная AUTH_SECRET не названа, ключ подписи создан на этот запуск: "
+        "сессии не переживут перезапуск сервера"
+    )
+    return secrets.token_urlsafe(32)
 
 
 @dataclass(frozen=True)
@@ -18,6 +38,32 @@ class Config:
     mlflow_tracking_uri: str
     artifacts_dir: str
     enabled_directions: tuple[str, ...]
+    auth_secret: str
+    # Срок токена сессии. Смена диспетчера длится 12 часов, но токен живёт
+    # меньше: украденный токен отзыву не подлежит, и короткий срок это
+    # единственное, что ограничивает его пользу.
+    auth_token_ttl_minutes: int
+    # Срок промежуточного токена между паролем и кодом. Минуты хватает на
+    # то, чтобы достать телефон.
+    auth_mfa_ttl_seconds: int
+    # Пароль демонстрационных учётных записей. Команда `seed` ставит его всем
+    # четырём ролям, чтобы стенд поднимался одной командой.
+    seed_password: str
+    # Режим тестового стенда. Открывает панель учётных записей на экране входа
+    # и три эндпоинта под ней: список наборов, создание, удаление.
+    #
+    # **Флаг раздаёт логины и пароли без входа в систему.** Он существует ради
+    # жюри: каждый проверяющий берёт свой набор и заводит второй фактор в своём
+    # телефоне. В промышленной установке он выключен, и это не рекомендация, а
+    # условие: включённый флаг делает вход бессмысленным. Разбор в ADR 0007.
+    test_stand: bool
+    # Ключ потока СМВУ. Заглушка шлёт его в заголовке `X-Stream-Token`.
+    # Пустой ключ выключает приём потока: ручка отвечает 404. ADR 0017.
+    stream_token: str = ""
+    # Демонстрационная шкала уровней суточных направлений: 2 % критических,
+    # 6 % высоких, 17 % средних по рангу вероятности. Только для показа.
+    # ADR 0018.
+    demo_levels: bool = False
 
     @staticmethod
     def from_environ() -> Config:
@@ -36,6 +82,13 @@ class Config:
             mlflow_tracking_uri=os.environ.get("MLFLOW_TRACKING_URI", ""),
             artifacts_dir=os.environ.get("ARTIFACTS_DIR", "artifacts"),
             enabled_directions=_split(os.environ.get("ENABLED_DIRECTIONS", "")),
+            auth_secret=_auth_secret(),
+            auth_token_ttl_minutes=int(os.environ.get("AUTH_TOKEN_TTL_MINUTES", "480")),
+            auth_mfa_ttl_seconds=int(os.environ.get("AUTH_MFA_TTL_SECONDS", "300")),
+            seed_password=os.environ.get("SEED_PASSWORD", "collector"),
+            test_stand=os.environ.get("TEST_STAND", "").lower() in {"1", "true", "yes"},
+            stream_token=os.environ.get("STREAM_TOKEN", ""),
+            demo_levels=os.environ.get("DEMO_LEVELS", "").lower() in {"1", "true", "yes"},
         )
 
 

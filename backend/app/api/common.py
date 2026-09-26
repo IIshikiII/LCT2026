@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import Column
+from sqlalchemy import ColumnElement
 from sqlalchemy.sql.elements import UnaryExpression
 
 DEFAULT_PAGE_SIZE = 50
@@ -36,9 +38,9 @@ def day_end(value: str) -> datetime:
 
 def order_by(
     sort: str | None,
-    allowed: dict[str, Column[object]],
-    fallback: UnaryExpression[object],
-) -> UnaryExpression[object]:
+    allowed: Mapping[str, ColumnElement[Any]],
+    fallback: UnaryExpression[Any],
+) -> UnaryExpression[Any]:
     """Разбирает `field:asc` или `field:desc` по белому списку.
 
     Неизвестное поле — не ошибка. Фронт получает список в порядке по
@@ -97,13 +99,3 @@ def parse_bbox(raw: str | None) -> BBox | None:
 
 def clamp_page(page: int, page_size: int) -> tuple[int, int]:
     return max(page, 1), min(max(page_size, 1), MAX_PAGE_SIZE)
-
-
-def current_actor() -> str:
-    """Имя того, кто выполняет действие.
-
-    Пока аутентификации нет, отдаётся константа. Ролевая модель заменит её на
-    имя из токена, и остальной код менять не придётся: он зовёт эту функцию, а
-    не пишет строку. ADR 0007.
-    """
-    return "dispatcher"

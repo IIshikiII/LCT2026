@@ -8,8 +8,13 @@
  *
  * Бросаем только на транспортных ошибках: сеть, код ответа >= 400, невалидный
  * JSON. Их ловит TanStack Query и рисует ErrorState с кнопкой «повторить».
+ *
+ * Токен подставляется здесь же. Ответ 401 значит, что сессия кончилась: клиент
+ * снимает её, и каркас приложения показывает экран входа. Без этого истёкший
+ * токен давал бы экран ошибки с кнопкой «повторить», которая не помогает.
  */
 import type { ZodType } from 'zod'
+import { clearSession, currentToken } from '@/shared/auth/session'
 import { env } from '@/shared/config/env'
 
 export type QueryValue = string | number | boolean | string[] | undefined | null
@@ -65,8 +70,37 @@ export function parseTolerant<T>(schema: ZodType, raw: unknown, url: string): T 
   return raw as T
 }
 
+/**
+ * Текст ошибки для человека.
+ *
+ * Сервер объясняет отказ полем `detail`: «Логин или пароль не подошли», «роль
+ * не выполняет действие», «горизонт уже истёк». Показывать вместо этого код
+ * ответа значит прятать единственное, что помогает исправить ситуацию.
+ *
+ * Тело не разобралось — остаётся код. Так бывает на ответе прокси или
+ * шлюза, который про наш формат ничего не знает.
+ */
+function errorMessage(text: string, status: number): string {
+  try {
+    const body = JSON.parse(text) as { detail?: unknown }
+    if (typeof body.detail === 'string' && body.detail.trim()) return body.detail
+  } catch {
+    // Не JSON. Ниже вернётся код ответа.
+  }
+  return `Запрос завершился с кодом ${status}`
+}
+
+/** Заголовки запроса: тип тела и токен сессии, если он есть. */
+function authHeaders(hasBody: boolean): Record<string, string> | undefined {
+  const headers: Record<string, string> = {}
+  if (hasBody) headers['Content-Type'] = 'application/json'
+  const token = currentToken()
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  return Object.keys(headers).length > 0 ? headers : undefined
+}
+
 async function request<T>(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   schema: ZodType,
   options: { params?: QueryParams; body?: unknown; signal?: AbortSignal } = {},
@@ -76,7 +110,7 @@ async function request<T>(
   const response = await fetch(url, {
     method,
     signal: options.signal,
-    headers: options.body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers: authHeaders(options.body !== undefined),
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   })
 
@@ -86,7 +120,8 @@ async function request<T>(
   const text = await response.text()
 
   if (!response.ok) {
-    throw new ApiError(`Запрос завершился с кодом ${response.status}`, response.status, url)
+    if (response.status === 401) clearSession()
+    throw new ApiError(errorMessage(text, response.status), response.status, url)
   }
 
   if (!text) return parseTolerant<T>(schema, null, url)
@@ -116,4 +151,18 @@ export function apiPost<T>(
   options: { signal?: AbortSignal } = {},
 ): Promise<T> {
   return request<T>('POST', path, schema, { ...options, body })
+}
+
+/**
+ * Удаление. Одна ручка на весь проект: набор учёток тестового стенда.
+ *
+ * Действия над прогнозом и заявкой удаления не знают: там один эндпоинт
+ * действий и смена статуса, а не снятие строки (ADR 0004).
+ */
+export function apiDelete<T>(
+  path: string,
+  schema: ZodType,
+  options: { signal?: AbortSignal } = {},
+): Promise<T> {
+  return request<T>('DELETE', path, schema, options)
 }

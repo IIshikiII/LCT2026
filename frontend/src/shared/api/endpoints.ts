@@ -5,6 +5,16 @@
  * src/mocks/handlers.ts. См. docs/02-api-contract.md, раздел «Железное правило».
  */
 export const endpoints = {
+  /* Вход в систему. Первые два пути открыты, остальные требуют токен. */
+  login: () => '/auth/login',
+  /** Второй шаг входа. Он же подтверждает только что заведённый ключ. */
+  mfa: () => '/auth/mfa',
+  me: () => '/auth/me',
+  logout: () => '/auth/logout',
+  /** Наборы учёток тестового стенда. Открыты, наполняются только при флаге. */
+  testAccounts: () => '/auth/test-accounts',
+  testAccountSet: (set: number) => `/auth/test-accounts/${set}`,
+
   /** Описание предметной области. Грузится один раз при старте. */
   meta: () => '/meta',
 
@@ -31,4 +41,6 @@ export const endpoints = {
   pipelineHealth: () => '/metrics/pipeline',
   dashboardSummary: () => '/dashboard/summary',
   dashboardTopRisks: () => '/dashboard/top-risks',
+  /** Действующие уведомления о тревоге (ТЗ §10). */
+  alerts: () => '/alerts',
 } as const

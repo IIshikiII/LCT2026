@@ -8,7 +8,8 @@
  *
  * Первичное применение делает встроенный скрипт в index.html, до загрузки
  * бандла: иначе светлая тема моргнёт тёмным на первом кадре. Ключ хранилища
- * продублирован там строкой и должен совпадать с THEME_STORAGE_KEY.
+ * и тема по умолчанию продублированы там строкой и должны совпадать с
+ * THEME_STORAGE_KEY и DEFAULT_THEME.
  */
 import { useCallback, useSyncExternalStore } from 'react'
 
@@ -16,8 +17,8 @@ export type Theme = 'dark' | 'light'
 
 export const THEME_STORAGE_KEY = 'arm-theme'
 
-/** Тёмная — основная тема продукта, spec §4. */
-export const DEFAULT_THEME: Theme = 'dark'
+/** Светлая — основная тема продукта, spec §4. */
+export const DEFAULT_THEME: Theme = 'light'
 
 function isTheme(value: unknown): value is Theme {
   return value === 'dark' || value === 'light'

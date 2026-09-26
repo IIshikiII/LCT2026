@@ -8,13 +8,21 @@
  */
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
-import { afterAll, afterEach, beforeAll } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
 import { devFlags } from '@/mocks/devFlags'
 import { resetMockDb } from '@/mocks/handlers'
+import { signInAs } from './session'
 import { server } from './msw'
 
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'bypass' })
+})
+
+beforeEach(() => {
+  // Заглушки отказывают без токена так же, как сервер. Каждый тест экрана
+  // начинается с открытой смены диспетчера ОДС, иначе он проверял бы вход, а
+  // не то, ради чего написан. Тест роли переключается сам.
+  signInAs('ods')
 })
 
 afterEach(() => {

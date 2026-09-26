@@ -114,6 +114,8 @@ export interface PredictionFilterApi {
   setValue: (key: string, value: string | number | undefined) => void
   /** Мультивыбор: добавить или убрать код. */
   toggle: (key: PredictionListKey, code: string) => void
+  /** Задать весь список сразу. Нужно кнопке «снять выбор» в выпадающем фильтре. */
+  setList: (key: PredictionListKey, values: string[]) => void
   setPage: (page: number) => void
   toggleSort: (field: string) => void
   reset: () => void
@@ -139,6 +141,7 @@ export function usePredictionFilters(): PredictionFilterApi {
   return {
     filters,
     setValue: (key, value) => write({ [key]: value }),
+    setList: (key, values) => write({ [key]: values.length ? values : undefined }),
     toggle: (key, code) => {
       const current = filters[key]
       write({ [key]: current.includes(code) ? current.filter((c) => c !== code) : [...current, code] })

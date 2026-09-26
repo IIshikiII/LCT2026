@@ -20,8 +20,6 @@ class Transition:
     to_status: str
 
 
-OPEN = ("NEW", "IN_REVIEW")
-
 # Целевой статус прогноза у действия `decide` зависит от уровня, который
 # назвал диспетчер: выезд нужен значит `ORDER_OPEN`, иначе `DECIDED`. Поэтому в
 # таблице он записан как `ORDER_OPEN`, а роутер подменяет его на `DECIDED` по
@@ -29,7 +27,10 @@ OPEN = ("NEW", "IN_REVIEW")
 TRANSITIONS: tuple[Transition, ...] = (
     Transition("take", PREDICTION, ("NEW",), "IN_REVIEW"),
     Transition("release", PREDICTION, ("IN_REVIEW",), "NEW"),
-    Transition("decide", PREDICTION, OPEN, "ORDER_OPEN"),
+    # Решать можно только то, что взял на себя. Иначе двое диспетчеров
+    # разбирают один прогноз, и «кто первый отработал» перестаёт работать
+    # (ответ заказчика 3.6).
+    Transition("decide", PREDICTION, ("IN_REVIEW",), "ORDER_OPEN"),
     # Подтверждения заявки нет: его заменило решение диспетчера по прогнозу.
     # Раньше диспетчер подтверждал дважды и дважды называл бригаду — сначала
     # «исполнителем» при подтверждении, потом «бригадой» при начале работ.

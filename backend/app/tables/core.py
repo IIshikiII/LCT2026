@@ -39,6 +39,19 @@ facility = Table(
     Column("facility_type", Text, nullable=False),
     Column("commissioned_at", Date),
     Column("is_active", Boolean, nullable=False, default=True),
+    # Единица выгрузки. ADR 0017. `kind`: `picket` (пожар, подтопление),
+    # `section` (участок доступа), `object` (каналы объекта без пикета).
+    # Пусто у синтетики.
+    Column("kind", Text),
+    Column("object_id", Integer),
+    Column("gallery", Integer),
+    Column("picket", Float),
+    Column("section_no", Integer),
+    # Расстояние от начала линии в метрах: пикет × 10 плюс смещение.
+    Column("chainage_m", Float),
+    # Участок пикета. Пожар считается на участке, датчики живут на пикетах.
+    # ADR 0018.
+    Column("parent_id", Text),
 )
 
 collector = Table(
@@ -49,6 +62,9 @@ collector = Table(
     Column("district", Text),
     # Ломаная как массив пар [lon, lat]. Порядок тот же, что в GeoJSON.
     Column("line", JSONB, nullable=False),
+    # Конец пусконаладки системы объекта. До этой даты правила пожара
+    # понижают уровень на ступень. ADR 0016.
+    Column("commissioning_until", Date),
 )
 
 sensor = Table(
@@ -60,6 +76,10 @@ sensor = Table(
     Column("installed_at", Date),
     Column("replaced_at", Date),
     Column("is_active", Boolean, nullable=False, default=True),
+    # Канал выгрузки. По нему приём потока находит датчик. ADR 0017.
+    Column("channel_id", BigInteger),
+    Column("channel_type", Text),
+    Column("channel_name", Text),
 )
 
 alarm_event = Table(
@@ -72,6 +92,9 @@ alarm_event = Table(
     Column("alarm_type", Text, nullable=False),
     Column("is_false", Boolean),
     Column("check_result", Text),
+    # Номер события источника и момент приёма потоком. Пусто у истории.
+    Column("source_event_id", BigInteger),
+    _ts("received_at"),
 )
 
 sensor_reading = Table(
@@ -142,6 +165,22 @@ weather_hourly = Table(
     Column("temperature_c", Float),
     Column("humidity", Float),
     Column("precip_mm", Float),
+    Column("rain_mm", Float),
+    Column("snowfall_cm", Float),
+    Column("snow_depth_m", Float),
+)
+
+# Разметка суток пикета с сигналом затопления: вода или плановая проверка.
+# ADR 0012, ADR 0013.
+flood_water_day = Table(
+    "flood_water_day",
+    metadata,
+    Column("facility_id", Text, primary_key=True, nullable=False),
+    Column("day", Date, primary_key=True, nullable=False),
+    Column("is_water", Boolean, nullable=False),
+    Column("is_labelled", Boolean, nullable=False),
+    Column("p_water", Float),
+    _ts("labelled_at", nullable=False),
 )
 
 # direction, level и status — свободные строки. Ни Enum, ни CHECK со списком
@@ -200,6 +239,30 @@ work_order = Table(
     Column("outcome", JSONB),
 )
 
+# Учётная запись. Замещает каталог Active Directory, которого нам не дадут:
+# те же поля «логин, имя, роль, область видимости». ADR 0007.
+app_user = Table(
+    "app_user",
+    metadata,
+    Column("username", Text, primary_key=True),
+    Column("full_name", Text, nullable=False),
+    Column("role", Text, nullable=False),
+    Column("scope_kind", Text, nullable=False, default="ALL"),
+    Column("scope_value", Text),
+    Column("password_hash", Text),
+    Column("totp_secret", Text),
+    Column("mfa_enrolled", Boolean, nullable=False, default=False),
+    Column("is_active", Boolean, nullable=False, default=True),
+    Column("directory", Text, nullable=False, default="LOCAL"),
+    # Номер набора тестового стенда. Пусто у настоящих записей. ADR 0007.
+    Column("demo_set", Integer),
+    _ts("created_at"),
+    _ts("last_login_at"),
+)
+
+# `entity_type` принимает `prediction`, `order` и `auth`. Третье значение
+# держит входы и выходы: ТЗ §11 требует журналировать все действия, а не
+# только смену состояния.
 action_log = Table(
     "action_log",
     metadata,
@@ -207,7 +270,7 @@ action_log = Table(
     Column("entity_type", Text, nullable=False),
     Column("entity_id", Text, nullable=False),
     Column("action_code", Text, nullable=False),
-    Column("actor", Text, nullable=False, default="dispatcher"),
+    Column("actor", Text, nullable=False),
     Column("payload", JSONB, nullable=False, default=dict),
     _ts("created_at", nullable=False),
 )
@@ -223,6 +286,10 @@ pipeline_run = Table(
     Column("model_versions", JSONB, nullable=False, default=dict),
     Column("status", Text, nullable=False, default="RUNNING"),
     Column("error", Text),
+    # Задержка потока: событий потока, учтённых прогоном, и наибольшая
+    # задержка от метки события до конца прогона. ADR 0017.
+    Column("stream_events", Integer),
+    Column("stream_lag_ms", Integer),
 )
 
 model_metric = Table(
@@ -245,4 +312,24 @@ schema_migration = Table(
     Column("version", Text, primary_key=True),
     Column("filename", Text, nullable=False),
     _ts("applied_at", nullable=False),
+)
+
+maintenance_window = Table(
+    "maintenance_window",
+    metadata,
+    Column("id", BigInteger, primary_key=True),
+    Column("collector", Text, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("starts_on", Date, nullable=False),
+    Column("ends_on", Date, nullable=False),
+    Column("source", Text, nullable=False),
+)
+
+# Состояние загрузки выгрузки: сдвиг времени, отрезок потока. ADR 0017.
+ingest_state = Table(
+    "ingest_state",
+    metadata,
+    Column("key", Text, primary_key=True),
+    Column("value", JSONB, nullable=False),
+    _ts("updated_at", nullable=False),
 )

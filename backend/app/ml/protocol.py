@@ -63,6 +63,109 @@ class Block:
         return {"type": self.type, "title": self.title, "data": self.data}
 
 
+def applies(predictor: object, conn: Connection, facility_id: str) -> bool:
+    """Отвечает, считается ли направление на этом объекте.
+
+    Метод `applies` у предиктора необязателен. Направление без него считается
+    на каждом объекте, как раньше. Направление с ним называет свои объекты
+    само: модель подтопления училась только на единицах с насосом или датчиком
+    затопления, и прогноз на объекте без них был бы числом без смысла.
+    """
+    check = getattr(predictor, "applies", None)
+    return True if check is None else bool(check(conn, facility_id))
+
+
+def prepare(predictor: object, conn: Connection, at: datetime) -> None:
+    """Готовит данные направления один раз перед прогоном по объектам.
+
+    Метод `prepare` у предиктора необязателен. Подтопление размечает в нём
+    законченные сутки «вода или проверка», а признаки читают готовую разметку
+    (ADR 0013). Считать разметку на каждом объекте было бы повтором одной
+    работы сотни раз.
+    """
+    hook = getattr(predictor, "prepare", None)
+    if hook is not None:
+        hook(conn, at)
+
+
+# Границы уровней: код уровня -> нижняя граница вероятности, по возрастанию.
+Bands = tuple[tuple[str, float], ...]
+
+
+def level_bands(
+    predictor: object,
+    conn: Connection,
+    at: datetime,
+    fresh: dict[str, tuple[float, FeatureVector]],
+) -> Bands | None:
+    """Границы уровней на этот прогон. None значит границы реестра направлений.
+
+    Метод `level_bands` у предиктора необязателен. Он получает прогнозы
+    текущего прогона, `объект -> (вероятность, признаки)`, до записи в базу.
+    Подтопление ставит по ним и по истории скользящий бюджет тревог.
+    """
+    hook = getattr(predictor, "level_bands", None)
+    return None if hook is None else hook(conn, at, fresh)
+
+
+def own_level(predictor: object, features: FeatureVector, probability: float) -> str | None:
+    """Уровень, который назвал сам плагин. None значит уровень по вероятности.
+
+    Метод `level` у предиктора необязателен. Пожарный риск ставит уровень
+    экспертными правилами по совпадению признаков (ADR 0016). Его вероятность
+    это доля сигнала назавтра на истории, и уровни по ней не упорядочены.
+    """
+    hook = getattr(predictor, "level", None)
+    return None if hook is None else str(hook(features, probability))
+
+
+def own_summary(predictor: object, features: FeatureVector, probability: float) -> str | None:
+    """Строка прогноза от плагина. None значит строка «вероятность N %».
+
+    Метод `summary` у предиктора необязателен. Экспертные правила пишут, какие
+    признаки совпали: это диспетчеру полезнее числа.
+    """
+    hook = getattr(predictor, "summary", None)
+    return None if hook is None else str(hook(features, probability))
+
+
+def incident(predictor: object, features: FeatureVector, at: datetime) -> datetime | None:
+    """Начало происшествия, к которому относится прогноз. ADR 0017.
+
+    Метод `incident` у предиктора необязателен. Конвейер держит одну карточку
+    на пару «объект и направление» за происшествие: повторный прогон обновляет
+    её, а не пишет новую. None значит, что происшествия нет, и ключом служат
+    московские сутки. Пожар называет начало эпизода: первый сигнал вне пачки
+    в окне 24 часов.
+    """
+    hook = getattr(predictor, "incident", None)
+    return None if hook is None else hook(features, at)
+
+
+def candidates(predictor: object, conn: Connection, at: datetime) -> set[str] | None:
+    """Объекты, которые стоит пересчитать между полными прогонами. ADR 0017.
+
+    Метод `candidates` у предиктора необязателен. Потоковое направление
+    считается каждую минуту, но меняется прогноз только там, где пришли
+    события или истекло окно. None значит пересчёт всех объектов.
+    """
+    hook = getattr(predictor, "candidates", None)
+    chosen = None if hook is None else hook(conn, at)
+    return None if chosen is None else set(chosen)
+
+
+def live_blocks(predictor: object, conn: Connection, facility_id: str, at: datetime) -> list[Block]:
+    """Блоки карточки из свежих данных базы на момент `at`. ADR 0018.
+
+    Метод `live_blocks` у предиктора необязателен. Метод `explain` видит
+    только вектор признаков, а графики и хроника нужны по свежим данным потока:
+    температура, сигналы по датчикам, работа насоса. Живой блок заменяет блок
+    того же типа из `explain`. Пустой ряд плагин в блок не кладёт.
+    """
+    hook = getattr(predictor, "live_blocks", None)
+    return [] if hook is None else list(hook(conn, facility_id, at))
+
+
 @runtime_checkable
 class Predictor(Protocol):
     """Предиктор одного направления.

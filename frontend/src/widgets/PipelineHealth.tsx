@@ -1,6 +1,7 @@
 /**
  * Состояние конвейера расчёта: время формирования прогноза против 5 минут,
- * минимальный горизонт против 24 часов, свежесть данных.
+ * минимальный горизонт против 24 часов, задержка потока против 5 минут,
+ * свежесть данных.
  *
  * Вторая половина доказательства метрик ТЗ — то, что не выражается через
  * Precision и Recall (spec §9).
@@ -25,7 +26,7 @@ function Row({
     <li className="flex items-baseline justify-between gap-3 border-b border-line/60 py-1.5 last:border-b-0">
       <span className="min-w-0 truncate text-[13px] text-text-dim">{label}</span>
       <span className="flex flex-col items-end leading-tight">
-        <span className="mono text-[13px]" style={{ color: ok ? 'var(--risk-low)' : 'var(--risk-high)' }}>
+        <span className="mono text-[13px]" style={{ color: ok ? 'var(--color-risk-low)' : 'var(--color-risk-high)' }}>
           {value}
           <span className="ml-1">{ok ? '✓' : '!'}</span>
         </span>
@@ -59,6 +60,14 @@ export function PipelineHealth() {
             target={`цель ≥ ${fmtHours(data.targetHorizonHours)}`}
             ok={data.minHorizonHours >= data.targetHorizonHours}
           />
+          {data.targetStreamLagMs !== undefined && (
+            <Row
+              label="Задержка потока"
+              value={data.streamLagMs == null ? 'событий не было' : fmtDuration(data.streamLagMs)}
+              target={`цель < ${fmtDuration(data.targetStreamLagMs)}`}
+              ok={data.streamLagMs != null && data.streamLagMs < data.targetStreamLagMs}
+            />
+          )}
           <Row
             label="Свежесть данных"
             value={fmtFreshness(data.freshnessMinutes)}

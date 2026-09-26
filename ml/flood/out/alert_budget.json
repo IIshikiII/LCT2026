@@ -1,0 +1,73 @@
+{
+  "variant": "recent_reg2",
+  "rule": "тревог в сутки столько же, сколько у наивного правила",
+  "folds": [
+    {
+      "valid": "2022-07-01..2023-07-01",
+      "base": 0.011788,
+      "naive": {
+        "precision": 0.251534,
+        "recall": 0.250765,
+        "alerts": 326,
+        "hits": 82
+      },
+      "model": {
+        "precision": 0.251534,
+        "recall": 0.250765,
+        "alerts": 326,
+        "hits": 82
+      },
+      "beats_both": false
+    },
+    {
+      "valid": "2023-07-01..2024-07-01",
+      "base": 0.013374,
+      "naive": {
+        "precision": 0.266129,
+        "recall": 0.266129,
+        "alerts": 372,
+        "hits": 99
+      },
+      "model": {
+        "precision": 0.260753,
+        "recall": 0.260753,
+        "alerts": 372,
+        "hits": 97
+      },
+      "beats_both": false
+    },
+    {
+      "valid": "2024-07-01..2025-07-01",
+      "base": 0.009251,
+      "naive": {
+        "precision": 0.159533,
+        "recall": 0.159533,
+        "alerts": 257,
+        "hits": 41
+      },
+      "model": {
+        "precision": 0.163424,
+        "recall": 0.163424,
+        "alerts": 257,
+        "hits": 42
+      },
+      "beats_both": true
+    }
+  ],
+  "pooled": {
+    "naive": {
+      "precision": 0.232461,
+      "recall": 0.232218,
+      "alerts": 955,
+      "hits": 222
+    },
+    "model": {
+      "precision": 0.231414,
+      "recall": 0.231172,
+      "alerts": 955,
+      "hits": 221
+    },
+    "beats_both": false
+  },
+  "holdout_read": false
+}

@@ -49,18 +49,23 @@
 1. `main.tsx` при `VITE_USE_MOCKS=true` поднимает воркер MSW и только потом
    монтирует React. Это единственное место, где приложение знает о заглушках.
 2. `app/providers.tsx` создаёт `QueryClient` с `refetchInterval: 60_000`
-   и `staleTime: 30_000`.
-3. `app/AppShell.tsx` первым делом дёргает `useMeta()`. Пока `/meta` не пришла,
+   и `staleTime: 30_000`, а вокруг ставит `AuthProvider`.
+3. `app/AppShell.tsx` смотрит на сессию. Её нет значит рисуется экран входа, и
+   ни один запрос данных не уходит. Токен подставляет `shared/api/client.ts`,
+   читая его из `sessionStorage`; ответ 401 снимает сессию, и экран входа
+   возвращается сам. Роли и права разобраны в
+   `backend/docs/adr/0007-roles-and-auth.md`.
+4. Дальше `AppShell` дёргает `useMeta()`. Пока `/meta` не пришла,
    показывается скелет. Если `/meta` сломана — берётся `FALLBACK_META` из
    `shared/config/fallbacks.ts`, и приложение поднимается как ни в чём не бывало.
-4. Экран читает фильтры из URL (`shared/lib/urlState.ts`), передаёт их в хук
+5. Экран читает фильтры из URL (`shared/lib/urlState.ts`), передаёт их в хук
    `usePredictions(filters)`, получает страницу и рисует `DataTable` с колонками
    из `meta.journalColumns`.
-5. Клик по строке пишет `?prediction=<id>` в URL. `AppShell` видит параметр,
+6. Клик по строке пишет `?prediction=<id>` в URL. `AppShell` видит параметр,
    грузит `PredictionDetail` и рисует правую панель.
-6. Тело карточки — `blocks.map(...)`. Каждый блок проходит через `BlockRenderer`,
+7. Тело карточки — `blocks.map(...)`. Каждый блок проходит через `BlockRenderer`,
    который ищет компонент в `blockRegistry` и оборачивает его в `ErrorBoundary`.
-7. Кнопка действия раскрывает форму, собранную по `action.fields`. Отправка идёт
+8. Кнопка действия раскрывает форму, собранную по `action.fields`. Отправка идёт
    в `POST /predictions/{id}/actions/{code}`. Ответ — обновлённый `PredictionDetail`,
    он же кладётся в кэш Query.
 

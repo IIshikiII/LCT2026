@@ -157,14 +157,37 @@ export const WorkOrderSchema = dto({
   outcome: opt(WorkOrderOutcomeSchema),
 })
 
+/**
+ * Пустые `precision` и `recall` значат «точность не измерена». Тогда `note`
+ * говорит почему, а `method` называет способ работы направления.
+ */
 export const ModelMetricSchema = dto({
   direction: z.string(),
-  precision: z.number(),
-  recall: z.number(),
+  precision: opt(z.number()),
+  recall: opt(z.number()),
   targetPrecision: z.number(),
   targetRecall: z.number(),
   evaluatedAt: z.string(),
+  method: opt(z.string()),
+  note: opt(z.string()),
 })
+
+/**
+ * Уведомление о тревоге. Текст, фильтр журнала и шаг повтора готовит сервер:
+ * фронт не знает, какие уровень и статус тревожны.
+ */
+export const AlertSchema = dto({
+  code: z.string(),
+  level: z.string(),
+  count: z.number(),
+  title: z.string(),
+  hint: opt(z.string()),
+  filter: z.record(z.string(), z.array(z.string())),
+  repeatMinutes: z.number(),
+  newestAt: z.string().nullable().optional(),
+})
+
+export const AlertListSchema = z.array(AlertSchema)
 
 export const PipelineHealthSchema = dto({
   lastRunAt: z.string(),
@@ -174,6 +197,10 @@ export const PipelineHealthSchema = dto({
   minHorizonHours: z.number(),
   targetComputeMs: z.number(),
   targetHorizonHours: z.number(),
+  // Задержка потока. Сервер до ADR 0017 полей не шлёт, поэтому они необязательны.
+  streamLagMs: z.number().nullable().optional(),
+  streamEvents: z.number().optional(),
+  targetStreamLagMs: z.number().optional(),
 })
 
 const counters = z.record(z.string(), z.number())
@@ -224,3 +251,45 @@ export function pageOf<T extends z.ZodType>(item: T) {
 
 export const PredictionPageSchema = pageOf(PredictionSchema)
 export const WorkOrderPageSchema = pageOf(WorkOrderSchema)
+
+/* ----------------------------------------------------------------- сессия */
+
+export const CurrentUserSchema = dto({
+  username: z.string(),
+  fullName: z.string(),
+  role: z.string(),
+  roleLabel: z.string(),
+  scopeKind: z.string(),
+  scopeValue: opt(z.string()),
+  permissions: z.array(z.string()),
+})
+
+export const LoginChallengeSchema = dto({
+  status: z.string(),
+  mfaToken: z.string(),
+  secret: opt(z.string()),
+  otpauthUrl: opt(z.string()),
+})
+
+export const SessionResponseSchema = dto({
+  accessToken: z.string(),
+  tokenType: z.string(),
+  expiresIn: z.number(),
+  user: CurrentUserSchema,
+})
+
+export const TestAccountSchema = dto({
+  username: z.string(),
+  fullName: z.string(),
+  role: z.string(),
+  roleLabel: z.string(),
+  scopeKind: z.string(),
+  scopeValue: opt(z.string()),
+  mfaEnrolled: z.boolean(),
+})
+
+export const TestStandSchema = dto({
+  enabled: z.boolean(),
+  password: z.string(),
+  sets: z.array(dto({ set: z.number(), accounts: z.array(TestAccountSchema) })),
+})

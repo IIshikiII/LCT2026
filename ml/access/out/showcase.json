@@ -1,33 +1,33 @@
 {
   "days": 181,
-  "threshold": 0.128572,
+  "threshold": 0.140342,
   "points": {
     "HIGH": {
       "events": 491,
-      "cards": 313,
-      "cards_per_day": 1.73,
-      "warned": 67,
-      "warned_naive_missed": 14,
+      "cards": 247,
+      "cards_per_day": 1.36,
+      "warned": 62,
+      "warned_naive_missed": 8,
       "naive_cards": 479,
       "naive_warned": 67,
-      "naive_warned_model_missed": 14
+      "naive_warned_model_missed": 13
     },
     "2_per_day": {
       "events": 491,
       "cards": 362,
       "cards_per_day": 2.0,
-      "warned": 72,
-      "warned_naive_missed": 19,
+      "warned": 74,
+      "warned_naive_missed": 18,
       "naive_cards": 479,
       "naive_warned": 67,
-      "naive_warned_model_missed": 14
+      "naive_warned_model_missed": 11
     },
     "5_per_day": {
       "events": 491,
       "cards": 905,
       "cards_per_day": 5.0,
-      "warned": 111,
-      "warned_naive_missed": 45,
+      "warned": 116,
+      "warned_naive_missed": 50,
       "naive_cards": 479,
       "naive_warned": 67,
       "naive_warned_model_missed": 1
@@ -36,14 +36,14 @@
       "events": 491,
       "cards": 1810,
       "cards_per_day": 10.0,
-      "warned": 141,
-      "warned_naive_missed": 74,
+      "warned": 143,
+      "warned_naive_missed": 76,
       "naive_cards": 479,
       "naive_warned": 67,
       "naive_warned_model_missed": 0
     }
   },
-  "shap_background": -4.4895,
+  "shap_background": -5.1389,
   "cards": [
     {
       "object_id": 42,
@@ -55,34 +55,153 @@
         805
       ],
       "day": "2026-05-16",
-      "probability": 0.261,
+      "probability": 0.2777,
       "base": 0.008183,
       "days_since_last_event": 2,
       "factors": [
         {
           "feature": "armed_day_share_30d",
           "value": 0.3667,
-          "shap": 1.4377
+          "shap": 1.8141
         },
         {
           "feature": "hours_since_last_armed",
           "value": 27.0,
-          "shap": 0.9328
-        },
-        {
-          "feature": "n_armed_7d",
-          "value": 14.0,
-          "shap": 0.4477
+          "shap": 1.3903
         },
         {
           "feature": "days_since_last_armed",
           "value": 2.0,
-          "shap": 0.3775
+          "shap": 0.4616
         },
         {
-          "feature": "n_armed_90d",
-          "value": 58.0,
-          "shap": 0.2631
+          "feature": "armed_same_weekday_1w",
+          "value": 1.0,
+          "shap": 0.2459
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 14.0,
+          "shap": 0.171
+        }
+      ]
+    },
+    {
+      "object_id": 4648,
+      "gallery": -1,
+      "section": 10,
+      "pickets": [
+        146,
+        154
+      ],
+      "day": "2026-02-09",
+      "probability": 0.2697,
+      "base": 0.008183,
+      "days_since_last_event": 2,
+      "factors": [
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.3,
+          "shap": 2.0124
+        },
+        {
+          "feature": "hours_since_last_armed",
+          "value": 39.0,
+          "shap": 1.3119
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 2.0,
+          "shap": 0.4859
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 6.0,
+          "shap": 0.2009
+        },
+        {
+          "feature": "hours_since_guard_change",
+          "value": 12.0,
+          "shap": -0.1492
+        }
+      ]
+    },
+    {
+      "object_id": 4648,
+      "gallery": -1,
+      "section": 10,
+      "pickets": [
+        146,
+        154
+      ],
+      "day": "2026-02-12",
+      "probability": 0.2523,
+      "base": 0.008183,
+      "days_since_last_event": 2,
+      "factors": [
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.3667,
+          "shap": 1.7564
+        },
+        {
+          "feature": "hours_since_last_armed",
+          "value": 45.0,
+          "shap": 1.3559
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 2.0,
+          "shap": 0.5117
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 5.0,
+          "shap": 0.1234
+        },
+        {
+          "feature": "is_day_off",
+          "value": 0.0,
+          "shap": 0.0917
+        }
+      ]
+    },
+    {
+      "object_id": 3215,
+      "gallery": -1,
+      "section": 12,
+      "pickets": [
+        815
+      ],
+      "day": "2026-04-05",
+      "probability": 0.2505,
+      "base": 0.008183,
+      "days_since_last_event": 2,
+      "factors": [
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.2667,
+          "shap": 1.9433
+        },
+        {
+          "feature": "hours_since_last_armed",
+          "value": 41.0,
+          "shap": 1.1066
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 2.0,
+          "shap": 0.4518
+        },
+        {
+          "feature": "armed_same_weekday_1w",
+          "value": 1.0,
+          "shap": 0.2459
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 17.0,
+          "shap": 0.176
         }
       ]
     },
@@ -95,167 +214,34 @@
         378
       ],
       "day": "2026-01-22",
-      "probability": 0.2406,
+      "probability": 0.2465,
       "base": 0.008183,
       "days_since_last_event": 2,
       "factors": [
         {
           "feature": "armed_day_share_30d",
           "value": 0.2333,
-          "shap": 1.3222
+          "shap": 1.5979
         },
         {
           "feature": "hours_since_last_armed",
           "value": 27.0,
-          "shap": 0.9725
-        },
-        {
-          "feature": "n_armed_7d",
-          "value": 4.0,
-          "shap": 0.4334
+          "shap": 1.3578
         },
         {
           "feature": "days_since_last_armed",
           "value": 2.0,
-          "shap": 0.4061
+          "shap": 0.5933
         },
         {
-          "feature": "n_armed_90d",
-          "value": 23.0,
-          "shap": 0.1607
-        }
-      ]
-    },
-    {
-      "object_id": 42,
-      "gallery": -1,
-      "section": 16,
-      "pickets": [
-        790,
-        804,
-        805
-      ],
-      "day": "2026-05-14",
-      "probability": 0.2017,
-      "base": 0.008183,
-      "days_since_last_event": 2,
-      "factors": [
-        {
-          "feature": "armed_day_share_30d",
-          "value": 0.3333,
-          "shap": 1.5499
-        },
-        {
-          "feature": "hours_since_last_armed",
-          "value": 47.0,
-          "shap": 0.5915
-        },
-        {
-          "feature": "days_since_last_armed",
-          "value": 2.0,
-          "shap": 0.4031
+          "feature": "armed_same_weekday_1w",
+          "value": 1.0,
+          "shap": 0.2401
         },
         {
           "feature": "n_armed_7d",
-          "value": 12.0,
-          "shap": 0.3561
-        },
-        {
-          "feature": "n_armed_90d",
-          "value": 55.0,
-          "shap": 0.2712
-        }
-      ]
-    },
-    {
-      "object_id": 5343,
-      "gallery": -1,
-      "section": 7,
-      "pickets": [
-        284,
-        285,
-        286,
-        287,
-        288,
-        289,
-        290,
-        291,
-        292,
-        293,
-        294,
-        295,
-        296
-      ],
-      "day": "2026-02-11",
-      "probability": 0.1946,
-      "base": 0.008183,
-      "days_since_last_event": 4,
-      "factors": [
-        {
-          "feature": "armed_day_share_30d",
-          "value": 0.3,
-          "shap": 1.4859
-        },
-        {
-          "feature": "hours_since_last_armed",
-          "value": 87.0,
-          "shap": 0.4743
-        },
-        {
-          "feature": "days_since_last_armed",
           "value": 4.0,
-          "shap": 0.3748
-        },
-        {
-          "feature": "n_armed_7d",
-          "value": 5.0,
-          "shap": 0.352
-        },
-        {
-          "feature": "n_armed_90d",
-          "value": 55.0,
-          "shap": 0.2887
-        }
-      ]
-    },
-    {
-      "object_id": 42,
-      "gallery": -1,
-      "section": 16,
-      "pickets": [
-        790,
-        804,
-        805
-      ],
-      "day": "2026-05-12",
-      "probability": 0.1934,
-      "base": 0.008183,
-      "days_since_last_event": 3,
-      "factors": [
-        {
-          "feature": "armed_day_share_30d",
-          "value": 0.3333,
-          "shap": 1.5526
-        },
-        {
-          "feature": "hours_since_last_armed",
-          "value": 59.0,
-          "shap": 0.547
-        },
-        {
-          "feature": "days_since_last_armed",
-          "value": 3.0,
-          "shap": 0.383
-        },
-        {
-          "feature": "n_armed_7d",
-          "value": 11.0,
-          "shap": 0.3508
-        },
-        {
-          "feature": "n_armed_90d",
-          "value": 54.0,
-          "shap": 0.2636
+          "shap": 0.2152
         }
       ]
     }

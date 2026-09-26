@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -121,31 +122,43 @@ def both(names: list[str]) -> tuple[dict[str, float], dict[str, float]]:
     return past_only, with_future
 
 
-def test_the_registry_covers_both_models(names: list[str]) -> None:
-    """Реестр обязан уметь считать оба обученных набора.
+# Признаки работающей модели, `ml/access/out/daily_selected.json`.
+MODEL_FEATURES = [
+    "armed_day_share_30d",
+    "hours_since_last_armed",
+    "days_since_last_armed",
+    "disarm_share_30d",
+    "net_event_share_7d",
+    "net_event_share_1d",
+    "armed_same_weekday_1w",
+    "day_of_week",
+    "date_event_share_prev_years",
+    "disarm_hours_7d",
+    "n_armed_7d",
+    "obj_alarms_7d",
+    "hours_since_last_alarm",
+    "hours_since_guard_change",
+    "day_of_month",
+    "obj_alarms_1d",
+    "unit_age_days",
+    "obj_units_alarmed_7d",
+    "day_of_year",
+    "is_day_off",
+]
+
+
+def test_the_registry_covers_the_model() -> None:
+    """Реестр обязан уметь считать набор обученной модели.
 
     Без этого замена файла модели перестаёт быть заменой файла.
     """
-    hourly = [
-        "n_alarms_1h",
-        "hours_since_last_armed_alarm",
-        "is_disarmed",
-        "has_access_sequence",
-    ]
-    daily = [
-        "days_since_last_armed",
-        "armed_day_share_30d",
-        "obj_units_alarmed_7d",
-        "day_off_chain",
-    ]
-    assert registry.missing(DIRECTION, hourly + daily) == []
-    assert len(names) >= 30
+    assert registry.missing(DIRECTION, MODEL_FEATURES) == []
 
 
 def test_an_unknown_feature_fails_loudly() -> None:
     """Модель просит неизвестный признак значит отказ называет его имя."""
     with pytest.raises(LookupError, match="выдуманный_признак"):
-        registry.require(DIRECTION, ["n_alarms_1h", "выдуманный_признак"])
+        registry.require(DIRECTION, ["n_alarms_7d", "выдуманный_признак"])
 
 
 def test_the_point_sees_the_past(both: tuple[dict[str, float], dict[str, float]]) -> None:
@@ -160,5 +173,9 @@ def test_no_feature_reads_the_future(
     both: tuple[dict[str, float], dict[str, float]],
 ) -> None:
     past_only, with_future = both
-    differs = [name for name, value in past_only.items() if with_future[name] != value]
+    differs = [
+        name
+        for name, value in past_only.items()
+        if with_future[name] != value and not (math.isnan(value) and math.isnan(with_future[name]))
+    ]
     assert differs == [], f"эти признаки заглянули в будущее: {differs}"

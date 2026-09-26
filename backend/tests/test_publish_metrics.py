@@ -87,9 +87,7 @@ def test_the_published_numbers_come_from_the_working_threshold(
         assert publish_module.publish(conn, DIRECTION) is True
 
     with engine().connect() as conn:
-        row = conn.execute(
-            select(model_metric).where(model_metric.c.direction == DIRECTION)
-        ).one()
+        row = conn.execute(select(model_metric).where(model_metric.c.direction == DIRECTION)).one()
 
     assert row.precision_value == pytest.approx(0.193738)
     assert row.recall_value == pytest.approx(0.12289)
@@ -109,8 +107,6 @@ def test_publishing_twice_keeps_one_row(artifacts: Path, seeded: None) -> None:
         publish_module.publish(conn, DIRECTION)
 
     with engine().connect() as conn:
-        rows = list(
-            conn.execute(select(model_metric).where(model_metric.c.direction == DIRECTION))
-        )
+        rows = list(conn.execute(select(model_metric).where(model_metric.c.direction == DIRECTION)))
 
     assert len(rows) == 1

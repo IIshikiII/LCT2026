@@ -24,39 +24,31 @@ from app.ml.plugins.unauthorized_access import (
 
 AT = datetime(2026, 9, 10, 12, 0, 0, tzinfo=UTC)
 
+# Участок без истории: `hours_since_*` равны возрасту плюс одни сутки.
 QUIET: dict[str, float] = {
-    "n_alarms_1h": 0.0,
-    "n_alarms_24h": 0.0,
-    "n_alarms_168h": 0.0,
-    "n_alarms_720h": 0.0,
-    "alarm_hour_share_720h": 0.0,
-    "hours_since_last_alarm": 0.0,
-    "night_share": 0.0,
-    "hour_of_day": 12.0,
-    "day_of_week": 4.0,
-    "month": 9.0,
-    "is_weekend": 0.0,
-    "neighbor_channels_1h": 0.0,
-    "is_disarmed": 0.0,
-    "has_access_sequence": 0.0,
-    "n_armed_alarms_24h": 0.0,
-    "n_armed_alarms_168h": 0.0,
-    "hours_since_last_armed_alarm": 0.0,
+    "n_alarms_7d": 0.0,
+    "n_armed_7d": 0.0,
+    "armed_day_share_30d": 0.0,
+    "hours_since_last_alarm": 24.0 * 41,
+    "hours_since_last_armed": 24.0 * 41,
+    "hours_since_guard_change": math.nan,
+    "unit_age_days": 40.0,
+    "obj_alarms_1d": 0.0,
+    "obj_alarms_7d": 0.0,
+    "is_day_off": 0.0,
+    "day_of_month": 10.0,
 }
 
 BUSY: dict[str, float] = {
     **QUIET,
-    "n_alarms_1h": 2.0,
-    "n_alarms_24h": 5.0,
-    "n_alarms_168h": 11.0,
-    "n_alarms_720h": 34.0,
-    "alarm_hour_share_720h": 0.03,
-    "hours_since_last_alarm": 0.0,
-    "night_share": 0.4,
-    "neighbor_channels_1h": 3.0,
-    "n_armed_alarms_24h": 1.0,
-    "n_armed_alarms_168h": 7.0,
-    "hours_since_last_armed_alarm": 6.0,
+    "n_alarms_7d": 5.0,
+    "n_armed_7d": 7.0,
+    "armed_day_share_30d": 0.2,
+    "hours_since_last_alarm": 2.0,
+    "hours_since_last_armed": 6.0,
+    "hours_since_guard_change": 30.0,
+    "obj_alarms_1d": 3.0,
+    "obj_alarms_7d": 15.0,
 }
 
 
@@ -98,44 +90,48 @@ class TestFactors:
 
     def test_block_sorts_by_absolute_weight(self) -> None:
         block = factors_block(
-            ["n_alarms_24h", "night_share", "is_weekend"],
+            ["n_alarms_7d", "armed_day_share_30d", "is_day_off"],
             [0.4, -1.6, 0.05],
             BUSY,
         )
         labels = [item["label"] for item in block.data["items"]]
-        assert labels[0] == FEATURE_LABELS["night_share"]
-        assert labels[1] == FEATURE_LABELS["n_alarms_24h"]
-        assert labels[2] == FEATURE_LABELS["is_weekend"]
+        assert labels[0] == FEATURE_LABELS["armed_day_share_30d"]
+        assert labels[1] == FEATURE_LABELS["n_alarms_7d"]
+        assert labels[2] == FEATURE_LABELS["is_day_off"]
 
     def test_block_keeps_weights_inside_range(self) -> None:
-        block = factors_block(["n_alarms_24h", "night_share"], [12.0, -9.0], BUSY)
+        block = factors_block(["n_alarms_7d", "armed_day_share_30d"], [12.0, -9.0], BUSY)
         for item in block.data["items"]:
             assert -1.0 <= item["weight"] <= 1.0
 
     def test_block_shows_feature_value(self) -> None:
-        block = factors_block(["n_alarms_24h"], [0.4], BUSY)
+        block = factors_block(["n_alarms_7d"], [0.4], BUSY)
         assert block.data["items"][0]["value"] == "5"
+
+    def test_empty_feature_reads_as_no_data(self) -> None:
+        block = factors_block(["hours_since_guard_change"], [0.4], QUIET)
+        assert block.data["items"][0]["value"] == "нет данных"
 
     def test_unknown_feature_keeps_its_own_name(self) -> None:
         block = factors_block(["pressure_drop_3h"], [0.4], {"pressure_drop_3h": 1.0})
         assert block.data["items"][0]["label"] == "pressure_drop_3h"
 
     def test_block_type_is_factors(self) -> None:
-        assert factors_block(["n_alarms_1h"], [0.0], BUSY).type == "factors"
+        assert factors_block(["n_alarms_7d"], [0.0], BUSY).type == "factors"
 
     def test_block_carries_a_note(self) -> None:
-        block = factors_block(["n_alarms_24h"], [0.4], BUSY)
+        block = factors_block(["n_alarms_7d"], [0.4], BUSY)
         assert block.data["note"]
 
     def test_weak_factor_is_dropped(self) -> None:
-        names = ["n_alarms_24h", "night_share", "is_weekend", "month"]
+        names = ["n_alarms_7d", "armed_day_share_30d", "is_day_off", "day_of_month"]
         contributions = [4.0, 3.0, 1.0, 0.001]  # четвёртый вклад даёт вес ниже 0,02
         block = factors_block(names, contributions, BUSY)
         labels = [item["label"] for item in block.data["items"]]
-        assert FEATURE_LABELS["month"] not in labels
+        assert FEATURE_LABELS["day_of_month"] not in labels
 
     def test_three_strongest_items_survive_even_when_all_weak(self) -> None:
-        names = ["n_alarms_24h", "night_share", "is_weekend", "month"]
+        names = ["n_alarms_7d", "armed_day_share_30d", "is_day_off", "day_of_month"]
         contributions = [0.001, 0.0009, 0.0008, 0.0007]
         block = factors_block(names, contributions, BUSY)
         assert len(block.data["items"]) == 3
@@ -156,24 +152,22 @@ class TestTimeSeries:
             stamps = [point["t"] for point in row["points"]]
             assert stamps == sorted(stamps)
 
-    def test_last_hour_counts_as_daily_rate(self) -> None:
-        row = series_of(timeseries_block(BUSY, AT).data, "Тревоги доступа")
-        # Две тревоги за последний час это 48 тревог в сутки.
-        assert row["points"][-1]["v"] == 48.0
-        assert row["points"][-1]["t"] == (AT - timedelta(minutes=30)).isoformat()
-
     def test_windows_do_not_overlap(self) -> None:
-        row = series_of(timeseries_block(BUSY, AT).data, "Тревоги доступа")
-        # Окно от 168 до 24 часов держит 11 - 5 = 6 тревог за 6 суток.
-        assert row["points"][1]["v"] == 1.0
+        row = series_of(timeseries_block(BUSY, AT).data, "Тревоги на объекте")
+        # Окно от 7 суток до 1 суток держит 15 - 3 = 12 тревог за 6 суток.
+        assert [point["v"] for point in row["points"]] == [2.0, 3.0]
+
+    def test_events_count_as_daily_rate(self) -> None:
+        row = series_of(timeseries_block(BUSY, AT).data, "События на участке")
+        assert row["points"] == [{"t": (AT - timedelta(days=3.5)).isoformat(), "v": 1.0}]
 
     def test_inconsistent_counts_never_give_negative_rate(self) -> None:
-        broken = {**BUSY, "n_alarms_720h": 1.0, "n_alarms_168h": 40.0}
-        row = series_of(timeseries_block(broken, AT).data, "Тревоги доступа")
+        broken = {**BUSY, "obj_alarms_7d": 1.0, "obj_alarms_1d": 40.0}
+        row = series_of(timeseries_block(broken, AT).data, "Тревоги на объекте")
         assert all(point["v"] >= 0 for point in row["points"])
 
     def test_missing_feature_does_not_break_block(self) -> None:
-        row = series_of(timeseries_block({}, AT).data, "Тревоги доступа")
+        row = series_of(timeseries_block({}, AT).data, "Тревоги на объекте")
         assert all(point["v"] == 0 for point in row["points"])
 
 
@@ -191,22 +185,19 @@ class TestTimeline:
             assert any(event["at"] == AT.isoformat() for event in events)
             assert all(event["kind"] and event["title"] for event in events)
 
-    def test_last_armed_alarm_lands_on_its_hour(self) -> None:
+    def test_last_event_lands_on_its_hour(self) -> None:
         events = timeline_block(BUSY, AT).data["events"]
-        armed = next(event for event in events if "вне режима охраны" in event["title"])
-        assert armed["at"] == (AT - timedelta(hours=6)).isoformat()
+        event = next(item for item in events if item["title"] == "Последнее событие на участке")
+        assert event["at"] == (AT - timedelta(hours=6)).isoformat()
 
-    def test_unit_without_history_gets_no_alarm_event(self) -> None:
+    def test_unit_without_history_shows_only_the_forecast(self) -> None:
         events = timeline_block(QUIET, AT).data["events"]
-        assert not [event for event in events if event["kind"] == "alarm"]
+        assert [event["kind"] for event in events] == ["forecast"]
 
-    def test_disarmed_unit_shows_its_mode(self) -> None:
-        events = timeline_block({**QUIET, "is_disarmed": 1.0}, AT).data["events"]
-        assert any("снят с охраны" in event["title"] for event in events)
-
-    def test_sequence_shows_the_chain(self) -> None:
-        events = timeline_block({**BUSY, "has_access_sequence": 1.0}, AT).data["events"]
-        assert any(event["kind"] == "access" for event in events)
+    def test_guard_change_shows_its_moment(self) -> None:
+        events = timeline_block(BUSY, AT).data["events"]
+        change = next(item for item in events if item["title"] == "Смена режима охраны")
+        assert change["at"] == (AT - timedelta(hours=30)).isoformat()
 
     def test_block_type_is_timeline(self) -> None:
         assert timeline_block(BUSY, AT).type == "timeline"

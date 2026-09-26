@@ -15,6 +15,7 @@ import {
   WorkOrderSchema,
 } from '@/shared/api/schemas'
 import type { FacilityCollection, LineCollection, WorkOrder } from '@/shared/api/types'
+import { signInAs } from '@/test/session'
 import { db } from './db'
 import { resetMockDb } from './handlers'
 
@@ -83,8 +84,12 @@ describe('GET /facilities/lines', () => {
 })
 
 describe('POST /orders/{id}/actions/close', () => {
-  const close = (id: string, body: Record<string, unknown>) =>
-    apiPost<WorkOrder>(endpoints.orderAction(id, 'close'), WorkOrderSchema, body)
+  // Закрывает заявку группа реагирования: отметка о факте идёт в дообучение,
+  // и ставит её тот, кто был на объекте. Диспетчер получает 403 (ADR 0007).
+  const close = (id: string, body: Record<string, unknown>) => {
+    signInAs('crew')
+    return apiPost<WorkOrder>(endpoints.orderAction(id, 'close'), WorkOrderSchema, body)
+  }
 
   it('засчитывает подтверждение только у настоящего boolean', async () => {
     const order = db().orders.find((o) => o.status === 'IN_PROGRESS')!

@@ -1,0 +1,668 @@
+{
+  "direction": "FIRE_RISK",
+  "protocol": "fire_burst_label_fold_ensemble_rolling_budget_holdout_year",
+  "label": "ADR 0014: сигнал дыма, «выше 40ºC» или теплового датчика вне пачки обхода или сбоя",
+  "variant": "wide_reg",
+  "config": {
+    "groups": [
+      "evt",
+      "line",
+      "chk",
+      "obj",
+      "cal",
+      "rec",
+      "week",
+      "cond",
+      "geo",
+      "wx",
+      "tmp",
+      "hw"
+    ],
+    "params": {
+      "num_leaves": 4,
+      "min_data_in_leaf": 1000,
+      "lambda_l2": 30.0,
+      "learning_rate": 0.02,
+      "feature_fraction": 0.5
+    }
+  },
+  "features": [
+    "evt_days_1d",
+    "evt_days_7d",
+    "evt_days_30d",
+    "evt_days_90d",
+    "evt_days_365d",
+    "evt_moments_30d",
+    "evt_days_since",
+    "evt_days_all",
+    "line_events_1d",
+    "line_events_7d",
+    "line_events_30d",
+    "obj_walk_days_since",
+    "obj_walks_365d",
+    "obj_walk_phase",
+    "unit_smoke",
+    "unit_temp",
+    "unit_heat",
+    "unit_age_days",
+    "chk_days_30d",
+    "chk_days_365d",
+    "chk_days_since",
+    "obj_events_1d",
+    "obj_events_7d",
+    "obj_events_30d",
+    "obj_check_share_1d",
+    "obj_checks_30d",
+    "obj_temp_max_1d",
+    "obj_temp_rise",
+    "tmp_max_1d",
+    "tmp_mean_1d",
+    "tmp_mean_7d",
+    "tmp_delta_30d",
+    "tmp_max_rise",
+    "hw_faults_1d",
+    "hw_faults_7d",
+    "hw_faults_30d",
+    "wx_temp_mean_1d",
+    "wx_temp_max_1d",
+    "wx_temp_max_7d",
+    "wx_precip_1d",
+    "wx_rh_mean_1d",
+    "wx_rh_max_1d",
+    "wx_rh_mean_7d",
+    "wx_dew_mean_1d",
+    "wx_pressure_change_1d",
+    "wx_wind_mean_1d",
+    "wx_gust_max_1d",
+    "wx_cloud_mean_1d",
+    "wx_soil_temp_1d",
+    "wx_pm25_mean_1d",
+    "wx_pm25_max_7d",
+    "wx_pm10_mean_1d",
+    "wx_co_max_1d",
+    "cal_fireworks",
+    "cal_fireworks_1d",
+    "cond_dew_minus_unit",
+    "cond_dew_minus_object",
+    "cond_outside_minus_object",
+    "rec_to_midnight_1d",
+    "rec_channels_1d",
+    "rec_repeats_365d",
+    "rec_repeats_all",
+    "rec_moments_1d",
+    "rec_smoke_1d",
+    "rec_heat_1d",
+    "rec_temp_1d",
+    "geo_position",
+    "geo_to_edge",
+    "geo_object_units",
+    "week_day_of_week",
+    "week_is_day_off",
+    "cal_season",
+    "cal_month",
+    "cal_day_of_year"
+  ],
+  "models_in_ensemble": 9,
+  "horizon_hours": 24,
+  "reopened": null,
+  "opened_at": "2026-09-25T19:34:09",
+  "cv": {
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "evt_days_all",
+      "line_events_1d",
+      "line_events_7d",
+      "line_events_30d",
+      "obj_walk_days_since",
+      "obj_walks_365d",
+      "obj_walk_phase",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "tmp_max_1d",
+      "tmp_mean_1d",
+      "tmp_mean_7d",
+      "tmp_delta_30d",
+      "tmp_max_rise",
+      "hw_faults_1d",
+      "hw_faults_7d",
+      "hw_faults_30d",
+      "wx_temp_mean_1d",
+      "wx_temp_max_1d",
+      "wx_temp_max_7d",
+      "wx_precip_1d",
+      "wx_rh_mean_1d",
+      "wx_rh_max_1d",
+      "wx_rh_mean_7d",
+      "wx_dew_mean_1d",
+      "wx_pressure_change_1d",
+      "wx_wind_mean_1d",
+      "wx_gust_max_1d",
+      "wx_cloud_mean_1d",
+      "wx_soil_temp_1d",
+      "wx_pm25_mean_1d",
+      "wx_pm25_max_7d",
+      "wx_pm10_mean_1d",
+      "wx_co_max_1d",
+      "cal_fireworks",
+      "cal_fireworks_1d",
+      "cond_dew_minus_unit",
+      "cond_dew_minus_object",
+      "cond_outside_minus_object",
+      "rec_to_midnight_1d",
+      "rec_channels_1d",
+      "rec_repeats_365d",
+      "rec_repeats_all",
+      "rec_moments_1d",
+      "rec_smoke_1d",
+      "rec_heat_1d",
+      "rec_temp_1d",
+      "geo_position",
+      "geo_to_edge",
+      "geo_object_units",
+      "week_day_of_week",
+      "week_is_day_off",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000407,
+        "pr_auc": 0.038497,
+        "naive": {
+          "precision": 0.125683,
+          "recall": 0.127424,
+          "alerts": 366,
+          "hits": 46
+        },
+        "at_threshold": {
+          "precision": 0.139159,
+          "recall": 0.119114,
+          "alerts": 309,
+          "hits": 43
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.000404,
+        "pr_auc": 0.048916,
+        "naive": {
+          "precision": 0.114206,
+          "recall": 0.113889,
+          "alerts": 359,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.136905,
+          "recall": 0.127778,
+          "alerts": 336,
+          "hits": 46
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000354,
+        "pr_auc": 0.049333,
+        "naive": {
+          "precision": 0.106452,
+          "recall": 0.104762,
+          "alerts": 310,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.1,
+          "recall": 0.12381,
+          "alerts": 390,
+          "hits": 39
+        }
+      }
+    ],
+    "pr_auc_mean": 0.045582,
+    "pr_auc_seed_spread": 0.003821,
+    "oof_naive": {
+      "precision": 0.115942,
+      "recall": 0.11583,
+      "alerts": 1035,
+      "hits": 120
+    },
+    "oof_threshold": 0.045186,
+    "oof_at_threshold": {
+      "precision": 0.123671,
+      "recall": 0.123552,
+      "alerts": 1035,
+      "hits": 128
+    },
+    "beats_naive_both_oof": true
+  },
+  "rolling_budget_cv": {
+    "variant": "wide_reg",
+    "holdout_read": false,
+    "windows": {
+      "7": {
+        "folds": [
+          {
+            "valid": "2022-07-01..2023-07-01",
+            "naive": {
+              "precision": 0.125683,
+              "recall": 0.127424,
+              "alerts": 366,
+              "hits": 46
+            },
+            "model": {
+              "precision": 0.128686,
+              "recall": 0.132964,
+              "alerts": 373,
+              "hits": 48
+            },
+            "beats_both": true
+          },
+          {
+            "valid": "2023-07-01..2024-07-01",
+            "naive": {
+              "precision": 0.114206,
+              "recall": 0.113889,
+              "alerts": 359,
+              "hits": 41
+            },
+            "model": {
+              "precision": 0.131367,
+              "recall": 0.136111,
+              "alerts": 373,
+              "hits": 49
+            },
+            "beats_both": true
+          },
+          {
+            "valid": "2024-07-01..2025-07-01",
+            "naive": {
+              "precision": 0.106452,
+              "recall": 0.104762,
+              "alerts": 310,
+              "hits": 33
+            },
+            "model": {
+              "precision": 0.123028,
+              "recall": 0.12381,
+              "alerts": 317,
+              "hits": 39
+            },
+            "beats_both": true
+          }
+        ],
+        "pooled": {
+          "naive": {
+            "precision": 0.115942,
+            "recall": 0.11583,
+            "alerts": 1035,
+            "hits": 120
+          },
+          "model": {
+            "precision": 0.12794,
+            "recall": 0.131274,
+            "alerts": 1063,
+            "hits": 136
+          }
+        },
+        "beats_every_year": true
+      },
+      "30": {
+        "folds": [
+          {
+            "valid": "2022-07-01..2023-07-01",
+            "naive": {
+              "precision": 0.125683,
+              "recall": 0.127424,
+              "alerts": 366,
+              "hits": 46
+            },
+            "model": {
+              "precision": 0.129973,
+              "recall": 0.135734,
+              "alerts": 377,
+              "hits": 49
+            },
+            "beats_both": true
+          },
+          {
+            "valid": "2023-07-01..2024-07-01",
+            "naive": {
+              "precision": 0.114206,
+              "recall": 0.113889,
+              "alerts": 359,
+              "hits": 41
+            },
+            "model": {
+              "precision": 0.129213,
+              "recall": 0.127778,
+              "alerts": 356,
+              "hits": 46
+            },
+            "beats_both": true
+          },
+          {
+            "valid": "2024-07-01..2025-07-01",
+            "naive": {
+              "precision": 0.106452,
+              "recall": 0.104762,
+              "alerts": 310,
+              "hits": 33
+            },
+            "model": {
+              "precision": 0.117834,
+              "recall": 0.11746,
+              "alerts": 314,
+              "hits": 37
+            },
+            "beats_both": true
+          }
+        ],
+        "pooled": {
+          "naive": {
+            "precision": 0.115942,
+            "recall": 0.11583,
+            "alerts": 1035,
+            "hits": 120
+          },
+          "model": {
+            "precision": 0.126074,
+            "recall": 0.127413,
+            "alerts": 1047,
+            "hits": 132
+          }
+        },
+        "beats_every_year": true
+      },
+      "90": {
+        "folds": [
+          {
+            "valid": "2022-07-01..2023-07-01",
+            "naive": {
+              "precision": 0.125683,
+              "recall": 0.127424,
+              "alerts": 366,
+              "hits": 46
+            },
+            "model": {
+              "precision": 0.128065,
+              "recall": 0.130194,
+              "alerts": 367,
+              "hits": 47
+            },
+            "beats_both": true
+          },
+          {
+            "valid": "2023-07-01..2024-07-01",
+            "naive": {
+              "precision": 0.114206,
+              "recall": 0.113889,
+              "alerts": 359,
+              "hits": 41
+            },
+            "model": {
+              "precision": 0.138643,
+              "recall": 0.130556,
+              "alerts": 339,
+              "hits": 47
+            },
+            "beats_both": true
+          },
+          {
+            "valid": "2024-07-01..2025-07-01",
+            "naive": {
+              "precision": 0.106452,
+              "recall": 0.104762,
+              "alerts": 310,
+              "hits": 33
+            },
+            "model": {
+              "precision": 0.124161,
+              "recall": 0.11746,
+              "alerts": 298,
+              "hits": 37
+            },
+            "beats_both": true
+          }
+        ],
+        "pooled": {
+          "naive": {
+            "precision": 0.115942,
+            "recall": 0.11583,
+            "alerts": 1035,
+            "hits": 120
+          },
+          "model": {
+            "precision": 0.130478,
+            "recall": 0.126448,
+            "alerts": 1004,
+            "hits": 131
+          }
+        },
+        "beats_every_year": true
+      }
+    },
+    "chosen_window": 7,
+    "accepted": true
+  },
+  "test": {
+    "period": "2025-07-01..2026-07-01",
+    "days": 365,
+    "rows": 861860,
+    "base": 0.00087,
+    "pr_auc": 0.063049,
+    "naive": {
+      "precision": 0.150704,
+      "recall": 0.142667,
+      "alerts": 710,
+      "hits": 107,
+      "alerts_per_day": 1.95
+    },
+    "at_budget": {
+      "precision": 0.147265,
+      "recall": 0.14,
+      "alerts": 713,
+      "hits": 105,
+      "alerts_per_day": 1.95
+    },
+    "at_valid_threshold": {
+      "precision": 0.133652,
+      "recall": 0.149333,
+      "alerts": 838,
+      "hits": 112,
+      "alerts_per_day": 2.3
+    },
+    "beats_naive": false,
+    "seasons": {
+      "зима": {
+        "base": 0.000753,
+        "naive": {
+          "precision": 0.142857,
+          "recall": 0.142857,
+          "alerts": 189,
+          "hits": 27
+        },
+        "model": {
+          "precision": 0.13089,
+          "recall": 0.132275,
+          "alerts": 191,
+          "hits": 25
+        }
+      },
+      "весна": {
+        "base": 0.001315,
+        "naive": {
+          "precision": 0.209486,
+          "recall": 0.197026,
+          "alerts": 253,
+          "hits": 53
+        },
+        "model": {
+          "precision": 0.200787,
+          "recall": 0.189591,
+          "alerts": 254,
+          "hits": 51
+        }
+      },
+      "лето": {
+        "base": 0.001052,
+        "naive": {
+          "precision": 0.1,
+          "recall": 0.087629,
+          "alerts": 170,
+          "hits": 17
+        },
+        "model": {
+          "precision": 0.112426,
+          "recall": 0.097938,
+          "alerts": 169,
+          "hits": 19
+        }
+      },
+      "осень": {
+        "base": 0.000442,
+        "naive": {
+          "precision": 0.102041,
+          "recall": 0.102041,
+          "alerts": 98,
+          "hits": 10
+        },
+        "model": {
+          "precision": 0.10101,
+          "recall": 0.102041,
+          "alerts": 99,
+          "hits": 10
+        }
+      }
+    }
+  },
+  "gain": {
+    "evt_days_since": 22794.5,
+    "evt_days_all": 8108.3,
+    "evt_days_90d": 7371.1,
+    "unit_smoke": 4991.9,
+    "evt_days_30d": 4593.8,
+    "evt_days_365d": 4240.4,
+    "evt_days_7d": 3875.9,
+    "obj_events_7d": 3256.6,
+    "week_is_day_off": 1770.7,
+    "evt_moments_30d": 1741.3,
+    "obj_events_30d": 1630.7,
+    "geo_object_units": 1534.6,
+    "unit_age_days": 1131.6,
+    "line_events_7d": 1065.6,
+    "obj_walk_days_since": 1060.2,
+    "rec_to_midnight_1d": 829.8,
+    "week_day_of_week": 723.6,
+    "rec_smoke_1d": 568.8,
+    "line_events_30d": 546.6,
+    "chk_days_since": 515.8,
+    "hw_faults_7d": 414.3,
+    "evt_days_1d": 364.6,
+    "obj_walks_365d": 350.2,
+    "cal_day_of_year": 325.2,
+    "geo_to_edge": 286.8,
+    "obj_temp_rise": 246.4,
+    "hw_faults_30d": 230.6,
+    "wx_pm25_max_7d": 222.9,
+    "cond_outside_minus_object": 210.2,
+    "cond_dew_minus_object": 171.1,
+    "wx_cloud_mean_1d": 170.3,
+    "rec_channels_1d": 168.6,
+    "obj_walk_phase": 164.6,
+    "unit_heat": 147.7,
+    "obj_events_1d": 145.8,
+    "obj_temp_max_1d": 136.9,
+    "wx_temp_max_7d": 126.3,
+    "geo_position": 118.2,
+    "wx_temp_max_1d": 109.7,
+    "obj_checks_30d": 107.5,
+    "cal_month": 97.2,
+    "wx_gust_max_1d": 90.2,
+    "wx_dew_mean_1d": 86.8,
+    "wx_temp_mean_1d": 86.0,
+    "wx_pm10_mean_1d": 85.1,
+    "wx_pm25_mean_1d": 76.1,
+    "wx_rh_mean_7d": 75.8,
+    "wx_pressure_change_1d": 63.2,
+    "wx_wind_mean_1d": 57.4,
+    "chk_days_365d": 51.7,
+    "wx_rh_mean_1d": 47.2,
+    "wx_soil_temp_1d": 46.2,
+    "rec_moments_1d": 40.7,
+    "wx_co_max_1d": 38.6,
+    "wx_rh_max_1d": 34.6,
+    "line_events_1d": 33.6,
+    "wx_precip_1d": 26.3,
+    "rec_repeats_365d": 19.0,
+    "hw_faults_1d": 9.5,
+    "tmp_mean_7d": 8.7,
+    "cal_season": 8.6,
+    "obj_check_share_1d": 8.1,
+    "rec_repeats_all": 6.0,
+    "unit_temp": 4.5,
+    "tmp_mean_1d": 4.1,
+    "chk_days_30d": 0.7,
+    "tmp_delta_30d": 0.4,
+    "cal_fireworks": 0.3,
+    "tmp_max_1d": 0.0,
+    "tmp_max_rise": 0.0,
+    "cal_fireworks_1d": 0.0,
+    "cond_dew_minus_unit": 0.0,
+    "rec_heat_1d": 0.0,
+    "rec_temp_1d": 0.0
+  },
+  "shap": {
+    "background": -8.469301,
+    "max_additivity_gap": 1.2434497875801753e-14,
+    "rows_checked": 20000
+  },
+  "decision": {
+    "outcome": "naive_rule",
+    "threshold": 0.045186,
+    "levels": {
+      "MEDIUM": 0.000388,
+      "HIGH": 0.045186,
+      "CRITICAL": 0.05
+    },
+    "scale": "raw",
+    "rule": "скользящий бюджет: за последние 7 суток тревог столько же, сколько у правила «событие было вчера»; HIGH это порог, который держит бюджет",
+    "alert_budget": {
+      "window_days": 7,
+      "baseline": "правило «событие было вчера»",
+      "fallback_threshold": 0.045186,
+      "fallback_note": "порог с проверочных лет, пока истории прогнозов нет"
+    },
+    "chosen": {
+      "cell_precision": 0.147265,
+      "cell_recall": 0.14,
+      "alerts": 713,
+      "alerts_per_day": 1.95
+    },
+    "holdout_note": "модель прошла приёмку на проверочных годах, но на отложенном году ниже правила: 105 попаданий против 107 при 713 и 710 тревогах. Сервис работает на правиле"
+  },
+  "targets": {
+    "precision": 0.150704,
+    "recall": 0.142667,
+    "basis": "наивная планка «событие было вчера» на отложенном году"
+  },
+  "model_version": "fire-wide_reg-budget7",
+  "selection_note": "бюджет сначала проверен для recent_reg по метке правила останова (не прошёл на 2022/23 на одно попадание), затем для wide_reg по записанному правилу «лучшая средняя PR-AUC». Оба результата лежат в out/rolling_budget_v2_recent_reg.json и out/rolling_budget_v2.json"
+}

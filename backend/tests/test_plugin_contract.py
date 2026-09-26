@@ -1,4 +1,4 @@
-"""Контракт предиктора. `TODO.md` §3, пункты 2, 3, 5 и 6.
+"""Контракт предиктора, пункты 2, 3, 5 и 6. Открытые пункты лежат в `ml/TODO.md`.
 
 Тест параметризован по реестру направлений, а не написан на одно: направление
 без предиктора пропускается, направление с предиктором проходит все четыре
@@ -31,18 +31,23 @@ from app.tables import alarm_event, facility
 AT = datetime(2026, 9, 10, 12, 0, 0, tzinfo=UTC)
 FACILITY_ID = "F-CONTRACT-TEST"
 
+
 # Имена признаков, устойчивость которых уже закреплена буква в букву с
-# `ml/access/features.py::FEATURE_COLUMNS` (докстринг `app/features/access.py`).
+# `ml/access/panel.py` (докстринг `app/features/access_daily.py`).
 # Направление без записи здесь проверяется только на структуру словаря: тип
 # ключей и значений, а не конкретный набор имён.
 def _known_names(code: str) -> frozenset[str] | None:
     """Подписи признаков направления. Надмножество: словарь держит подписи для
     всех наборов, а модель просит только свой."""
-    if code != "UNAUTHORIZED_ACCESS":
-        return None
-    from app.ml.plugins.unauthorized_access import FEATURE_LABELS
+    if code == "UNAUTHORIZED_ACCESS":
+        from app.ml.plugins.unauthorized_access import FEATURE_LABELS
 
-    return frozenset(FEATURE_LABELS)
+        return frozenset(FEATURE_LABELS)
+    if code == "FLOOD_RISK":
+        from app.ml.plugins.flood_risk import FEATURE_LABELS as FLOOD_LABELS
+
+        return frozenset(FLOOD_LABELS)
+    return None
 
 
 @pytest.fixture

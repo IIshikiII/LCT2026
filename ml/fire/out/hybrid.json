@@ -1,0 +1,116 @@
+{
+  "variant": "wide_reg",
+  "window_days": 7,
+  "young_days": 365,
+  "validation": [
+    {
+      "valid": "2022-07-01..2023-07-01",
+      "young_event_share": 0.224,
+      "rule": {
+        "precision": 0.125683,
+        "recall": 0.127424,
+        "alerts": 366,
+        "hits": 46
+      },
+      "model": {
+        "precision": 0.128686,
+        "recall": 0.132964,
+        "alerts": 373,
+        "hits": 48
+      },
+      "hybrid": {
+        "precision": 0.130667,
+        "recall": 0.135734,
+        "alerts": 375,
+        "hits": 49
+      }
+    },
+    {
+      "valid": "2023-07-01..2024-07-01",
+      "young_event_share": 0.0,
+      "rule": {
+        "precision": 0.114206,
+        "recall": 0.113889,
+        "alerts": 359,
+        "hits": 41
+      },
+      "model": {
+        "precision": 0.131367,
+        "recall": 0.136111,
+        "alerts": 373,
+        "hits": 49
+      },
+      "hybrid": {
+        "precision": 0.131367,
+        "recall": 0.136111,
+        "alerts": 373,
+        "hits": 49
+      }
+    },
+    {
+      "valid": "2024-07-01..2025-07-01",
+      "young_event_share": 0.003,
+      "rule": {
+        "precision": 0.106452,
+        "recall": 0.104762,
+        "alerts": 310,
+        "hits": 33
+      },
+      "model": {
+        "precision": 0.123028,
+        "recall": 0.12381,
+        "alerts": 317,
+        "hits": 39
+      },
+      "hybrid": {
+        "precision": 0.119874,
+        "recall": 0.120635,
+        "alerts": 317,
+        "hits": 38
+      }
+    }
+  ],
+  "holdout_opening": "второе: идея гибрида появилась после открытия",
+  "validation_pooled": {
+    "rule": {
+      "precision": 0.115942,
+      "recall": 0.11583,
+      "alerts": 1035,
+      "hits": 120
+    },
+    "model": {
+      "precision": 0.12794,
+      "recall": 0.131274,
+      "alerts": 1063,
+      "hits": 136
+    },
+    "hybrid": {
+      "precision": 0.1277,
+      "recall": 0.131274,
+      "alerts": 1065,
+      "hits": 136
+    }
+  },
+  "holdout": {
+    "young_event_share": 0.196,
+    "rule": {
+      "precision": 0.150704,
+      "recall": 0.142667,
+      "alerts": 710,
+      "hits": 107
+    },
+    "model": {
+      "precision": 0.147265,
+      "recall": 0.14,
+      "alerts": 713,
+      "hits": 105
+    },
+    "hybrid": {
+      "precision": 0.148876,
+      "recall": 0.141333,
+      "alerts": 712,
+      "hits": 106
+    },
+    "opened_at": "2026-09-25T19:52:12"
+  }
+}

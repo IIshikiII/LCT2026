@@ -195,16 +195,37 @@ export interface WorkOrder {
 
 export interface ModelMetric {
   direction: string
-  precision: number
-  recall: number
+  /** пусто, когда точность не измерена: тогда есть `note` */
+  precision?: number
+  recall?: number
   /** цель по ТЗ: 0.7 */
   targetPrecision: number
   /** цель по ТЗ: 0.5 */
   targetRecall: number
   evaluatedAt: string
+  /** способ работы направления: `offline_holdout`, `expert_rules` */
+  method?: string
+  /** почему точность не измерена, человеческим языком */
+  note?: string
 }
 
 /** Состояние конвейера расчёта — доказательство метрик «< 5 мин» и «>= 24 ч». */
+/**
+ * Уведомление о тревоге, `GET /alerts`. Живёт, пока сервер его отдаёт.
+ * `filter` это параметры журнала, которые показывают ровно эти инциденты.
+ */
+export interface Alert {
+  code: string
+  level: string
+  count: number
+  title: string
+  hint?: string
+  filter: Record<string, string[]>
+  /** через сколько минут напомнить снова, пока тревога жива */
+  repeatMinutes: number
+  newestAt?: string | null
+}
+
 export interface PipelineHealth {
   lastRunAt: string
   lastRunMs: number
@@ -216,6 +237,12 @@ export interface PipelineHealth {
   /** целевые значения по ТЗ, приходят с бэкенда, чтобы не хардкодить на фронте */
   targetComputeMs: number
   targetHorizonHours: number
+  /** наибольшая задержка потока за последний прогон, мс; null — событий не было */
+  streamLagMs?: number | null
+  /** событий потока, учтённых последним прогоном */
+  streamEvents?: number
+  /** граница задержки потока по ТЗ, мс */
+  targetStreamLagMs?: number
 }
 
 /**
@@ -289,4 +316,64 @@ export interface LineCollection {
     geometry: { type: 'LineString'; coordinates: [number, number][] }
     properties: { collector: string }
   }[]
+}
+
+/* ----------------------------------------------------------------- сессия */
+
+/**
+ * Кто вошёл. Роль приходит строкой и кодом, и подпись роли тоже приходит с
+ * сервера: интерфейс не держит списка ролей, как не держит списка направлений
+ * (ADR 0002).
+ */
+export interface CurrentUser {
+  username: string
+  fullName: string
+  role: string
+  roleLabel: string
+  /** `ALL`, `DISTRICT` или `COMPLEX`. Что именно видно, решает сервер. */
+  scopeKind: string
+  scopeValue?: string
+  /** Коды действий, доступных роли. Кнопки всё равно приходят из `actions`. */
+  permissions: string[]
+}
+
+/** Итог первого шага входа: код прислать или ключ сначала завести. */
+export interface LoginChallenge {
+  status: string
+  mfaToken: string
+  /** Секрет и ссылка приходят один раз, только при регистрации ключа. */
+  secret?: string
+  otpauthUrl?: string
+}
+
+export interface SessionResponse {
+  accessToken: string
+  tokenType: string
+  expiresIn: number
+  user: CurrentUser
+}
+
+/** Учётная запись тестового стенда. Пароль общий и лежит в `TestStand`. */
+export interface TestAccount {
+  username: string
+  fullName: string
+  role: string
+  roleLabel: string
+  scopeKind: string
+  scopeValue?: string
+  /** Заведён ли ключ второго фактора. Занятый набор брать не надо. */
+  mfaEnrolled: boolean
+}
+
+/** Набор: по одной записи на каждую роль. */
+export interface TestAccountSet {
+  set: number
+  accounts: TestAccount[]
+}
+
+/** Состояние тестового стенда. Выключенный отдаёт `enabled: false`. */
+export interface TestStand {
+  enabled: boolean
+  password: string
+  sets: TestAccountSet[]
 }

@@ -116,12 +116,21 @@ class WorkOrder(Dto):
 
 
 class ModelMetric(Dto):
+    """Качество направления.
+
+    Пустые `precision` и `recall` значат «точность не измерена». Поле `note`
+    тогда говорит почему, а `method` называет способ работы направления:
+    `offline_holdout` у модели, `expert_rules` у экспертных правил (ADR 0016).
+    """
+
     direction: str
-    precision: float
-    recall: float
+    precision: float | None = None
+    recall: float | None = None
     target_precision: float
     target_recall: float
     evaluated_at: str
+    method: str | None = None
+    note: str | None = None
 
 
 class PipelineHealth(Dto):
@@ -132,6 +141,36 @@ class PipelineHealth(Dto):
     min_horizon_hours: int
     target_compute_ms: int
     target_horizon_hours: int
+    # Задержка потока последнего прогона: от метки события до конца прогона.
+    # Пусто, если за прогон не пришло ни одного события потока. ADR 0017.
+    stream_lag_ms: int | None = None
+    stream_events: int = 0
+    target_stream_lag_ms: int = 300_000
+
+
+class AlertFilter(Dto):
+    """Фильтр журнала, который показывает инциденты уведомления."""
+
+    level: list[str]
+    status: list[str]
+
+
+class Alert(Dto):
+    """Уведомление о тревоге. ТЗ §10, ADR 0019.
+
+    Текст и фильтр готовит сервер: фронт не знает, какой уровень и какой
+    статус тревожны. `repeat_minutes` задаёт шаг, с которым интерфейс
+    напоминает, пока тревога жива.
+    """
+
+    code: str
+    level: str
+    count: int
+    title: str
+    hint: str
+    filter: AlertFilter
+    repeat_minutes: int
+    newest_at: str | None = None
 
 
 class DashboardSummary(Dto):

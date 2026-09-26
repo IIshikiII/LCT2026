@@ -191,11 +191,21 @@ describe('метрики моделей', () => {
   })
 
   it('видны и в зелёном, и в красном состоянии — иначе виджет нечем показать', () => {
-    const metrics = db().metrics
-    const green = metrics.filter((m) => m.precision >= TARGET_PRECISION && m.recall >= TARGET_RECALL)
-    const red = metrics.filter((m) => m.precision < TARGET_PRECISION || m.recall < TARGET_RECALL)
+    const measured = db().metrics.flatMap((m) =>
+      m.precision !== undefined && m.recall !== undefined
+        ? [{ precision: m.precision, recall: m.recall }]
+        : [],
+    )
+    const green = measured.filter((m) => m.precision >= TARGET_PRECISION && m.recall >= TARGET_RECALL)
+    const red = measured.filter((m) => m.precision < TARGET_PRECISION || m.recall < TARGET_RECALL)
     expect(green.length).toBeGreaterThan(0)
     expect(red.length).toBeGreaterThan(0)
+  })
+
+  it('показывают и направление без замера точности, с пояснением', () => {
+    const unmeasured = db().metrics.filter((m) => m.precision === undefined)
+    expect(unmeasured.length).toBeGreaterThan(0)
+    expect(unmeasured.every((m) => (m.note ?? '').length > 0)).toBe(true)
   })
 
   it('конвейер укладывается в метрики ТЗ', () => {

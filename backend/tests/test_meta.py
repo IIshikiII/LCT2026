@@ -86,14 +86,14 @@ def test_level_for_uses_the_direction_bands() -> None:
     """Направление со своими границами считает уровень по ним. ADR 0004.
 
     Числа стоят на сырой шкале бустера: калибратор отклонён, он проигрывал по
-    счёту Брайера на отложенной выборке. Сейчас работает суточная модель, и
+    счёту Брайера на отложенной выборке. Сейчас работает модель участков, и
     границы взяты из её замера.
     """
     access = directions.UNAUTHORIZED_ACCESS
-    assert catalog.level_for(0.009, access) == "LOW"
-    assert catalog.level_for(0.00937, access) == "MEDIUM"
-    assert catalog.level_for(0.2, access) == "MEDIUM"
-    assert catalog.level_for(0.202105, access) == "HIGH"
+    assert catalog.level_for(0.008, access) == "LOW"
+    assert catalog.level_for(0.008183, access) == "MEDIUM"
+    assert catalog.level_for(0.14, access) == "MEDIUM"
+    assert catalog.level_for(0.140342, access) == "HIGH"
     assert catalog.level_for(0.29, access) == "HIGH"
     assert catalog.level_for(0.3, access) == "CRITICAL"
     # Число из находки T31: общие пороги давали этому прогнозу уровень LOW.
@@ -102,7 +102,7 @@ def test_level_for_uses_the_direction_bands() -> None:
 
 def test_level_for_falls_back_to_the_common_bands() -> None:
     """Направление без своих границ работает как раньше. ADR 0004 пункт 3."""
-    for direction in (directions.SENSOR_FAILURE, directions.FIRE_RISK, directions.FLOOD_RISK):
+    for direction in (directions.SENSOR_FAILURE, directions.FIRE_RISK):
         assert direction.level_thresholds == ()
         for probability in (0.10, 0.30, 0.54, 0.55, 0.78, 1.00):
             assert catalog.level_for(probability, direction) == catalog.level_for(probability)
@@ -129,4 +129,4 @@ def test_the_access_band_of_high_equals_the_order_threshold() -> None:
     access = directions.UNAUTHORIZED_ACCESS
     bands = dict(access.level_thresholds)
     assert access.order_levels == ("HIGH", "CRITICAL")
-    assert bands["HIGH"] == 0.202105
+    assert bands["HIGH"] == 0.140342

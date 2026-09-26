@@ -7,10 +7,16 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // MapLibre создаёт свой воркер как модульный: new Worker(url, {type:'module'}).
-  // Сборка воркеров по умолчанию идёт в iife — формат для модульного воркера
-  // неподходящий. См. комментарий в src/screens/map/MapView.tsx.
-  worker: { format: 'es' },
+  // Воркер MapLibre. Разбор обоих пунктов — в комментарии к wireMapWorker в
+  // src/main.tsx.
+  //
+  // Исключение из предбандлинга нужно деву: иначе в `.vite/deps/` попадает
+  // только `maplibre-gl.js`, а соседний файл воркера остаётся в пакете.
+  optimizeDeps: { exclude: ['maplibre-gl'] },
+  // Формат нужен сборке: MapLibre запускает воркер модульным, а обычный скрипт
+  // импортируется модулем без нареканий. ES-модуль в роли классического
+  // воркера, наоборот, не стартует вовсе.
+  worker: { format: 'iife' },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

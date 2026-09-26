@@ -16,14 +16,24 @@ export const TARGET_PRECISION = 0.7
 export const TARGET_RECALL = 0.5
 
 export function buildModelMetrics(): ModelMetric[] {
-  return activeDirections().map((plugin) => ({
-    direction: plugin.meta.code,
-    precision: plugin.quality.precision,
-    recall: plugin.quality.recall,
-    targetPrecision: TARGET_PRECISION,
-    targetRecall: TARGET_RECALL,
-    evaluatedAt: iso(hoursFrom(NOW, -6)),
-  }))
+  return activeDirections().map((plugin) => {
+    const base = {
+      direction: plugin.meta.code,
+      targetPrecision: TARGET_PRECISION,
+      targetRecall: TARGET_RECALL,
+    }
+    // Направление без замера приходит строкой без чисел, как у сервера.
+    if ('note' in plugin.quality) {
+      return { ...base, evaluatedAt: '', method: plugin.quality.method, note: plugin.quality.note }
+    }
+    return {
+      ...base,
+      precision: plugin.quality.precision,
+      recall: plugin.quality.recall,
+      evaluatedAt: iso(hoursFrom(NOW, -6)),
+      method: 'offline_holdout',
+    }
+  })
 }
 
 export function buildPipelineHealth(predictions: PredictionRecord[]): PipelineHealth {
@@ -39,5 +49,8 @@ export function buildPipelineHealth(predictions: PredictionRecord[]): PipelineHe
     minHorizonHours: Math.min(...horizons, MIN_HORIZON_HOURS),
     targetComputeMs: MAX_COMPUTE_MS,
     targetHorizonHours: MIN_HORIZON_HOURS,
+    streamLagMs: 48_000,
+    streamEvents: 212,
+    targetStreamLagMs: 300_000,
   }
 }

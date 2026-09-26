@@ -1,5 +1,5 @@
 /**
- * Провайдеры приложения: клиент запросов и роутер.
+ * Провайдеры приложения: клиент запросов, сессия и роутер.
  *
  * Опрос раз в минуту задан здесь глобально (ADR 0005). Никакого другого
  * глобального состояния в приложении нет — фильтры и выбор живут в URL
@@ -8,6 +8,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { BrowserRouter } from 'react-router-dom'
+import { AuthProvider } from '@/shared/auth/AuthProvider'
 
 export function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -35,7 +36,9 @@ export const queryClient = createQueryClient()
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{children}</BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>{children}</BrowserRouter>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }

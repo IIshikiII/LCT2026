@@ -34,8 +34,58 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
 ```
 
 Семя фиксировано (`app/synth/generate.py`), поэтому повтор команды не плодит
-дублей: объекты и события те же. Наполняются только `collector`, `facility` и
+дублей: объекты и события те же. Наполняются `collector`, `facility` и
 `alarm_event` — этого достаточно для направления «несанкционированный доступ».
+
+Та же команда заводит четыре учётные записи, по одной на роль: `ods`,
+`district`, `tech`, `crew`. Пароль берётся из переменной `SEED_PASSWORD`, по
+умолчанию `collector`. Без них API не отдаст ничего: токен обязателен
+(ADR 0007). Порядок входа — в [09-auth.md](09-auth.md).
+
+## Настоящая выгрузка и поток СМВУ
+
+Выгрузка заказчика заменяет синтетику целиком. Устройство загрузчика, сдвиг
+времени и заглушка потока разобраны в ADR 0017.
+
+Условие: выгрузка лежит в `raw_task/dataset/`, база и API подняты, миграции
+применены. Загрузчику нужен DuckDB из набора `ingest`. Выгрузка в образ не
+входит, поэтому загрузчик идёт на машине, а не в контейнере. Выполните шаги из
+каталога `backend`.
+
+1. Поставьте набор `ingest`:
+   ```
+   uv sync --group ingest --group ml
+   ```
+2. Загрузите выгрузку. Команда стирает прежние данные, читает 15,9 ГБ журнала и
+   идёт около двух минут:
+   ```
+   uv run python -m app.cli ingest
+   ```
+   Итог называет число объектов, событий, неделю потока и сдвиг времени.
+   Отрезок потока ложится в `data/stream/`. Ключ `--slice-start ГГГГ-ММ-ДД`
+   задаёт неделю потока руками.
+3. Задайте ключ потока в `.env` и перезапустите API:
+   ```
+   STREAM_TOKEN=<любая длинная строка>
+   docker compose up -d api
+   ```
+   Для показа добавьте `DEMO_LEVELS=true`: уровни доступа и подтопления
+   встанут по рангу, 2 % критических, 6 % высоких, 17 % средних (ADR 0018).
+4. Запустите конвейер по расписанию и заглушку СМВУ:
+   ```
+   docker compose --profile stream up -d scheduler smvu-stub
+   ```
+   Конвейер идёт раз в минуту. Доступ и подтопление он считает раз в сутки,
+   пожар каждым прогоном. Задержку потока показывает
+   `GET /api/v1/metrics/pipeline`, поле `streamLagMs`.
+
+Без Docker те же две службы запускаются командами:
+```
+uv run python -m app.cli run-pipeline --every 60
+uv run python -m app.cli stream-stub
+```
+Заглушке нужны переменные `STREAM_TOKEN` и `STREAM_API_URL`, по умолчанию адрес
+`http://127.0.0.1:8000/api/v1/stream/events`.
 
 ## Сквозная проверка
 
@@ -60,14 +110,44 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
    docker compose run --rm pipeline uv run --no-sync python -m app.cli run-pipeline
    ```
    Команда печатает итог вида `прогон 1: 40 прогнозов, 3 заявок, 3250 мс`.
-5. Возьмите список прогнозов и выберите из него идентификатор с уровнем `HIGH`
+
+   Посев кладёт синтетическую погоду. Настоящую погоду Москвы для признаков
+   подтопления берёт команда ниже, ей нужна сеть (ADR 0013):
+   ```
+   docker compose run --rm pipeline uv run --no-sync python -m app.cli load-weather --days 14
+   ```
+
+   Объект в пусконаладке отмечает эксплуатация. До даты конца правила пожара
+   понижают уровень его сигналов на ступень (ADR 0016). Пустой `--until`
+   снимает отметку:
+   ```
+   docker compose run --rm pipeline uv run --no-sync python -m app.cli set-commissioning --collector K-CAO-1 --until 2026-10-15
+   ```
+5. Войдите и возьмите токен. Вход идёт двумя шагами, и первый вход записи
+   заводит ключ второго фактора, поэтому код возьмите из ответа сервера:
+   ```
+   curl -s -X POST http://127.0.0.1:8000/api/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"username":"ods","password":"collector"}'
+   ```
+   Ответ несёт `mfaToken` и, при первом входе, `secret`. Заведите секрет в
+   аутентификаторе и подтвердите кодом:
+   ```
+   curl -s -X POST http://127.0.0.1:8000/api/v1/auth/mfa \
+     -H "Content-Type: application/json" \
+     -d '{"mfaToken":"<токен>","code":"<шесть цифр>"}'
+   ```
+   Из ответа возьмите `accessToken`.
+6. Возьмите список прогнозов и выберите из него идентификатор с уровнем `HIGH`
    или `CRITICAL`:
    ```
-   curl -s "http://127.0.0.1:8000/api/v1/predictions?limit=5"
+   curl -s -H "Authorization: Bearer <токен>" \
+     "http://127.0.0.1:8000/api/v1/predictions?pageSize=5"
    ```
-6. Возьмите карточку этого прогноза:
+7. Возьмите карточку этого прогноза:
    ```
-   curl -s "http://127.0.0.1:8000/api/v1/predictions/<id>"
+   curl -s -H "Authorization: Bearer <токен>" \
+     "http://127.0.0.1:8000/api/v1/predictions/<id>"
    ```
 
 Карточка обязана содержать три блока: `factors`, `timeseries` и `timeline`.
@@ -77,7 +157,7 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
 ### Чем проверить форму ответа
 
 Схемы фронтенда лежат в `frontend/src/shared/api/schemas.ts`. Сохраните ответы
-шагов 5 и 6 в файлы и разберите их схемами `PredictionSchema` и
+шагов 6 и 7 в файлы и разберите их схемами `PredictionSchema` и
 `PredictionDetailSchema`. Разбор обязан пройти без замечаний.
 
 Замечание `Invalid input: expected string, received null` значит, что бэкенд
@@ -103,8 +183,9 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
 машине надо положить рядом с моделью два файла и выполнить команду.
 
 ```
-cp ../ml/access/out/model.joblib artifacts/unauthorized_access/latest.joblib
-cp ../ml/access/out/metrics.json artifacts/unauthorized_access/metrics.json
+mkdir -p artifacts/unauthorized_access
+cp ../ml/access/out/daily_model.joblib artifacts/unauthorized_access/latest.joblib
+cp ../ml/access/out/daily_metrics.json artifacts/unauthorized_access/metrics.json
 docker compose run --rm pipeline uv run --no-sync python -m app.cli publish-metrics
 ```
 

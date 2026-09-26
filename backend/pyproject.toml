@@ -19,7 +19,8 @@ dependencies = [
 # shap — вклады признаков для explain() плагинов, тот же процесс их считает.
 ml = ["scikit-learn>=1.5", "lightgbm>=4.5", "shap>=0.46"]
 # Набор ingest. Разовый разбор выгрузок. В проде не установлен.
-ingest = ["openpyxl>=3.1"]
+# duckdb читает журнал выгрузки в 15,9 ГБ за минуты: загрузчик `app/ingest/dataset.py`.
+ingest = ["openpyxl>=3.1", "duckdb>=1.1"]
 # Набор mlflow. Реестр версий моделей. Отдельный сервис.
 # psycopg тут свой: образ mlflow ставится без зависимостей проекта.
 mlflow = ["mlflow>=2.17", "psycopg[binary]>=3.2"]

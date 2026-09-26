@@ -26,34 +26,34 @@ beforeEach(() => {
 })
 
 describe('тема интерфейса', () => {
-  it('по умолчанию тёмная — основной режим продукта', () => {
+  it('по умолчанию светлая — основной режим продукта', () => {
     expect(currentTheme()).toBe(DEFAULT_THEME)
-    expect(DEFAULT_THEME).toBe('dark')
+    expect(DEFAULT_THEME).toBe('light')
   })
 
   it('читает тему, уже проставленную скриптом из index.html', () => {
-    document.documentElement.dataset['theme'] = 'light'
-    expect(currentTheme()).toBe('light')
+    document.documentElement.dataset['theme'] = 'dark'
+    expect(currentTheme()).toBe('dark')
   })
 
-  it('игнорирует мусор в хранилище и откатывается к тёмной', () => {
+  it('игнорирует мусор в хранилище и откатывается к светлой', () => {
     localStorage.setItem(THEME_STORAGE_KEY, 'неоновая')
-    expect(currentTheme()).toBe('dark')
+    expect(currentTheme()).toBe('light')
   })
 
   it('нажатие переключает тему и запоминает выбор', async () => {
     const user = userEvent.setup()
     render(<Probe label="рельс" />)
 
-    expect(screen.getByRole('button')).toHaveTextContent('рельс: dark')
+    expect(screen.getByRole('button')).toHaveTextContent('рельс: light')
 
     await user.click(screen.getByRole('button'))
 
     await waitFor(() => {
-      expect(document.documentElement.dataset['theme']).toBe('light')
+      expect(document.documentElement.dataset['theme']).toBe('dark')
     })
-    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
-    expect(screen.getByRole('button')).toHaveTextContent('рельс: light')
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
+    expect(screen.getByRole('button')).toHaveTextContent('рельс: dark')
   })
 
   it('возвращает обратно повторным нажатием', async () => {
@@ -61,11 +61,11 @@ describe('тема интерфейса', () => {
     render(<Probe label="рельс" />)
 
     await user.click(screen.getByRole('button'))
-    await waitFor(() => expect(currentTheme()).toBe('light'))
+    await waitFor(() => expect(currentTheme()).toBe('dark'))
     await user.click(screen.getByRole('button'))
 
-    await waitFor(() => expect(currentTheme()).toBe('dark'))
-    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
+    await waitFor(() => expect(currentTheme()).toBe('light'))
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
   })
 
   it('о смене узнают все потребители, а не только тот, кто переключил', async () => {
@@ -77,12 +77,12 @@ describe('тема интерфейса', () => {
       </>,
     )
 
-    await user.click(screen.getByText(/рельс: dark/))
+    await user.click(screen.getByText(/рельс: light/))
 
     // Карта не получала пропсов и не подписана на рельс: обе кнопки следят
     // за самим атрибутом. Именно на этом держится перекраска слоёв MapLibre.
     await waitFor(() => {
-      expect(screen.getByText(/карта: light/)).toBeInTheDocument()
+      expect(screen.getByText(/карта: dark/)).toBeInTheDocument()
     })
   })
 
@@ -91,8 +91,8 @@ describe('тема интерфейса', () => {
       throw new Error('доступ к хранилищу запрещён')
     })
 
-    expect(() => applyTheme('light')).not.toThrow()
-    expect(document.documentElement.dataset['theme']).toBe('light')
+    expect(() => applyTheme('dark')).not.toThrow()
+    expect(document.documentElement.dataset['theme']).toBe('dark')
 
     setItem.mockRestore()
   })
