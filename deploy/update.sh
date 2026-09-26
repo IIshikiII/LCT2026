@@ -136,6 +136,7 @@ if [ "$DEPLOY_BACKEND" = yes ] && [ "$FRONT_ONLY" != yes ]; then
     backend_up
     backend_migrate
     backend_seed
+    backend_stream
     [ "$DO_RESET" != yes ] || backend_reset
 elif [ "$DO_RESET" = yes ] || [ "$RESEED" = yes ]; then
     warn "--reset и --reseed без бэкенда ничего не значат: сеять и сбрасывать нечего."

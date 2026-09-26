@@ -82,6 +82,13 @@ ensure_backend_env() {
     # Пусто значит реестр MLflow не поднят и модель читается файлом. Без этой
     # строки compose подставит адрес несуществующей службы.
     set_env_line "$env_file" MLFLOW_TRACKING_URI ""
+    set_env_line "$env_file" DEMO_LEVELS "${DEMO_LEVELS:-}"
+    # Ключ потока СМВУ создаётся один раз, как ключ подписи: заглушка и API
+    # читают его из одного файла. ADR 0017.
+    if [ -z "$(read_env "$env_file" STREAM_TOKEN)" ]; then
+        set_env_line "$env_file" STREAM_TOKEN "$(openssl rand -hex 24)"
+        echo "    ключ потока СМВУ создан"
+    fi
 }
 
 read_env() {
@@ -183,8 +190,20 @@ backend_migrate() {
 # RESEED=yes сносит прежнюю синтетику и сеет заново. Это нужно, когда меняется
 # сама раскладка данных, а не их количество: обычный посев вставляет с
 # `on_conflict_do_nothing` и старые строки оставляет как есть.
+# Настоящая выгрузка лежит в базе, если загрузчик записал своё состояние.
+# Посев синтетики её стёр бы, поэтому при ней он пропускается. ADR 0017.
+has_dataset() {
+    [ "$(dc exec -T db psql -U "${POSTGRES_USER:-arm}" -d "${POSTGRES_DB:-arm}" -tAc \
+        "SELECT count(*) FROM ingest_state WHERE key = 'dataset'" 2>/dev/null \
+        | tr -d '[:space:]')" = 1 ]
+}
+
 backend_seed() {
     local fresh=""
+    if has_dataset && [ "${RESEED:-no}" != yes ]; then
+        echo "    в базе настоящая выгрузка, посев синтетики пропущен"
+        return 0
+    fi
 
     if [ "${RESEED:-no}" = yes ]; then
         warn "Пересев: прежние объекты, прогнозы и заявки будут сняты."
@@ -211,6 +230,17 @@ prediction_count() {
 
 # Возвращает демонстрационные данные в исходное состояние. Прогнозы снова
 # новые, следы работы диспетчеров и бригад сняты.
+# Конвейер раз в минуту и заглушка СМВУ. Им нужен отрезок потока, который
+# кладёт `deploy/push-data.sh` или команда `ingest`. ADR 0017.
+backend_stream() {
+    if [ ! -f "$COMPOSE_DIR/data/stream/slice.json" ]; then
+        warn "Нет backend/data/stream/slice.json — поток СМВУ и расписание не подняты."
+        return 0
+    fi
+    log "Поднимаю конвейер по расписанию и заглушку СМВУ"
+    dc --profile stream up -d --build scheduler smvu-stub
+}
+
 backend_reset() {
     log "Возвращаю демонстрационные данные в исходное состояние"
     dc run --rm pipeline uv run --no-sync python -m app.cli reset-demo
