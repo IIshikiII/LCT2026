@@ -220,11 +220,12 @@ nginx с сертификатом Let's Encrypt. Путь `/api/v1` прокси
 - **[INSIGHTS.md](INSIGHTS.md)** — всё, что известно о задаче и данных:
   ТЗ в числах, разбор выгрузки, ответы заказчика, замеры моделей, решения,
   ограничения.
-- **[TODO.md](TODO.md)** — открытые задачи.
+- **TODO по направлениям работы** — [frontend/TODO.md](frontend/TODO.md), [backend/TODO.md](backend/TODO.md), [ml/TODO.md](ml/TODO.md), [ml/access/TODO.md](ml/access/TODO.md), [ml/flood/TODO.md](ml/flood/TODO.md), [ml/fire/TODO.md](ml/fire/TODO.md).
 - **[ARM-ODS-backend-spec.md](ARM-ODS-backend-spec.md)** — спецификация сервера.
 - **[docs/customer/](docs/customer/)** — разбор ответов заказчика и доклада о СМВУ.
-- **[raw_task/8. ДЖКХ.pdf](raw_task/)** — ТЗ,
+- **[raw_task/8. ДЖКХ.pdf](raw_task/)** — ТЗ, его текст в [raw_task/tz-8-zhkh.md](raw_task/tz-8-zhkh.md),
   [raw_task/Initial_Task.md](raw_task/Initial_Task.md) — краткая постановка.
+- **[defense-notes.md](defense-notes.md)** — формулировки для защиты и презентации.
 - **[CLAUDE.md](CLAUDE.md)** — правила работы с репозиторием.
 
 ## Главное архитектурное решение
