@@ -48,22 +48,29 @@ scp -q "$DUMP" "$HOST:/tmp/arm-data.dump"
 scp -q "$ROOT/backend/data/stream/"* "$HOST:$REMOTE_REPO/backend/data/stream/"
 
 log "Заменяю данные на сервере"
-ssh "$HOST" bash -s <<REMOTE
+# Скрипт уходит на сервер файлом, а не через ввод ssh: `docker compose exec -T`
+# читает ввод и съел бы остаток скрипта.
+REMOTE_SCRIPT=$(mktemp -t arm-restore-XXXXXX.sh)
+trap 'rm -f "$DUMP" "$REMOTE_SCRIPT"' EXIT
+cat >"$REMOTE_SCRIPT" <<REMOTE
 set -euo pipefail
 cd "$REMOTE_REPO/backend"
-sudo docker compose --profile stream stop scheduler smvu-stub 2>/dev/null || true
+sudo docker compose --profile stream stop scheduler smvu-stub </dev/null 2>/dev/null || true
 sudo docker compose exec -T db psql -U arm -d arm -v ON_ERROR_STOP=1 -c \
   "TRUNCATE action_log, work_order, prediction, flood_water_day, alarm_event,
    sensor_reading, maintenance_window, sensor, facility, collector, weather_hourly,
-   ingest_state RESTART IDENTITY CASCADE"
+   ingest_state RESTART IDENTITY CASCADE" </dev/null
 sudo docker compose exec -T db pg_restore -U arm -d arm --data-only --disable-triggers \
   </tmp/arm-data.dump
-sudo docker compose exec -T db psql -U arm -d arm -v ON_ERROR_STOP=1 -c \
+sudo docker compose exec -T db psql -U arm -d arm -v ON_ERROR_STOP=1 -At -c \
   "SELECT setval(pg_get_serial_sequence('alarm_event', 'id'), coalesce(max(id), 1)) FROM alarm_event;
    SELECT setval(pg_get_serial_sequence('sensor_reading', 'id'), coalesce(max(id), 1)) FROM sensor_reading;
-   SELECT setval(pg_get_serial_sequence('maintenance_window', 'id'), coalesce(max(id), 1)) FROM maintenance_window;"
+   SELECT setval(pg_get_serial_sequence('maintenance_window', 'id'), coalesce(max(id), 1)) FROM maintenance_window;
+   SELECT 'событий: ' || count(*) FROM alarm_event;" </dev/null
 rm -f /tmp/arm-data.dump
-sudo docker compose --profile stream up -d --build scheduler smvu-stub
+sudo docker compose --profile stream up -d --build scheduler smvu-stub </dev/null
 REMOTE
+scp -q "$REMOTE_SCRIPT" "$HOST:/tmp/arm-restore.sh"
+ssh "$HOST" "bash /tmp/arm-restore.sh; status=\$?; rm -f /tmp/arm-restore.sh; exit \$status"
 
 log "Готово: данные на сервере, поток и расписание подняты"
