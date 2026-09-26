@@ -39,14 +39,20 @@ EARLY_STOPPING = 100
 
 # Ранняя остановка идёт по logloss. Средняя точность на редком классе шумит, и
 # остановка по ней оставляла от 7 до 155 деревьев в зависимости от семени.
+#
+# Семь параметров подобраны через Optuna, `tune.py`, проба 54 из 60. На шести
+# отрезках и трёх семенах PR-AUC вырос с 0,0782 до 0,0838, прирост 0,0055 при
+# стандартной ошибке разности по парам 0,0013. Замер лежит в `out/tune.json`.
 PARAMS = {
     "objective": "binary",
     "metric": "binary_logloss",
-    "learning_rate": 0.05,
-    "num_leaves": 31,
-    "min_data_in_leaf": 200,
-    "feature_fraction": 0.8,
-    "bagging_fraction": 0.8,
+    "learning_rate": 0.010758195362439845,
+    "num_leaves": 24,
+    "min_data_in_leaf": 903,
+    "feature_fraction": 0.5755094375147003,
+    "bagging_fraction": 0.5226020985525434,
+    "lambda_l2": 0.0029062343151906264,
+    "scale_pos_weight": 1.921363729703176,
     "bagging_freq": 1,
     "verbose": -1,
     "seed": SEED,
@@ -80,9 +86,10 @@ def load(path: pathlib.Path = PANEL) -> Panel:
     rel = f"read_parquet('{path.as_posix()}')"
     names = [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM {rel}").fetchall()]
     columns = [c for c in names if c not in NOT_FEATURES]
+    # Скользящая панель держит несколько строк на сутки: порядок задаёт `as_of`.
     frame = con.execute(
         f"SELECT {', '.join(columns)}, label, naive, day FROM {rel} "
-        f"ORDER BY object_id, gallery, section, day"
+        f"ORDER BY object_id, gallery, section, day, as_of"
     ).df()
     return Panel(
         x=frame[columns].to_numpy(dtype=np.float32),
