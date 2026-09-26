@@ -34,7 +34,7 @@ import pandas as pd
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-sys.path.insert(0, str(HERE.parents[0] / "access"))
+sys.path.insert(0, str(HERE.parents[0] / "common"))
 
 import calendar_ru
 

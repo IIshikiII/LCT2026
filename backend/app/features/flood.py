@@ -479,7 +479,7 @@ def _cal(at: datetime) -> dict[str, float]:
         "season": float((day.month % 12) // 3),
         "month": float(day.month),
         "day_of_year": float(day.timetuple().tm_yday),
-        # Понедельник это ноль, как в `ml/access/calendar_ru.py::build_calendar`.
+        # Понедельник это ноль, как в `ml/common/calendar_ru.py::build_calendar`.
         "day_of_week": float(day.weekday()),
         "is_day_off": float(is_day_off(day)),
         "is_holiday": float(is_holiday(day)),

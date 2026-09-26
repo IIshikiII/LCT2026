@@ -14,7 +14,7 @@
   сигнал продолжается накануне или назавтра, пик по часам суток.
 
 Рабочее окно: будни, кроме праздников, с 8:00 до 16:00. Праздники берутся из
-`ml/access/calendar_ru.py`.
+`ml/common/calendar_ru.py`.
 
 Выход: `out/hypotheses.json`.
 """
@@ -26,7 +26,7 @@ import sys
 import duckdb
 
 HERE = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parents[0] / "access"))
+sys.path.insert(0, str(HERE.parents[0] / "common"))
 
 import calendar_ru
 

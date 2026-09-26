@@ -8,7 +8,7 @@
 - В. Б и «Работают все насосы в АНС» у канала «Состояние насоса».
 
 Для каждой версии скрипт считает базу и наивную планку на часовой и суточной
-сетке (`ml/access/target_stats.py` без правок), долю событий по значению,
+сетке (`ml/sensor/target_stats.py` без правок), долю событий по значению,
 распределение по месяцам года и базу по отрезкам разбиения.
 
 Версия В проходит отдельную проверку. «Работают все насосы» может означать
@@ -23,8 +23,8 @@ import sys
 
 import duckdb
 
-ACCESS = pathlib.Path(__file__).resolve().parents[1] / "access"
-sys.path.insert(0, str(ACCESS))
+SENSOR = pathlib.Path(__file__).resolve().parents[1] / "sensor"
+sys.path.insert(0, str(SENSOR))
 
 # Импорт идёт после правки пути: модуль лежит у соседнего направления.
 import target_stats

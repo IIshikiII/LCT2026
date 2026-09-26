@@ -1,13 +1,13 @@
 """Панель подтопления не смотрит в будущее.
 
-Правило то же, что у доступа (`ml/access/test_daily_panel.py`): события и
+Правило то же, что у доступа (`ml/access/test_panel.py`): события и
 работа насосов в час расчёта и позже не имеют права изменить ни один признак.
 Проверка идёт на всех трёх уровнях сразу: единица, соседняя единица того же
 объекта с насосом без пикета, соседний объект того же комплекса.
 
 Запуск из корня репозитория:
 
-    .venv\\Scripts\\python.exe -m pytest ml/flood/test_panel.py -q
+    .venv\\Scripts\\python.exe -m pytest ml/flood/test_flood_panel.py -q
 """
 
 from __future__ import annotations

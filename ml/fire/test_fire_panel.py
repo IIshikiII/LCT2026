@@ -1,6 +1,6 @@
 """Панель пожарного риска не смотрит в будущее.
 
-Правило то же, что у подтопления (`ml/flood/test_panel.py`): сигналы, числа
+Правило то же, что у подтопления (`ml/flood/test_flood_panel.py`): сигналы, числа
 датчиков и погода в сутки расчёта и позже не имеют права изменить ни один
 признак. Проверка идёт на трёх уровнях: пикет, соседний пикет того же объекта,
 газовый объект того же комплекса.
@@ -23,7 +23,7 @@ import pytest
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(HERE.parents[0] / "access"))
+sys.path.insert(0, str(HERE.parents[0] / "common"))
 
 import calendar_ru
 

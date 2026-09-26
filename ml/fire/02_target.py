@@ -30,7 +30,7 @@ OUT = HERE / "out"
 HOURLY = OUT / "fire_hourly.parquet"
 UNITS = OUT / "fire_units.parquet"
 RESULT = OUT / "target_stats.json"
-sys.path.insert(0, str(HERE.parents[0] / "access"))
+sys.path.insert(0, str(HERE.parents[0] / "common"))
 
 import calendar_ru
 

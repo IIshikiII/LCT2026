@@ -53,7 +53,7 @@ import time
 import duckdb
 
 HERE = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parents[0] / "access"))
+sys.path.insert(0, str(HERE.parents[0] / "common"))
 
 import calendar_ru
 

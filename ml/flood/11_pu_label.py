@@ -34,7 +34,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 RAW_EVENTS = ROOT / "eda" / "out" / "events.parquet"
 CHANNELS = ROOT / "notebooks" / "out" / "channel_features.parquet"
-sys.path.insert(0, str(HERE.parents[0] / "access"))
+sys.path.insert(0, str(HERE.parents[0] / "common"))
 
 import calendar_ru
 
