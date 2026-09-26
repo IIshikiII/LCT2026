@@ -41,6 +41,8 @@ from app.ml.protocol import (
     Predictor,
     applies,
     level_bands,
+    own_level,
+    own_summary,
     prepare,
 )
 from app.ml.registry import get as get_predictor
@@ -81,6 +83,8 @@ class Computed:
     probability: float
     blocks: list[Block]
     compute_ms: int
+    level: str | None = None
+    summary: str | None = None
 
 
 def _compute(conn: Connection, predictor: Predictor, facility_id: str, at: datetime) -> Computed:
@@ -95,6 +99,8 @@ def _compute(conn: Connection, predictor: Predictor, facility_id: str, at: datet
         probability=probability,
         blocks=blocks,
         compute_ms=int((time.monotonic() - started) * 1000),
+        level=own_level(predictor, features, probability),
+        summary=own_summary(predictor, features, probability),
     )
 
 
@@ -124,13 +130,13 @@ def _write_prediction(
             direction=direction.code,
             facility_id=item.facility_id,
             probability=item.probability,
-            level=level_for(item.probability, direction, bands),
+            level=item.level or level_for(item.probability, direction, bands),
             horizon_hours=direction.min_horizon_hours,
             computed_at=at,
             computed_at_bucket=at,
             compute_ms=item.compute_ms,
             status=STATUS_NEW,
-            summary=_summary(direction, item.probability),
+            summary=item.summary or _summary(direction, item.probability),
             blocks=[block.as_dict() for block in item.blocks],
             features=_stored(item.features),
             model_version=DEFAULT_MODEL_VERSION,

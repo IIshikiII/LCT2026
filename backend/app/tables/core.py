@@ -49,6 +49,9 @@ collector = Table(
     Column("district", Text),
     # Ломаная как массив пар [lon, lat]. Порядок тот же, что в GeoJSON.
     Column("line", JSONB, nullable=False),
+    # Конец пусконаладки системы объекта. До этой даты правила пожара
+    # понижают уровень на ступень. ADR 0016.
+    Column("commissioning_until", Date),
 )
 
 sensor = Table(
@@ -285,4 +288,15 @@ schema_migration = Table(
     Column("version", Text, primary_key=True),
     Column("filename", Text, nullable=False),
     _ts("applied_at", nullable=False),
+)
+
+maintenance_window = Table(
+    "maintenance_window",
+    metadata,
+    Column("id", BigInteger, primary_key=True),
+    Column("collector", Text, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("starts_on", Date, nullable=False),
+    Column("ends_on", Date, nullable=False),
+    Column("source", Text, nullable=False),
 )

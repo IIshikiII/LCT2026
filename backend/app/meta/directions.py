@@ -38,6 +38,11 @@ class Direction:
     # Сколько отклонение держит объект от новых заявок того же уровня.
     reject_cooldown_hours: int = 168
     enabled_by_default: bool = True
+    # Направление без измеренной точности называет себя здесь. Ручка
+    # `/metrics/models` отдаёт строку с этим пояснением вместо чисел, и
+    # дашборд говорит «не измерена», а не молчит. ADR 0016.
+    quality_note: str = ""
+    quality_method: str = "offline_holdout"
 
     @property
     def reasons_ref(self) -> str:
@@ -78,6 +83,8 @@ FIRE_RISK = Direction(
         Reason("CABLE_OVERHEAT", "Перегрев кабельной линии"),
         Reason("VENTILATION", "Недостаточная вентиляция участка"),
         Reason("DEBRIS", "Горючий мусор в камере"),
+        Reason("DETECTOR_DIRTY", "Извещатель загрязнён или отсырел"),
+        Reason("COMMISSIONING", "Пусконаладка системы"),
         Reason("FALSE_POSITIVE", "Ложное срабатывание, риска не было"),
         Reason("NO_DEFECT", "Дефект не подтверждён"),
     ),
@@ -86,7 +93,15 @@ FIRE_RISK = Direction(
         "Тепловизионное обследование",
         "Проверка вентиляции",
         "Уборка горючих материалов",
+        "Осмотр и чистка извещателя",
     ),
+    # Уровень ставят экспертные правила напрямую (хук `level` плагина), а не
+    # пороги по вероятности. Модели нет, ADR 0015 и ADR 0016.
+    quality_note=(
+        "Экспертные правила. Точность не измерена: подтверждённых пожаров в "
+        "выгрузке нет. Её посчитают отметки бригад при закрытии заявок."
+    ),
+    quality_method="expert_rules",
 )
 
 UNAUTHORIZED_ACCESS = Direction(

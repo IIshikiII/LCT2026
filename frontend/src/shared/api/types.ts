@@ -195,13 +195,18 @@ export interface WorkOrder {
 
 export interface ModelMetric {
   direction: string
-  precision: number
-  recall: number
+  /** пусто, когда точность не измерена: тогда есть `note` */
+  precision?: number
+  recall?: number
   /** цель по ТЗ: 0.7 */
   targetPrecision: number
   /** цель по ТЗ: 0.5 */
   targetRecall: number
   evaluatedAt: string
+  /** способ работы направления: `offline_holdout`, `expert_rules` */
+  method?: string
+  /** почему точность не измерена, человеческим языком */
+  note?: string
 }
 
 /** Состояние конвейера расчёта — доказательство метрик «< 5 мин» и «>= 24 ч». */

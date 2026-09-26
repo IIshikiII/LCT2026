@@ -116,12 +116,21 @@ class WorkOrder(Dto):
 
 
 class ModelMetric(Dto):
+    """Качество направления.
+
+    Пустые `precision` и `recall` значат «точность не измерена». Поле `note`
+    тогда говорит почему, а `method` называет способ работы направления:
+    `offline_holdout` у модели, `expert_rules` у экспертных правил (ADR 0016).
+    """
+
     direction: str
-    precision: float
-    recall: float
+    precision: float | None = None
+    recall: float | None = None
     target_precision: float
     target_recall: float
     evaluated_at: str
+    method: str | None = None
+    note: str | None = None
 
 
 class PipelineHealth(Dto):

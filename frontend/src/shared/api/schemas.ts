@@ -157,13 +157,19 @@ export const WorkOrderSchema = dto({
   outcome: opt(WorkOrderOutcomeSchema),
 })
 
+/**
+ * Пустые `precision` и `recall` значат «точность не измерена». Тогда `note`
+ * говорит почему, а `method` называет способ работы направления.
+ */
 export const ModelMetricSchema = dto({
   direction: z.string(),
-  precision: z.number(),
-  recall: z.number(),
+  precision: opt(z.number()),
+  recall: opt(z.number()),
   targetPrecision: z.number(),
   targetRecall: z.number(),
   evaluatedAt: z.string(),
+  method: opt(z.string()),
+  note: opt(z.string()),
 })
 
 export const PipelineHealthSchema = dto({

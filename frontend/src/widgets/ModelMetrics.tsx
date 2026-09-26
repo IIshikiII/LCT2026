@@ -8,6 +8,10 @@
  *
  * Цели приходят с бэкенда (`targetPrecision`, `targetRecall`) — фронт их не
  * хардкодит: поменяется ТЗ, поменяется и порог, без пересборки.
+ *
+ * Строка без чисел значит «точность не измерена». Пояснение приходит полем
+ * `note`, виджет показывает его как есть: молчание о направлении читалось бы
+ * как пропуск, а ноль — как провал.
  */
 import { useMeta, useModelMetrics } from '@/shared/api/queries'
 import type { ModelMetric } from '@/shared/api/types'
@@ -16,7 +20,25 @@ import { directionLabel } from '@/shared/lib/risk'
 import { Panel } from '@/shared/ui/Panel'
 import { ErrorState, Skeleton } from '@/shared/ui/states'
 
-function ScoreCell({ value, target, label }: { value: number; target: number; label: string }) {
+function ScoreCell({
+  value,
+  target,
+  label,
+}: {
+  value: number | undefined
+  target: number
+  label: string
+}) {
+  if (value === undefined) {
+    return (
+      <span className="flex flex-col items-end leading-tight">
+        <span className="text-[12px] text-text-dim" title={`${label} не измерена`}>
+          не измерена
+        </span>
+        <span className="text-[11px] text-text-mute">цель {fmtScore(target)}</span>
+      </span>
+    )
+  }
   const ok = value >= target
   return (
     <span className="flex flex-col items-end leading-tight">
@@ -43,6 +65,9 @@ function MetricRow({ metric }: { metric: ModelMetric }) {
       </span>
       <ScoreCell value={metric.precision} target={metric.targetPrecision} label="Precision" />
       <ScoreCell value={metric.recall} target={metric.targetRecall} label="Recall" />
+      {metric.note ? (
+        <span className="col-span-3 text-[11px] leading-snug text-text-mute">{metric.note}</span>
+      ) : null}
     </li>
   )
 }
