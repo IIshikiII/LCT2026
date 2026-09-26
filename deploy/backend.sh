@@ -9,8 +9,8 @@
 #   1. Docker ставится из репозиториев Ubuntu, без сторонних источников.
 #   2. backend/.env собирается один раз и переживает выкладки: в нём лежит
 #      ключ подписи токенов, и перегенерация ключа снимала бы все сессии.
-#   3. Обученная модель переносится из ml/access/out в ARTIFACTS_DIR, откуда
-#      её читает плагин направления.
+#   3. Обученные модели переносятся из ml/access/out и ml/flood/out в
+#      ARTIFACTS_DIR, откуда их читают плагины направлений.
 #   4. Поднимаются две службы: db и api. Реестр MLflow на стенде не нужен,
 #      модель берётся файлом.
 #   5. Миграции, посев, публикация замера, прогон конвейера.
@@ -23,6 +23,10 @@ COMPOSE_DIR="$REPO/backend"
 # Куда плагин направления «несанкционированный доступ» ходит за моделью.
 MODEL_SOURCE="$REPO/ml/access/out"
 MODEL_TARGET="$COMPOSE_DIR/artifacts/unauthorized_access"
+
+# То же для направления «риск подтопления» (ADR 0009).
+FLOOD_SOURCE="$REPO/ml/flood/out"
+FLOOD_TARGET="$COMPOSE_DIR/artifacts/flood_risk"
 
 # Короткое имя для docker compose. Вызывается из каталога backend.
 dc() { (cd "$COMPOSE_DIR" && sudo docker compose "$@"); }
@@ -121,6 +125,24 @@ publish_model() {
     else
         rm -f "$MODEL_TARGET/calibration.joblib"
         echo "    модель на месте, калибратора нет — шкала сырая"
+    fi
+
+    if [ ! -f "$FLOOD_SOURCE/model.joblib" ]; then
+        warn "Нет $FLOOD_SOURCE/model.joblib — направление подтопления останется без модели."
+        return 0
+    fi
+    log "Публикую модель направления «риск подтопления»"
+    mkdir -p "$FLOOD_TARGET"
+    cp "$FLOOD_SOURCE/model.joblib" "$FLOOD_TARGET/latest.joblib"
+    cp "$FLOOD_SOURCE/metrics.json" "$FLOOD_TARGET/metrics.json"
+    # Классификатор воды размечает сутки «вода или проверка» (ADR 0013). Без
+    # него водой считается только сигнал ночью или в нерабочий день.
+    if [ -f "$FLOOD_SOURCE/pu_classifier.joblib" ]; then
+        cp "$FLOOD_SOURCE/pu_classifier.joblib" "$FLOOD_TARGET/pu_classifier.joblib"
+        echo "    модель и классификатор воды на месте, шкала сырая"
+    else
+        rm -f "$FLOOD_TARGET/pu_classifier.joblib"
+        warn "Нет $FLOOD_SOURCE/pu_classifier.joblib — вода размечается только по времени."
     fi
 }
 

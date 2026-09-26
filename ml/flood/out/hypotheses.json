@@ -1,0 +1,215 @@
+{
+  "wet_day_share": 0.247,
+  "criteria": [
+    {
+      "criterion": "C0_все_сигналы",
+      "positive_unit_days": 4669,
+      "positive_unit_days_train": 3862,
+      "top_object_share": 0.142,
+      "workday_to_day_off_rate": 2.477,
+      "weather_lift": 1.201,
+      "event_rate_wet_pct": 3.109,
+      "event_rate_dry_pct": 2.588,
+      "pump_minutes_vs_normal": 1.58,
+      "adjacent_day_share": 0.31,
+      "share_of_hours_in_8_16": 0.672,
+      "passes": {
+        "volume": true,
+        "no_work_week": false,
+        "weather": true
+      },
+      "passes_all": false
+    },
+    {
+      "criterion": "C1_вне_рабочего_окна",
+      "positive_unit_days": 1871,
+      "positive_unit_days_train": 1474,
+      "top_object_share": 0.19,
+      "workday_to_day_off_rate": 1.038,
+      "weather_lift": 1.496,
+      "event_rate_wet_pct": 1.449,
+      "event_rate_dry_pct": 0.968,
+      "pump_minutes_vs_normal": 2.06,
+      "adjacent_day_share": 0.417,
+      "share_of_hours_in_8_16": 0.161,
+      "passes": {
+        "volume": true,
+        "no_work_week": true,
+        "weather": true
+      },
+      "passes_all": true
+    },
+    {
+      "criterion": "C2_без_коротких_разовых",
+      "positive_unit_days": 2934,
+      "positive_unit_days_train": 2375,
+      "top_object_share": 0.146,
+      "workday_to_day_off_rate": 1.735,
+      "weather_lift": 1.319,
+      "event_rate_wet_pct": 2.086,
+      "event_rate_dry_pct": 1.582,
+      "pump_minutes_vs_normal": 1.92,
+      "adjacent_day_share": 0.494,
+      "share_of_hours_in_8_16": 0.56,
+      "passes": {
+        "volume": true,
+        "no_work_week": false,
+        "weather": true
+      },
+      "passes_all": false
+    },
+    {
+      "criterion": "C3_дольше_часа",
+      "positive_unit_days": 1190,
+      "positive_unit_days_train": 961,
+      "top_object_share": 0.155,
+      "workday_to_day_off_rate": 2.505,
+      "weather_lift": 1.314,
+      "event_rate_wet_pct": 0.844,
+      "event_rate_dry_pct": 0.642,
+      "pump_minutes_vs_normal": 2.8,
+      "adjacent_day_share": 0.515,
+      "share_of_hours_in_8_16": 0.652,
+      "passes": {
+        "volume": false,
+        "no_work_week": false,
+        "weather": true
+      },
+      "passes_all": false
+    },
+    {
+      "criterion": "C4_несколько_суток_подряд",
+      "positive_unit_days": 1449,
+      "positive_unit_days_train": 1124,
+      "top_object_share": 0.2,
+      "workday_to_day_off_rate": 1.909,
+      "weather_lift": 1.424,
+      "event_rate_wet_pct": 1.085,
+      "event_rate_dry_pct": 0.762,
+      "pump_minutes_vs_normal": 2.67,
+      "adjacent_day_share": 1.0,
+      "share_of_hours_in_8_16": 0.569,
+      "passes": {
+        "volume": true,
+        "no_work_week": false,
+        "weather": true
+      },
+      "passes_all": false
+    },
+    {
+      "criterion": "C5_вне_окна_или_долгое_днём",
+      "positive_unit_days": 2627,
+      "positive_unit_days_train": 2097,
+      "top_object_share": 0.156,
+      "workday_to_day_off_rate": 1.455,
+      "weather_lift": 1.366,
+      "event_rate_wet_pct": 1.913,
+      "event_rate_dry_pct": 1.401,
+      "pump_minutes_vs_normal": 1.99,
+      "adjacent_day_share": 0.552,
+      "share_of_hours_in_8_16": 0.496,
+      "passes": {
+        "volume": true,
+        "no_work_week": true,
+        "weather": true
+      },
+      "passes_all": true
+    },
+    {
+      "criterion": "C6_подтверждено_другим_источником",
+      "positive_unit_days": 2654,
+      "positive_unit_days_train": 2196,
+      "top_object_share": 0.183,
+      "workday_to_day_off_rate": 2.697,
+      "weather_lift": 1.406,
+      "event_rate_wet_pct": 1.971,
+      "event_rate_dry_pct": 1.402,
+      "pump_minutes_vs_normal": 2.65,
+      "adjacent_day_share": 0.318,
+      "share_of_hours_in_8_16": 0.68,
+      "passes": {
+        "volume": true,
+        "no_work_week": false,
+        "weather": true
+      },
+      "passes_all": false
+    },
+    {
+      "criterion": "C7_вне_окна_или_подтверждено",
+      "positive_unit_days": 3520,
+      "positive_unit_days_train": 2866,
+      "top_object_share": 0.154,
+      "workday_to_day_off_rate": 1.771,
+      "weather_lift": 1.313,
+      "event_rate_wet_pct": 2.495,
+      "event_rate_dry_pct": 1.9,
+      "pump_minutes_vs_normal": 2.03,
+      "adjacent_day_share": 0.329,
+      "share_of_hours_in_8_16": 0.567,
+      "passes": {
+        "volume": true,
+        "no_work_week": false,
+        "weather": true
+      },
+      "passes_all": false
+    },
+    {
+      "criterion": "C8_вне_окна_и_дольше_часа",
+      "positive_unit_days": 963,
+      "positive_unit_days_train": 723,
+      "top_object_share": 0.255,
+      "workday_to_day_off_rate": 1.099,
+      "weather_lift": 1.645,
+      "event_rate_wet_pct": 0.793,
+      "event_rate_dry_pct": 0.482,
+      "pump_minutes_vs_normal": 3.12,
+      "adjacent_day_share": 0.811,
+      "share_of_hours_in_8_16": 0.15,
+      "passes": {
+        "volume": false,
+        "no_work_week": true,
+        "weather": true
+      },
+      "passes_all": false
+    },
+    {
+      "criterion": "C9_только_ночь",
+      "positive_unit_days": 816,
+      "positive_unit_days_train": 628,
+      "top_object_share": 0.23,
+      "workday_to_day_off_rate": 1.079,
+      "weather_lift": 1.54,
+      "event_rate_wet_pct": 0.644,
+      "event_rate_dry_pct": 0.418,
+      "pump_minutes_vs_normal": 2.48,
+      "adjacent_day_share": 0.506,
+      "share_of_hours_in_8_16": 0.0,
+      "passes": {
+        "volume": false,
+        "no_work_week": true,
+        "weather": true
+      },
+      "passes_all": false
+    },
+    {
+      "criterion": "C10_вне_окна_насос_без_датчика",
+      "positive_unit_days": 1846,
+      "positive_unit_days_train": 1455,
+      "top_object_share": 0.192,
+      "workday_to_day_off_rate": 1.052,
+      "weather_lift": 1.509,
+      "event_rate_wet_pct": 1.437,
+      "event_rate_dry_pct": 0.953,
+      "pump_minutes_vs_normal": 2.06,
+      "adjacent_day_share": 0.422,
+      "share_of_hours_in_8_16": 0.159,
+      "passes": {
+        "volume": true,
+        "no_work_week": true,
+        "weather": true
+      },
+      "passes_all": true
+    }
+  ],
+  "chosen": "C1_вне_рабочего_окна"
+}

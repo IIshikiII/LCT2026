@@ -105,6 +105,7 @@ def level_exists(level: str) -> bool:
     """Есть ли такой уровень в справочнике. Проверка входа от диспетчера."""
     return any(item.code == level for item in RISK_LEVELS)
 
+
 DISTRICTS: tuple[District, ...] = (
     District("CAO", "Центральный"),
     District("SAO", "Северный"),
@@ -190,7 +191,11 @@ def mute_hours(reason: str | None, fallback: int) -> int:
     return REJECTION_MUTE_HOURS.get(reason, fallback)
 
 
-def level_for(probability: float, direction: Direction | None = None) -> str:
+def level_for(
+    probability: float,
+    direction: Direction | None = None,
+    bands: tuple[tuple[str, float], ...] | None = None,
+) -> str:
     """Отдаёт код уровня риска по вероятности.
 
     Направление названо и держит свои границы значит счёт идёт по ним.
@@ -199,8 +204,13 @@ def level_for(probability: float, direction: Direction | None = None) -> str:
     Границы направления стоят на той же шкале, что и `prediction.probability`.
     Направление с базой события ниже процента не достаёт до общих порогов ни
     одним прогнозом, и шкала уровней на нём сжимается в один уровень `LOW`.
+
+    Аргумент `bands` заменяет границы направления на один прогон. Так плагин
+    ставит границы, которые зависят от истории прогнозов: у подтопления HIGH
+    держит скользящий бюджет тревог (ADR 0013).
     """
-    bands = direction.level_thresholds if direction is not None else ()
+    if not bands:
+        bands = direction.level_thresholds if direction is not None else ()
     if not bands:
         bands = tuple((level.code, level.min_probability) for level in RISK_LEVELS)
 

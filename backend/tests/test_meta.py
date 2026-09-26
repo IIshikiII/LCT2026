@@ -102,7 +102,7 @@ def test_level_for_uses_the_direction_bands() -> None:
 
 def test_level_for_falls_back_to_the_common_bands() -> None:
     """Направление без своих границ работает как раньше. ADR 0004 пункт 3."""
-    for direction in (directions.SENSOR_FAILURE, directions.FIRE_RISK, directions.FLOOD_RISK):
+    for direction in (directions.SENSOR_FAILURE, directions.FIRE_RISK):
         assert direction.level_thresholds == ()
         for probability in (0.10, 0.30, 0.54, 0.55, 0.78, 1.00):
             assert catalog.level_for(probability, direction) == catalog.level_for(probability)

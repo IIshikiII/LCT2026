@@ -50,9 +50,10 @@ bash deploy/inspect.sh            # что сейчас на сервере
 через nginx. Фронт ходит на `/api/v1` того же адреса, поэтому CORS не
 участвует вовсе.
 
-Реестр MLflow на стенде не поднимается. Модель читается файлом из
-`backend/artifacts/unauthorized_access/`, куда её кладёт выкладка из
-`ml/access/out/daily_model.joblib`.
+Реестр MLflow на стенде не поднимается. Модели читаются файлами из
+`backend/artifacts/unauthorized_access/` и `backend/artifacts/flood_risk/`,
+куда их кладёт выкладка из `ml/access/out/daily_model.joblib` и
+`ml/flood/out/model.joblib`.
 
 ## Настройки
 

@@ -142,6 +142,22 @@ weather_hourly = Table(
     Column("temperature_c", Float),
     Column("humidity", Float),
     Column("precip_mm", Float),
+    Column("rain_mm", Float),
+    Column("snowfall_cm", Float),
+    Column("snow_depth_m", Float),
+)
+
+# Разметка суток пикета с сигналом затопления: вода или плановая проверка.
+# ADR 0012, ADR 0013.
+flood_water_day = Table(
+    "flood_water_day",
+    metadata,
+    Column("facility_id", Text, primary_key=True, nullable=False),
+    Column("day", Date, primary_key=True, nullable=False),
+    Column("is_water", Boolean, nullable=False),
+    Column("is_labelled", Boolean, nullable=False),
+    Column("p_water", Float),
+    _ts("labelled_at", nullable=False),
 )
 
 # direction, level и status — свободные строки. Ни Enum, ни CHECK со списком

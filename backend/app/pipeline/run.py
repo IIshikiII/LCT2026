@@ -10,6 +10,11 @@
 пропускает направление молча для всех объектов: модель отсутствует для
 направления целиком, а не для одного объекта, поэтому повторять попытку на
 каждом объекте бессмысленно.
+
+Прогон направления идёт в два прохода. Первый считает признаки, вероятность и
+объяснение на каждом объекте. Второй ставит уровни и пишет строки. Между ними
+плагин может назначить границы уровней по всему прогону сразу: у подтопления
+HIGH держит скользящий бюджет тревог (ADR 0013).
 """
 
 from __future__ import annotations
@@ -28,7 +33,16 @@ from app.domain import auto_orders
 from app.meta import active as active_directions
 from app.meta import level_for
 from app.meta.directions import Direction
-from app.ml.protocol import FeatureContext, Predictor
+from app.ml.protocol import (
+    Bands,
+    Block,
+    FeatureContext,
+    FeatureVector,
+    Predictor,
+    applies,
+    level_bands,
+    prepare,
+)
 from app.ml.registry import get as get_predictor
 from app.ml.registry import missing as missing_predictors
 from app.tables import facility, pipeline_run, prediction
@@ -54,53 +68,71 @@ def _facility_ids(conn: Connection) -> list[str]:
     return list(conn.execute(statement).scalars().all())
 
 
-def _storable(features: dict[str, float]) -> dict[str, float | None]:
-    """Вектор для `prediction.features`. JSONB не принимает NaN, а пустой
-    признак модель получает именно так. В базу он ложится как `null`."""
-    return {name: None if math.isnan(value) else value for name, value in features.items()}
-
-
 def _summary(direction: Direction, probability: float) -> str:
     return f"{direction.label}: вероятность {probability:.0%}"
 
 
-def _write_prediction(
-    conn: Connection,
-    predictor: Predictor,
-    direction: Direction,
-    facility_id: str,
-    at: datetime,
-    run_id: int,
-) -> bool:
-    """Строит и пишет один прогноз. Отдаёт False, если прогноз уже был.
+@dataclass(frozen=True)
+class Computed:
+    """Прогноз одного объекта после первого прохода, до записи."""
 
-    Идемпотентность даёт уникальный индекс на паре объекта, направления и
-    окна расчёта: `ON CONFLICT DO NOTHING` не плодит вторую строку при
-    повторном прогоне того же окна.
-    """
+    facility_id: str
+    features: FeatureVector
+    probability: float
+    blocks: list[Block]
+    compute_ms: int
+
+
+def _compute(conn: Connection, predictor: Predictor, facility_id: str, at: datetime) -> Computed:
     ctx = FeatureContext(conn=conn, facility_id=facility_id, at=at)
     started = time.monotonic()
     features = predictor.build_features(ctx)
     probability = predictor.predict(features)
     blocks = predictor.explain(features, at=at)
-    compute_ms = int((time.monotonic() - started) * 1000)
+    return Computed(
+        facility_id=facility_id,
+        features=features,
+        probability=probability,
+        blocks=blocks,
+        compute_ms=int((time.monotonic() - started) * 1000),
+    )
 
+
+def _stored(features: FeatureVector) -> dict[str, float | None]:
+    """Признаки для JSONB. Пропуск (NaN) хранится как null: JSONB не знает NaN."""
+    return {name: None if math.isnan(value) else value for name, value in features.items()}
+
+
+def _write_prediction(
+    conn: Connection,
+    direction: Direction,
+    item: Computed,
+    at: datetime,
+    run_id: int,
+    bands: Bands | None,
+) -> bool:
+    """Пишет один прогноз. Отдаёт False, если прогноз уже был.
+
+    Идемпотентность даёт уникальный индекс на паре объекта, направления и
+    окна расчёта: `ON CONFLICT DO NOTHING` не плодит вторую строку при
+    повторном прогоне того же окна.
+    """
     statement = (
         pg_insert(prediction)
         .values(
-            id=f"{direction.code}-{facility_id}-{int(at.timestamp())}",
+            id=f"{direction.code}-{item.facility_id}-{int(at.timestamp())}",
             direction=direction.code,
-            facility_id=facility_id,
-            probability=probability,
-            level=level_for(probability, direction),
+            facility_id=item.facility_id,
+            probability=item.probability,
+            level=level_for(item.probability, direction, bands),
             horizon_hours=direction.min_horizon_hours,
             computed_at=at,
             computed_at_bucket=at,
-            compute_ms=compute_ms,
+            compute_ms=item.compute_ms,
             status=STATUS_NEW,
-            summary=_summary(direction, probability),
-            blocks=[block.as_dict() for block in blocks],
-            features=_storable(features),
+            summary=_summary(direction, item.probability),
+            blocks=[block.as_dict() for block in item.blocks],
+            features=_stored(item.features),
             model_version=DEFAULT_MODEL_VERSION,
             run_id=run_id,
         )
@@ -136,19 +168,28 @@ def run(engine: Engine, at: datetime | None = None) -> RunResult:
                     continue
 
                 model_versions[direction.code] = DEFAULT_MODEL_VERSION
+                prepare(predictor, conn, at)
+                computed: list[Computed] = []
                 for facility_id in facility_ids:
+                    if not applies(predictor, conn, facility_id):
+                        continue
                     try:
-                        created = _write_prediction(
-                            conn, predictor, direction, facility_id, at, run_id
-                        )
+                        computed.append(_compute(conn, predictor, facility_id, at))
                     except RuntimeError as error:
                         log.warning(
                             "направление пропущено: модели нет",
                             extra={"direction": direction.code, "error": str(error)},
                         )
                         del model_versions[direction.code]
+                        computed = []
                         break
-                    if created:
+                if not computed:
+                    continue
+
+                fresh = {item.facility_id: (item.probability, item.features) for item in computed}
+                bands = level_bands(predictor, conn, at, fresh)
+                for item in computed:
+                    if _write_prediction(conn, direction, item, at, run_id, bands):
                         prediction_count += 1
 
             order_count = len(auto_orders.create_missing(conn, at))

@@ -65,6 +65,12 @@ docker compose run --rm pipeline uv run --no-sync python -m app.cli seed
    docker compose run --rm pipeline uv run --no-sync python -m app.cli run-pipeline
    ```
    Команда печатает итог вида `прогон 1: 40 прогнозов, 3 заявок, 3250 мс`.
+
+   Посев кладёт синтетическую погоду. Настоящую погоду Москвы для признаков
+   подтопления берёт команда ниже, ей нужна сеть (ADR 0013):
+   ```
+   docker compose run --rm pipeline uv run --no-sync python -m app.cli load-weather --days 14
+   ```
 5. Войдите и возьмите токен. Вход идёт двумя шагами, и первый вход записи
    заводит ключ второго фактора, поэтому код возьмите из ответа сервера:
    ```
