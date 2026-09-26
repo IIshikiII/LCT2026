@@ -39,6 +39,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from app.features import live_charts
 from app.features.flood import (
     LABEL_TYPES,
     SENSOR_FLOOD,
@@ -123,10 +124,7 @@ _MODEL_MISSING = (
     "прогнозов по направлению нет, пока модель не обучена"
 )
 _FACTOR_WEIGHT_FLOOR = 0.02
-_FACTOR_NOTE = (
-    "Полосы показывают силу и направление фактора, а не слагаемые "
-    "вероятности: вклады SHAP складываются в логарифме шансов, а не в ней."
-)
+_FACTOR_NOTE = "Полоса вправо повышает риск, влево снижает, длина показывает силу влияния."
 
 # Скользящий бюджет тревог (ADR 0013, `ml/flood/14_rolling_budget.py`).
 BUDGET_WINDOW_DAYS = 30
@@ -389,6 +387,10 @@ class FloodRisk:
             for probability, features in fresh.values()
         ]
         return budget_bands(history, today, FLOOD_RISK.level_thresholds)
+
+    def live_blocks(self, conn: Connection, facility_id: str, at: datetime) -> list[Block]:
+        """Работа насоса, сигналы и осадки из свежих данных. ADR 0018."""
+        return live_charts.flood_blocks(conn, facility_id, at)
 
     def applies(self, conn: Connection, facility_id: str) -> bool:
         """Отвечает, стоит ли на объекте насос или датчик затопления."""

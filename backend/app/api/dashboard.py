@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import Column, ColumnElement, func, select
 from sqlalchemy.engine import Connection
 
-from app.api.predictions import BASE, row_to_prediction
+from app.api.predictions import BASE, ordering, row_to_prediction
 from app.auth import scope
 from app.auth.deps import CurrentActor
 from app.db import get_conn
@@ -109,7 +109,7 @@ def top_risks(
     finished = [item.code for item in statuses_for(PREDICTION_SCOPE) if item.terminal]
     rows = conn.execute(
         scope.apply_joined(BASE.where(prediction.c.status.notin_(finished)), actor)
-        .order_by(prediction.c.probability.desc())
+        .order_by(*ordering(None))
         .limit(min(max(limit, 1), MAX_LIMIT))
     ).all()
     return [row_to_prediction(row) for row in rows]

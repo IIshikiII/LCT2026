@@ -39,6 +39,19 @@ facility = Table(
     Column("facility_type", Text, nullable=False),
     Column("commissioned_at", Date),
     Column("is_active", Boolean, nullable=False, default=True),
+    # Единица выгрузки. ADR 0017. `kind`: `picket` (пожар, подтопление),
+    # `section` (участок доступа), `object` (каналы объекта без пикета).
+    # Пусто у синтетики.
+    Column("kind", Text),
+    Column("object_id", Integer),
+    Column("gallery", Integer),
+    Column("picket", Float),
+    Column("section_no", Integer),
+    # Расстояние от начала линии в метрах: пикет × 10 плюс смещение.
+    Column("chainage_m", Float),
+    # Участок пикета. Пожар считается на участке, датчики живут на пикетах.
+    # ADR 0018.
+    Column("parent_id", Text),
 )
 
 collector = Table(
@@ -63,6 +76,10 @@ sensor = Table(
     Column("installed_at", Date),
     Column("replaced_at", Date),
     Column("is_active", Boolean, nullable=False, default=True),
+    # Канал выгрузки. По нему приём потока находит датчик. ADR 0017.
+    Column("channel_id", BigInteger),
+    Column("channel_type", Text),
+    Column("channel_name", Text),
 )
 
 alarm_event = Table(
@@ -75,6 +92,9 @@ alarm_event = Table(
     Column("alarm_type", Text, nullable=False),
     Column("is_false", Boolean),
     Column("check_result", Text),
+    # Номер события источника и момент приёма потоком. Пусто у истории.
+    Column("source_event_id", BigInteger),
+    _ts("received_at"),
 )
 
 sensor_reading = Table(
@@ -266,6 +286,10 @@ pipeline_run = Table(
     Column("model_versions", JSONB, nullable=False, default=dict),
     Column("status", Text, nullable=False, default="RUNNING"),
     Column("error", Text),
+    # Задержка потока: событий потока, учтённых прогоном, и наибольшая
+    # задержка от метки события до конца прогона. ADR 0017.
+    Column("stream_events", Integer),
+    Column("stream_lag_ms", Integer),
 )
 
 model_metric = Table(
@@ -299,4 +323,13 @@ maintenance_window = Table(
     Column("starts_on", Date, nullable=False),
     Column("ends_on", Date, nullable=False),
     Column("source", Text, nullable=False),
+)
+
+# Состояние загрузки выгрузки: сдвиг времени, отрезок потока. ADR 0017.
+ingest_state = Table(
+    "ingest_state",
+    metadata,
+    Column("key", Text, primary_key=True),
+    Column("value", JSONB, nullable=False),
+    _ts("updated_at", nullable=False),
 )

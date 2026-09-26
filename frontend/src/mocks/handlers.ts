@@ -237,7 +237,20 @@ const predictionSortValue: Record<string, (p: PredictionRecord) => string | numb
   status: (p) => p.status,
   facility: (p) => p.facility.address,
   summary: (p) => p.summary,
-  risk: (p) => p.probability,
+  risk: (p) => severity(p),
+}
+
+/** Критичность уровня из меты: чем выше `order`, тем опаснее. */
+function severity(p: PredictionRecord): number {
+  return db().meta.riskLevels.find((l) => l.code === p.level)?.order ?? 0
+}
+
+/**
+ * Порядок журнала как у сервера: сначала критичность, потом новизна. Равные
+ * значения любой сортировки добираются новизной.
+ */
+function byRiskThenTime(a: PredictionRecord, b: PredictionRecord): number {
+  return severity(b) - severity(a) || b.computedAt.localeCompare(a.computedAt)
 }
 
 const orderSortValue: Record<string, (o: OrderRecord) => string | number> = {
@@ -388,7 +401,10 @@ export const handlers = [
       const filtered = db().predictions.filter(
         (p) => seesPrediction(user, p) && matchesFilters(p, request),
       )
-      const sorted = applySort(filtered, param(request, 'sort'), predictionSortValue)
+      const sort = param(request, 'sort')
+      const sorted = sort
+        ? applySort([...filtered].sort(byRiskThenTime), sort, predictionSortValue)
+        : [...filtered].sort(byRiskThenTime)
       const page = paginate(sorted, request)
       return ok({ ...page, items: page.items.map(toPrediction) })
     }),
@@ -655,7 +671,7 @@ export const handlers = [
         .predictions.filter(
           (p) => seesPrediction(user, p) && p.status !== 'REJECTED' && p.status !== 'CLOSED',
         )
-        .sort((a, b) => b.probability - a.probability)
+        .sort(byRiskThenTime)
         .slice(0, limit)
         .map(toPrediction)
       return ok(top)

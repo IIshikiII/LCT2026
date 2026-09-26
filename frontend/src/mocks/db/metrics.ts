@@ -49,5 +49,8 @@ export function buildPipelineHealth(predictions: PredictionRecord[]): PipelineHe
     minHorizonHours: Math.min(...horizons, MIN_HORIZON_HOURS),
     targetComputeMs: MAX_COMPUTE_MS,
     targetHorizonHours: MIN_HORIZON_HOURS,
+    streamLagMs: 48_000,
+    streamEvents: 212,
+    targetStreamLagMs: 300_000,
   }
 }

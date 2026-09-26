@@ -141,6 +141,11 @@ class PipelineHealth(Dto):
     min_horizon_hours: int
     target_compute_ms: int
     target_horizon_hours: int
+    # Задержка потока последнего прогона: от метки события до конца прогона.
+    # Пусто, если за прогон не пришло ни одного события потока. ADR 0017.
+    stream_lag_ms: int | None = None
+    stream_events: int = 0
+    target_stream_lag_ms: int = 300_000
 
 
 class DashboardSummary(Dto):

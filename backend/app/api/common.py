@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import Column
+from sqlalchemy import ColumnElement
 from sqlalchemy.sql.elements import UnaryExpression
 
 DEFAULT_PAGE_SIZE = 50
@@ -36,9 +38,9 @@ def day_end(value: str) -> datetime:
 
 def order_by(
     sort: str | None,
-    allowed: dict[str, Column[object]],
-    fallback: UnaryExpression[object],
-) -> UnaryExpression[object]:
+    allowed: Mapping[str, ColumnElement[Any]],
+    fallback: UnaryExpression[Any],
+) -> UnaryExpression[Any]:
     """Разбирает `field:asc` или `field:desc` по белому списку.
 
     Неизвестное поле — не ошибка. Фронт получает список в порядке по

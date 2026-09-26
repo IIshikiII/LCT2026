@@ -44,6 +44,8 @@ services:
       # Панель тестовых учёток на экране входа. Раздаёт логины и пароли без
       # входа в систему, поэтому по умолчанию выключена. ADR 0007.
       TEST_STAND: ${TEST_STAND:-}
+      # Ключ потока СМВУ. Пустой ключ выключает приём потока. ADR 0017.
+      STREAM_TOKEN: ${STREAM_TOKEN:-}
     ports:
       - "${BIND_HOST:-127.0.0.1}:8000:8000"
     volumes:
@@ -116,6 +118,50 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  # Конвейер по расписанию: прогон раз в минуту. ADR 0017.
+  # Запуск: docker compose --profile stream up -d scheduler smvu-stub
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.pipeline
+    profiles: ["stream"]
+    restart: unless-stopped
+    command: ["uv", "run", "--no-sync", "python", "-m", "app.cli", "run-pipeline", "--every", "60"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arm}:${POSTGRES_PASSWORD:-arm}@db:5432/${POSTGRES_DB:-arm}
+      # Демонстрационная шкала уровней. Пусто значит пороги моделей. ADR 0018.
+      DEMO_LEVELS: ${DEMO_LEVELS:-}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI-http://mlflow:5000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      GIT_PYTHON_REFRESH: quiet
+    volumes:
+      - ./app:/srv/app:ro
+      - ./migrations:/srv/migrations:ro
+      - ./artifacts:/srv/artifacts
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Заглушка потока СМВУ. Проигрывает неделю выгрузки по кругу в текущем
+  # времени. Отрезок готовит команда `ingest` в data/stream. ADR 0017.
+  smvu-stub:
+    build:
+      context: .
+      dockerfile: Dockerfile.pipeline
+    profiles: ["stream"]
+    restart: unless-stopped
+    command: ["uv", "run", "--no-sync", "python", "-m", "app.cli", "stream-stub",
+              "--stream-dir", "/srv/data/stream"]
+    environment:
+      STREAM_API_URL: http://api:8000/api/v1/stream/events
+      STREAM_TOKEN: ${STREAM_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./app:/srv/app:ro
+      - ./data:/srv/data:ro
+    depends_on:
+      - api
 
   # Разведочный анализ и подбор модели. Служба держит оба занятия, потому что
   # набор research описывает их оба (pyproject.toml, спецификация §2).

@@ -1,6 +1,6 @@
-"""Факты эпизода для экспертных правил пожара. ADR 0016.
+"""Факты эпизода для экспертных правил пожара. ADR 0016, ADR 0018.
 
-Модуль читает базу и отдаёт `app.ml.fire_rules.Facts` одного пикета на момент
+Модуль читает базу и отдаёт `app.ml.fire_rules.Facts` одного участка на момент
 расчёта. Правила уровня живут отдельно, в `app/ml/fire_rules.py`: тот же код
 размечает историю в `ml/fire/15_expert_history.py`.
 
@@ -8,11 +8,20 @@
 расчёта, запрос не видит. Соседей по времени сигнал видит только в пределах
 окна: сигнал за пять минут до расчёта не знает, что будет через десять.
 
-Соседи. Пикет это `facility`, объект это `collector`, комплекс это
-`district`. **Сейчас** у пикета нет координаты вдоль трассы, поэтому соседом
-считается любой пикет того же объекта. На истории соседство бралось в
-пределах 50 м (`ml/fire/15_expert_history.py`). Переход схемы на тройку
-«объект, галерея, пикет» вернёт расстояние.
+## Единица
+
+Прогноз ставится на участок хода около 150 м (ADR 0018). Датчики стоят на
+пикетах, пикет знает свой участок полем `facility.parent_id`. Сигналы участка
+это сигналы всех его пикетов. Строка без дочерних пикетов считается сама по
+себе: так живёт синтетика.
+
+## Соседи
+
+Объект это `collector`, комплекс это `district`. Сигнал перешёл на соседа,
+когда в пределах `SPREAD_MINUTES` сработал другой пикет той же галереи не
+дальше `SPREAD_METERS` по координате вдоль линии. Так соседство бралось на
+истории (`ml/fire/15_expert_history.py`). Пикет без координаты соседствует с
+любым пикетом объекта.
 """
 
 from __future__ import annotations
@@ -47,6 +56,7 @@ WINDOW_HOURS = 24
 BURST_NEIGHBOURS = 2
 BURST_MINUTES = 60
 SPREAD_MINUTES = 30
+SPREAD_METERS = 50.0
 HEAT_MINUTES = 60
 TEMP_AROUND_HOURS = 2
 TEMP_NORM_DAYS = 30
@@ -63,14 +73,29 @@ class Signal:
     sensor_id: str
     kind: str
     at: datetime
+    chainage_m: float | None = None
+    gallery: int | None = None
+
+
+def _near(a: Signal, b: Signal) -> bool:
+    """Пикеты рядом по линии. Без координаты соседом считается весь объект."""
+    if a.chainage_m is None or b.chainage_m is None:
+        return True
+    return a.gallery == b.gallery and abs(a.chainage_m - b.chainage_m) <= SPREAD_METERS
 
 
 def local(at: datetime) -> datetime:
     return at.astimezone(MOSCOW)
 
 
-def _neighbours(signal: Signal, others: Sequence[Signal], minutes: int) -> set[str]:
-    """Другие пикеты объекта с сигналом в пределах `minutes` в те же сутки."""
+def _neighbours(
+    signal: Signal, others: Sequence[Signal], minutes: int, *, near: bool = False
+) -> set[str]:
+    """Другие пикеты объекта с сигналом в пределах `minutes` в те же сутки.
+
+    `near` оставляет только пикеты рядом по линии: так считается переход
+    сигнала на соседа. Пачка обхода считается по всему объекту.
+    """
     day = local(signal.at).date()
     span = timedelta(minutes=minutes)
     return {
@@ -79,6 +104,7 @@ def _neighbours(signal: Signal, others: Sequence[Signal], minutes: int) -> set[s
         if o.facility_id != signal.facility_id
         and abs(o.at - signal.at) <= span
         and local(o.at).date() == day
+        and (not near or _near(signal, o))
     }
 
 
@@ -96,7 +122,16 @@ def work_hours(at: datetime) -> bool:
     return not is_day_off(moment.date()) and WORK_HOURS[0] <= moment.hour < WORK_HOURS[1]
 
 
-def _signals(conn: Connection, facility_id: str, at: datetime) -> tuple[list[Signal], str, str]:
+def members(conn: Connection, facility_id: str) -> list[str]:
+    """Пикеты участка. Строка без дочерних пикетов это сама единица."""
+    children = conn.execute(
+        text("SELECT id FROM facility WHERE parent_id = :id ORDER BY id"), {"id": facility_id}
+    ).scalars()
+    found = [str(c) for c in children]
+    return found or [facility_id]
+
+
+def signals_of(conn: Connection, facility_id: str, at: datetime) -> tuple[list[Signal], str, str]:
     row = conn.execute(
         text("SELECT collector, district FROM facility WHERE id = :id"), {"id": facility_id}
     ).first()
@@ -106,7 +141,8 @@ def _signals(conn: Connection, facility_id: str, at: datetime) -> tuple[list[Sig
     rows = conn.execute(
         text(
             """
-            SELECT e.facility_id, e.sensor_id, e.alarm_type, e.occurred_at
+            SELECT e.facility_id, e.sensor_id, e.alarm_type, e.occurred_at,
+                   f.chainage_m, f.gallery
             FROM alarm_event e JOIN facility f ON f.id = e.facility_id
             WHERE f.collector = :collector AND e.alarm_type = ANY(:types)
               AND e.occurred_at >= :start AND e.occurred_at < :at
@@ -120,7 +156,8 @@ def _signals(conn: Connection, facility_id: str, at: datetime) -> tuple[list[Sig
             "at": at,
         },
     ).all()
-    return [Signal(str(r[0]), str(r[1]), str(r[2]), r[3]) for r in rows], collector, district
+    signals = [Signal(str(r[0]), str(r[1]), str(r[2]), r[3], r[4], r[5]) for r in rows]
+    return signals, collector, district
 
 
 def _temp_rise(conn: Connection, collector: str, moment: datetime, at: datetime) -> float:
@@ -171,19 +208,25 @@ def _power_off(conn: Connection, district: str, moment: datetime, at: datetime) 
     return row is not None
 
 
-def _gas(conn: Connection, collector: str, at: datetime) -> tuple[float, bool]:
-    """Наибольший метан объекта за окно вне окон ППР и ТО."""
+def _gas(conn: Connection, district: str, at: datetime) -> tuple[float, bool]:
+    """Наибольший метан комплекса за окно вне окон ППР и ТО.
+
+    Газовые датчики стоят на отдельных объектах «ДУ» того же комплекса, а не
+    на объекте пикета. Разметка истории брала газ по комплексу так же
+    (`ml/fire/05_panel.py`, группы 5, 7 и 8). Окно плановых работ берётся по
+    объекту самого газового датчика.
+    """
     row = conn.execute(
         text(
             """
             SELECT s.observed_at, s.value FROM sensor_reading s
             JOIN facility f ON f.id = s.facility_id
-            WHERE f.collector = :collector AND s.metric = :metric
+            WHERE f.district = :district AND s.metric = :metric
               AND s.observed_at >= :start AND s.observed_at < :at
               AND s.value BETWEEN 0 AND 100
               AND NOT EXISTS (
                   SELECT 1 FROM maintenance_window w
-                  WHERE w.collector = :collector
+                  WHERE w.collector = f.collector
                     AND (s.observed_at AT TIME ZONE 'Europe/Moscow')::date
                         BETWEEN w.starts_on AND w.ends_on
               )
@@ -191,7 +234,7 @@ def _gas(conn: Connection, collector: str, at: datetime) -> tuple[float, bool]:
             """
         ),
         {
-            "collector": collector,
+            "district": district,
             "metric": METRIC_METHANE,
             "start": at - timedelta(hours=WINDOW_HOURS),
             "at": at,
@@ -256,6 +299,8 @@ class Episode:
     burst_signals_24h: int
     hours_since_signal: float
     buckets: tuple[int, ...] = (0,) * BUCKETS
+    # Первый сигнал вне пачки в окне. Начало происшествия для ключа карточки.
+    first_signal: datetime | None = None
 
 
 def _buckets(signals: Sequence[Signal], at: datetime) -> tuple[int, ...]:
@@ -269,12 +314,13 @@ def _buckets(signals: Sequence[Signal], at: datetime) -> tuple[int, ...]:
 
 def episode(conn: Connection, facility_id: str, at: datetime) -> Episode:
     """Факты пикета за окно 24 часа до `at`."""
-    all_signals, collector, district = _signals(conn, facility_id, at)
+    all_signals, collector, district = signals_of(conn, facility_id, at)
     window_start = at - timedelta(hours=WINDOW_HOURS)
-    own = [s for s in all_signals if s.facility_id == facility_id and s.at >= window_start]
+    unit = set(members(conn, facility_id))
+    own = [s for s in all_signals if s.facility_id in unit and s.at >= window_start]
     single = [s for s in own if not is_burst(s, all_signals)]
     walk_days = {local(s.at).date() for s in all_signals if is_burst(s, all_signals)}
-    gas_pct, gas_off = _gas(conn, collector, at) if collector else (0.0, False)
+    gas_pct, gas_off = _gas(conn, district, at) if district else (0.0, False)
 
     if not single:
         facts = Facts(burst_only=bool(own), gas_pct=gas_pct, gas_off_hours=gas_off)
@@ -291,7 +337,7 @@ def episode(conn: Connection, facility_id: str, at: datetime) -> Episode:
         )
         for s in single
     )
-    spread = any(_neighbours(s, all_signals, SPREAD_MINUTES) for s in single)
+    spread = any(_neighbours(s, all_signals, SPREAD_MINUTES, near=True) for s in single)
     night = any(off_hours(s.at) and local(s.at).date() not in walk_days for s in single)
     sensor_cooling, object_cooling, left = _cooling(
         conn, collector, {s.sensor_id for s in single}, at
@@ -312,7 +358,12 @@ def episode(conn: Connection, facility_id: str, at: datetime) -> Episode:
         cooling_days_left=left,
     )
     return Episode(
-        facts, len(own), len(own) - len(single), _hours_since(own, at), _buckets(own, at)
+        facts,
+        len(own),
+        len(own) - len(single),
+        _hours_since(own, at),
+        _buckets(own, at),
+        first_signal=first,
     )
 
 
@@ -330,6 +381,9 @@ def to_vector(item: Episode) -> dict[str, float]:
     vector["hours_since_signal"] = float(item.hours_since_signal)
     for index, count in enumerate(item.buckets):
         vector[f"signals_bucket_{index}"] = float(count)
+    vector["first_signal_epoch"] = (
+        float(item.first_signal.timestamp()) if item.first_signal is not None else 0.0
+    )
     return vector
 
 

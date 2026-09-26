@@ -1,7 +1,7 @@
 /**
  * Критерий приёмки (spec §12): виджет показывает Precision и Recall против
- * целевых 0.7 и 0.5, а виджет конвейера — время расчёта против 5 минут и
- * минимальный горизонт против 24 часов.
+ * целевых 0.7 и 0.5, а виджет конвейера — время расчёта и задержку потока
+ * против 5 минут и минимальный горизонт против 24 часов.
  *
  * Это то, по чему жюри проверяет метрики ТЗ, не открывая ноутбук с моделью.
  */
@@ -64,8 +64,10 @@ describe('виджет конвейера', () => {
 
     expect(await screen.findByText('Время формирования прогноза')).toBeInTheDocument()
     expect(screen.getByText('Минимальный горизонт')).toBeInTheDocument()
-    expect(screen.getByText(/цель < 5 мин/)).toBeInTheDocument()
+    // Пять минут стоят и у времени расчёта, и у задержки потока (ТЗ §9, ADR 0017).
+    expect(screen.getAllByText(/цель < 5 мин/)).toHaveLength(2)
     expect(screen.getByText(/цель ≥ 24 ч/)).toBeInTheDocument()
+    expect(screen.getByText('Задержка потока')).toBeInTheDocument()
   })
 })
 

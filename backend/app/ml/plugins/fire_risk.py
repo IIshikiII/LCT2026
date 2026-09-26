@@ -25,7 +25,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from app.features import fire
+from app.features import fire, fire_live
 from app.ml.fire_rules import (
     NEXT_DAY_SIGNAL_RATE,
     QUIET_NEXT_DAY_RATE,
@@ -42,10 +42,7 @@ ACCURACY_NOTE = (
     "Точность правил не измерена: подтверждённых пожаров в выгрузке нет. "
     "Её посчитают отметки бригад при закрытии заявок."
 )
-_FACTOR_NOTE = (
-    "Полосы показывают экспертный вес признака в правилах, а не вклад модели. "
-    "Модели у направления нет, ADR 0016."
-)
+_FACTOR_NOTE = "Полоса вправо усиливает тревогу о пожаре, влево ослабляет её."
 
 # Экспертный вес признака для блока `factors`, от −1 до 1.
 WEIGHTS: dict[str, tuple[str, float]] = {
@@ -182,21 +179,31 @@ class FireRisk:
         return NEXT_DAY_SIGNAL_RATE[level]
 
     def applies(self, conn: Connection, facility_id: str) -> bool:
-        """Отвечает, стоит ли на пикете пожарный или газовый датчик."""
+        """Отвечает, стоит ли на участке пожарный или газовый датчик. ADR 0018.
+
+        Прогноз ставится на участок. Пикет с родителем-участком свой прогноз
+        не получает: его датчики считает участок.
+        """
+        parent = conn.execute(
+            text("SELECT parent_id FROM facility WHERE id = :facility_id"),
+            {"facility_id": facility_id},
+        ).scalar()
+        if parent is not None:
+            return False
         row = conn.execute(
             text(
                 """
                 SELECT EXISTS (
-                    SELECT 1 FROM sensor WHERE facility_id = :facility_id
+                    SELECT 1 FROM sensor WHERE facility_id = ANY(:unit)
                       AND sensor_type = ANY(:types)
                 ) OR EXISTS (
-                    SELECT 1 FROM alarm_event WHERE facility_id = :facility_id
+                    SELECT 1 FROM alarm_event WHERE facility_id = ANY(:unit)
                       AND alarm_type = ANY(:signals)
                 )
                 """
             ),
             {
-                "facility_id": facility_id,
+                "unit": fire.members(conn, facility_id),
                 "types": [*fire.FIRE_SENSOR_TYPES, fire.SENSOR_METHANE],
                 "signals": list(fire.SIGNAL_TYPES),
             },
@@ -205,6 +212,20 @@ class FireRisk:
 
     def build_features(self, ctx: FeatureContext) -> FeatureVector:
         return fire.to_vector(fire.episode(ctx.conn, ctx.facility_id, ctx.at))
+
+    def incident(self, features: FeatureVector, at: datetime) -> datetime | None:
+        """Начало эпизода: первый сигнал вне пачки в окне. ADR 0017.
+
+        Пачка, газ без сигнала и тишина происшествием не считаются: их прогноз
+        живёт одной карточкой на московские сутки.
+        """
+        del at
+        epoch = features.get("first_signal_epoch") or 0.0
+        return datetime.fromtimestamp(epoch, UTC) if epoch > 0 else None
+
+    def live_blocks(self, conn: Connection, facility_id: str, at: datetime) -> list[Block]:
+        """Датчики участка, температура и сигналы за сутки. ADR 0018."""
+        return fire_live.blocks(conn, facility_id, at)
 
     def level(self, features: FeatureVector, probability: float) -> str:
         del probability
@@ -254,27 +275,29 @@ class FireRisk:
     def label_rule(self, conn: Connection, facility_id: str, window: Window) -> bool:
         """Метка ADR 0014: сигнал пожарной сигнализации вне пачки в окне.
 
-        Окно открыто слева: момент расчёта в метку не входит.
+        Окно открыто слева: момент расчёта в метку не входит. Метка участка это
+        сигнал любого его пикета.
         """
+        unit = fire.members(conn, facility_id)
         rows = conn.execute(
             text(
                 """
                 SELECT occurred_at FROM alarm_event
-                WHERE facility_id = :facility_id AND alarm_type = ANY(:types)
+                WHERE facility_id = ANY(:unit) AND alarm_type = ANY(:types)
                   AND occurred_at > :start AND occurred_at <= :end
                 ORDER BY occurred_at
                 """
             ),
             {
-                "facility_id": facility_id,
+                "unit": unit,
                 "types": list(fire.SIGNAL_TYPES),
                 "start": window.start,
                 "end": window.end,
             },
         ).all()
         for (moment,) in rows:
-            signals, _, _ = fire._signals(conn, facility_id, moment + timedelta(minutes=61))
-            own = [s for s in signals if s.facility_id == facility_id and s.at == moment]
+            signals, _, _ = fire.signals_of(conn, facility_id, moment + timedelta(minutes=61))
+            own = [s for s in signals if s.facility_id in unit and s.at == moment]
             if own and not fire.is_burst(own[0], signals):
                 return True
         return False

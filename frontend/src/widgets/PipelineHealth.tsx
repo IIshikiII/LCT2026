@@ -1,6 +1,7 @@
 /**
  * Состояние конвейера расчёта: время формирования прогноза против 5 минут,
- * минимальный горизонт против 24 часов, свежесть данных.
+ * минимальный горизонт против 24 часов, задержка потока против 5 минут,
+ * свежесть данных.
  *
  * Вторая половина доказательства метрик ТЗ — то, что не выражается через
  * Precision и Recall (spec §9).
@@ -59,6 +60,14 @@ export function PipelineHealth() {
             target={`цель ≥ ${fmtHours(data.targetHorizonHours)}`}
             ok={data.minHorizonHours >= data.targetHorizonHours}
           />
+          {data.targetStreamLagMs !== undefined && (
+            <Row
+              label="Задержка потока"
+              value={data.streamLagMs == null ? 'событий не было' : fmtDuration(data.streamLagMs)}
+              target={`цель < ${fmtDuration(data.targetStreamLagMs)}`}
+              ok={data.streamLagMs != null && data.streamLagMs < data.targetStreamLagMs}
+            />
+          )}
           <Row
             label="Свежесть данных"
             value={fmtFreshness(data.freshnessMinutes)}

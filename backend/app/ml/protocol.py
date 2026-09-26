@@ -129,6 +129,43 @@ def own_summary(predictor: object, features: FeatureVector, probability: float) 
     return None if hook is None else str(hook(features, probability))
 
 
+def incident(predictor: object, features: FeatureVector, at: datetime) -> datetime | None:
+    """Начало происшествия, к которому относится прогноз. ADR 0017.
+
+    Метод `incident` у предиктора необязателен. Конвейер держит одну карточку
+    на пару «объект и направление» за происшествие: повторный прогон обновляет
+    её, а не пишет новую. None значит, что происшествия нет, и ключом служат
+    московские сутки. Пожар называет начало эпизода: первый сигнал вне пачки
+    в окне 24 часов.
+    """
+    hook = getattr(predictor, "incident", None)
+    return None if hook is None else hook(features, at)
+
+
+def candidates(predictor: object, conn: Connection, at: datetime) -> set[str] | None:
+    """Объекты, которые стоит пересчитать между полными прогонами. ADR 0017.
+
+    Метод `candidates` у предиктора необязателен. Потоковое направление
+    считается каждую минуту, но меняется прогноз только там, где пришли
+    события или истекло окно. None значит пересчёт всех объектов.
+    """
+    hook = getattr(predictor, "candidates", None)
+    chosen = None if hook is None else hook(conn, at)
+    return None if chosen is None else set(chosen)
+
+
+def live_blocks(predictor: object, conn: Connection, facility_id: str, at: datetime) -> list[Block]:
+    """Блоки карточки из свежих данных базы на момент `at`. ADR 0018.
+
+    Метод `live_blocks` у предиктора необязателен. Метод `explain` видит
+    только вектор признаков, а графики и хроника нужны по свежим данным потока:
+    температура, сигналы по датчикам, работа насоса. Живой блок заменяет блок
+    того же типа из `explain`. Пустой ряд плагин в блок не кладёт.
+    """
+    hook = getattr(predictor, "live_blocks", None)
+    return [] if hook is None else list(hook(conn, facility_id, at))
+
+
 @runtime_checkable
 class Predictor(Protocol):
     """Предиктор одного направления.

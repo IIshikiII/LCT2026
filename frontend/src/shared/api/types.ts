@@ -221,6 +221,12 @@ export interface PipelineHealth {
   /** целевые значения по ТЗ, приходят с бэкенда, чтобы не хардкодить на фронте */
   targetComputeMs: number
   targetHorizonHours: number
+  /** наибольшая задержка потока за последний прогон, мс; null — событий не было */
+  streamLagMs?: number | null
+  /** событий потока, учтённых последним прогоном */
+  streamEvents?: number
+  /** граница задержки потока по ТЗ, мс */
+  targetStreamLagMs?: number
 }
 
 /**

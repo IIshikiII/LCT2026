@@ -180,6 +180,10 @@ export const PipelineHealthSchema = dto({
   minHorizonHours: z.number(),
   targetComputeMs: z.number(),
   targetHorizonHours: z.number(),
+  // Задержка потока. Сервер до ADR 0017 полей не шлёт, поэтому они необязательны.
+  streamLagMs: z.number().nullable().optional(),
+  streamEvents: z.number().optional(),
+  targetStreamLagMs: z.number().optional(),
 })
 
 const counters = z.record(z.string(), z.number())

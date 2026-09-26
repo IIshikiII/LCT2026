@@ -284,7 +284,8 @@ GET /metrics/models      → ModelMetric[]   { direction, precision?, recall?,
                                              method?, note? }
 GET /metrics/pipeline    → { lastRunAt, lastRunMs, freshnessMinutes,
                              maxComputeMs, minHorizonHours,
-                             targetComputeMs, targetHorizonHours }
+                             targetComputeMs, targetHorizonHours,
+                             streamLagMs?, streamEvents?, targetStreamLagMs? }
 GET /dashboard/summary   → { byLevel, byDirection, byStatus, byOrderStatus, total }
 GET /dashboard/top-risks?limit=10 → Prediction[]
 ```
@@ -294,6 +295,11 @@ GET /dashboard/top-risks?limit=10 → Prediction[]
 `offline_holdout` у модели, `expert_rules` у экспертных правил. Виджет пишет
 «не измерена» и показывает `note` как есть. Ноль вместо пустоты читался бы как
 провал, молчание — как пропуск.
+
+Журнал без параметра `sort` идёт по критичности, при равной критичности новее
+выше. Порядок уровней берётся из `riskLevels` меты, а не из кода. Любая
+сортировка по колонке добирает равные значения новизной. `sort=risk` значит ту
+же критичность. Тот же порядок у `/dashboard/top-risks`.
 
 `byLevel`, `byDirection`, `byStatus`, `byOrderStatus` — это `Record<string, number>`,
 а не массивы с фиксированными ключами. Появилось направление — появился ключ,

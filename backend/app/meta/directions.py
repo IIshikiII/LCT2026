@@ -43,6 +43,11 @@ class Direction:
     # дашборд говорит «не измерена», а не молчит. ADR 0016.
     quality_note: str = ""
     quality_method: str = "offline_holdout"
+    # Ритм расчёта. ADR 0017. `daily`: модель училась на точке расчёта в
+    # полночь, прогноз считается раз в московские сутки первым прогоном после
+    # 00:00. `stream`: прогноз смотрит на окно до момента расчёта и
+    # пересчитывается каждым прогоном.
+    cadence: str = "daily"
 
     @property
     def reasons_ref(self) -> str:
@@ -102,6 +107,8 @@ FIRE_RISK = Direction(
         "выгрузке нет. Её посчитают отметки бригад при закрытии заявок."
     ),
     quality_method="expert_rules",
+    # Правила смотрят на 24 часа до момента расчёта, а не на сутки в полночь.
+    cadence="stream",
 )
 
 UNAUTHORIZED_ACCESS = Direction(

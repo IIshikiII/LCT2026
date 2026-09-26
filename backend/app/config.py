@@ -57,6 +57,13 @@ class Config:
     # телефоне. В промышленной установке он выключен, и это не рекомендация, а
     # условие: включённый флаг делает вход бессмысленным. Разбор в ADR 0007.
     test_stand: bool
+    # Ключ потока СМВУ. Заглушка шлёт его в заголовке `X-Stream-Token`.
+    # Пустой ключ выключает приём потока: ручка отвечает 404. ADR 0017.
+    stream_token: str = ""
+    # Демонстрационная шкала уровней суточных направлений: 2 % критических,
+    # 6 % высоких, 17 % средних по рангу вероятности. Только для показа.
+    # ADR 0018.
+    demo_levels: bool = False
 
     @staticmethod
     def from_environ() -> Config:
@@ -80,6 +87,8 @@ class Config:
             auth_mfa_ttl_seconds=int(os.environ.get("AUTH_MFA_TTL_SECONDS", "300")),
             seed_password=os.environ.get("SEED_PASSWORD", "collector"),
             test_stand=os.environ.get("TEST_STAND", "").lower() in {"1", "true", "yes"},
+            stream_token=os.environ.get("STREAM_TOKEN", ""),
+            demo_levels=os.environ.get("DEMO_LEVELS", "").lower() in {"1", "true", "yes"},
         )
 
 

@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -29,6 +29,8 @@ router = APIRouter(tags=["metrics"])
 
 # Требования ТЗ. Фронт их не хардкодит и берёт из ответа.
 TARGET_COMPUTE_MS = 300_000
+# Задержка обработки потока, ТЗ §9. ADR 0017.
+TARGET_STREAM_LAG_MS = 300_000
 TARGET_HORIZON_HOURS = 24
 
 # Цели по умолчанию, те же, что у `model_metric`. Направление без замера
@@ -123,15 +125,18 @@ def pipeline_health(
     if run is None:
         return _never_ran()
 
+    # Прогон раз в минуту пропускает суточные направления, и последний прогон
+    # часто пишет одну-две карточки или ни одной. Время и горизонт поэтому
+    # берутся по прогнозам последних суток, а не одного прогона. ADR 0017.
+    at = run.finished_at or run.started_at
     measured = conn.execute(
         select(
             func.max(prediction.c.compute_ms),
             func.min(prediction.c.horizon_hours),
-        ).where(prediction.c.run_id == run.id)
+        ).where(prediction.c.computed_at >= at - timedelta(hours=24))
     ).first()
     max_compute_ms, min_horizon = measured or (None, None)
 
-    at = run.finished_at or run.started_at
     return PipelineHealth(
         last_run_at=common.iso(at),
         last_run_ms=run.duration_ms or 0,
@@ -140,6 +145,9 @@ def pipeline_health(
         min_horizon_hours=min_horizon or 0,
         target_compute_ms=TARGET_COMPUTE_MS,
         target_horizon_hours=TARGET_HORIZON_HOURS,
+        stream_lag_ms=run.stream_lag_ms,
+        stream_events=run.stream_events or 0,
+        target_stream_lag_ms=TARGET_STREAM_LAG_MS,
     )
 
 
@@ -157,6 +165,7 @@ def _never_ran() -> PipelineHealth:
         min_horizon_hours=0,
         target_compute_ms=TARGET_COMPUTE_MS,
         target_horizon_hours=TARGET_HORIZON_HOURS,
+        target_stream_lag_ms=TARGET_STREAM_LAG_MS,
     )
 
 

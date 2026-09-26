@@ -21,6 +21,7 @@ COMMANDS = (
     "set-commissioning",
     "train",
     "ingest",
+    "stream-stub",
 )
 
 
@@ -74,6 +75,37 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="номер набора тестовых учёток для reset-keys, по умолчанию все наборы",
     )
+    parser.add_argument(
+        "--every",
+        type=int,
+        default=0,
+        help="для run-pipeline: прогонять по кругу с этим шагом в секундах, 0 значит один раз",
+    )
+    parser.add_argument(
+        "--dataset",
+        default="../raw_task/dataset",
+        help="для ingest: папка выгрузки СМВУ",
+    )
+    parser.add_argument(
+        "--stream-dir",
+        default="data/stream",
+        help="для ingest и stream-stub: папка отрезка потока",
+    )
+    parser.add_argument(
+        "--slice-start",
+        default=None,
+        help="для ingest: понедельник недели потока ГГГГ-ММ-ДД, по умолчанию выбор по событиям",
+    )
+    parser.add_argument(
+        "--weather",
+        default="../ml/flood/out/weather_moscow_hourly.json",
+        help="для ingest: архив погоды Москвы из ml/flood, пусто пропускает погоду",
+    )
+    parser.add_argument(
+        "--api",
+        default=None,
+        help="для stream-stub: адрес API, по умолчанию переменная STREAM_API_URL",
+    )
     args = parser.parse_args(argv)
 
     if args.command == "migrate":
@@ -83,12 +115,55 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run-pipeline":
         from app.db import engine
         from app.pipeline.run import run as run_pipeline
+        from app.pipeline.schedule import every
 
-        result = run_pipeline(engine())
-        print(
-            f"прогон {result.run_id}: {result.prediction_count} прогнозов, "
-            f"{result.order_count} заявок, {result.duration_ms} мс"
+        def once() -> None:
+            result = run_pipeline(engine())
+            print(
+                f"прогон {result.run_id}: {result.prediction_count} прогнозов, "
+                f"{result.order_count} заявок, {result.duration_ms} мс, "
+                f"поток {result.stream_events} событий, задержка {result.stream_lag_ms} мс",
+                flush=True,
+            )
+
+        if args.every > 0:
+            every(args.every, once)
+        else:
+            once()
+        return 0
+
+    if args.command == "ingest":
+        from datetime import date
+        from pathlib import Path
+
+        from app.db import engine
+        from app.ingest.dataset import load as load_dataset
+
+        report = load_dataset(
+            engine(),
+            Path(args.dataset),
+            Path(args.stream_dir),
+            slice_start=date.fromisoformat(args.slice_start) if args.slice_start else None,
+            weather=Path(args.weather) if args.weather else None,
         )
+        print(
+            f"выгрузка загружена: {report.collectors} объектов, единиц {report.facilities}, "
+            f"{report.sensors} датчиков, {report.events} событий, {report.readings} показаний, "
+            f"{report.weather_hours} часов погоды"
+        )
+        print(
+            f"неделя потока с {report.slice_start}, сдвиг {report.shift_days} суток, "
+            f"история до {report.history_until}, в отрезке {report.slice_rows} строк"
+        )
+        print(f"время по шагам, с: {report.seconds}")
+        return 0
+
+    if args.command == "stream-stub":
+        from pathlib import Path
+
+        from app.stub.smvu import run as run_stub
+
+        run_stub(Path(args.stream_dir), args.api)
         return 0
 
     if args.command == "seed":

@@ -14,7 +14,17 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api import auth, dashboard, facilities, meta, metrics, orders, predictions, test_stand
+from app.api import (
+    auth,
+    dashboard,
+    facilities,
+    meta,
+    metrics,
+    orders,
+    predictions,
+    stream,
+    test_stand,
+)
 
 ROUTERS: tuple[APIRouter, ...] = (
     auth.router,
@@ -25,6 +35,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     orders.router,
     metrics.router,
     dashboard.router,
+    stream.router,
 )
 
 # Полные пути, которым токен не нужен. Сверяются с `route.path` приложения.
@@ -43,6 +54,9 @@ PUBLIC_PATHS: frozenset[str] = frozenset(
         # `TEST_STAND`, иначе отдаёт пустой список. ADR 0007.
         "/api/v1/auth/test-accounts",
         "/api/v1/auth/test-accounts/{demo_set}",
+        # Поток СМВУ. Его шлёт система, а не человек, и ручка проверяет свой
+        # ключ `STREAM_TOKEN`. Без ключа ручка отвечает 404. ADR 0017.
+        "/api/v1/stream/events",
     }
 )
 

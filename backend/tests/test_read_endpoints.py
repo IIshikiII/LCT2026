@@ -31,9 +31,15 @@ def test_journal_returns_the_envelope() -> None:
     assert body["pageSize"] == 50
 
 
-def test_journal_sorts_by_computed_at_descending_by_default() -> None:
-    stamps = [item["computedAt"] for item in get("/predictions")["items"]]
-    assert stamps == sorted(stamps, reverse=True)
+SEVERITY = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+
+
+def test_journal_sorts_by_risk_then_recency_by_default() -> None:
+    """Критичнее выше; при равной критичности новее выше."""
+    items = get("/predictions")["items"]
+    keys = [(SEVERITY[i["level"]], i["computedAt"]) for i in items]
+    assert keys == sorted(keys, reverse=True)
+    assert items[0]["level"] == "CRITICAL"
 
 
 def test_repeated_direction_means_any_of() -> None:
