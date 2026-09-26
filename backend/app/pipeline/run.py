@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -51,6 +52,12 @@ class RunResult:
 def _facility_ids(conn: Connection) -> list[str]:
     statement = select(facility.c.id).where(facility.c.is_active.is_(True)).order_by(facility.c.id)
     return list(conn.execute(statement).scalars().all())
+
+
+def _storable(features: dict[str, float]) -> dict[str, float | None]:
+    """Вектор для `prediction.features`. JSONB не принимает NaN, а пустой
+    признак модель получает именно так. В базу он ложится как `null`."""
+    return {name: None if math.isnan(value) else value for name, value in features.items()}
 
 
 def _summary(direction: Direction, probability: float) -> str:
@@ -93,7 +100,7 @@ def _write_prediction(
             status=STATUS_NEW,
             summary=_summary(direction, probability),
             blocks=[block.as_dict() for block in blocks],
-            features=features,
+            features=_storable(features),
             model_version=DEFAULT_MODEL_VERSION,
             run_id=run_id,
         )

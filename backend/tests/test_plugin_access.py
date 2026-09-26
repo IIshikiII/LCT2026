@@ -27,18 +27,15 @@ FEATURE_NAMES = list(FEATURE_LABELS)
 FEATURES: dict[str, float] = {name: 0.0 for name in FEATURE_NAMES}
 FEATURES.update(
     {
-        "n_alarms_1h": 2.0,
-        "n_alarms_24h": 5.0,
-        "n_alarms_168h": 11.0,
-        "n_alarms_720h": 34.0,
-        "hours_since_last_alarm": 0.0,
-        "night_share": 0.4,
-        "hour_of_day": 22.0,
+        "n_alarms_7d": 5.0,
+        "n_armed_7d": 2.0,
+        "hours_since_last_alarm": 2.0,
+        "hours_since_last_armed": 6.0,
+        "hours_since_guard_change": 30.0,
+        "unit_age_days": 400.0,
+        "obj_alarms_1d": 3.0,
+        "obj_alarms_7d": 15.0,
         "day_of_week": 4.0,
-        "month": 9.0,
-        "n_armed_alarms_24h": 1.0,
-        "n_armed_alarms_168h": 7.0,
-        "hours_since_last_armed_alarm": 6.0,
     }
 )
 

@@ -52,7 +52,7 @@ bash deploy/inspect.sh            # что сейчас на сервере
 
 Реестр MLflow на стенде не поднимается. Модель читается файлом из
 `backend/artifacts/unauthorized_access/`, куда её кладёт выкладка из
-`ml/access/out/model.joblib`.
+`ml/access/out/daily_model.joblib`.
 
 ## Настройки
 

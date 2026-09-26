@@ -1,59 +1,38 @@
 """Предиктор направления «несанкционированный доступ». Спецификация §7.
 
-Модель — бустер LightGBM из `ml/access/train.py`, читается через
-`app.ml.tracking.load_model("UNAUTHORIZED_ACCESS")`. Признаки строит
-`app.features.access.build_features` (T12), имена и порядок совпадают с
-`ml/access/features.py::FEATURE_COLUMNS` буква в букву.
+Модель это бустер LightGBM из `ml/access/train.py`. Единица прогноза это
+участок хода вокруг узла входа, окно прогноза это ближайшие сутки (ADR 0001).
+Модель читается через `app.ml.tracking.load_model("UNAUTHORIZED_ACCESS")`.
+Признаки считает реестр `app.features.registry`, построители лежат в
+`app/features/access_daily.py`, правило события лежит в
+`app/features/access.py`.
 
 ## Порядок столбцов берёт модель, а не список в коде
 
-`predict` и `explain` не держат свой список имён признаков: они читают
-`model.feature_name()`, порядок, с которым бустер обучен (`lgb.Dataset(...,
-feature_name=features.FEATURE_COLUMNS)` в `train.py`). Список признаков жил бы
-тогда в трёх местах и разошёлся бы на первой же правке `app/features/access.py`.
+`build_features`, `predict` и `explain` читают `model.feature_name()`. Своего
+списка имён у плагина нет. Новая модель на известных признаках подключается
+заменой файла.
 
 ## Ленивый импорт lightgbm и shap
 
 Реестр `app.ml.registry.load_plugins()` импортирует этот модуль при каждом
-обращении к направлению, в том числе в тестах, которые ничего не предсказывают
-(`test_ml_registry.py`). `01-dependencies.md` держит LightGBM только в наборе
-`research`, набор `ml` — на одном scikit-learn. Модуль обязан импортироваться
-без LightGBM и SHAP, иначе регистрация плагина роняет весь реестр. Поэтому оба
-импорта отложены внутрь функций, тем же приёмом, что `app/ml/tracking.py`
-откладывает `joblib` и `mlflow`. Перенос LightGBM и SHAP в набор `ml` — отдельная
-задача, `loop/BACKLOG.md`.
+обращении к направлению, в том числе в тестах, которые ничего не предсказывают.
+Модуль обязан импортироваться без LightGBM и SHAP, поэтому оба импорта отложены
+внутрь функций.
 
-## Модели нет — предсказания нет
+## Модели нет значит прогноза нет
 
-`load_model` отдаёт `None` без падения, когда файла нет ни в реестре, ни на
-диске. `predict` и `explain` в этом случае поднимают `RuntimeError` раньше,
-чем дойдут до `import lightgbm` или `import shap`: отсутствие модели обязано
-дать понятный отказ, а не `ModuleNotFoundError` из пустого каталога
-артефактов. Решение, пропускать ли направление молча при таком отказе, живёт
-в конвейере (T17) — плагин обещает только чистое исключение, а не тихий
-прогноз из ничего. Тест `test_plugin_access_no_model.py` гоняет этот путь без
-подмены `load_model`, `lightgbm` и `shap`.
+`load_model` отдаёт `None`, когда файла нет ни в реестре, ни на диске. Тогда
+`predict` и `explain` поднимают `RuntimeError` раньше, чем дойдут до
+`import lightgbm` или `import shap`. Решение пропустить направление принимает
+конвейер.
 
 ## Объяснение строится из вектора признаков, а не из базы
 
-Протокол передаёт в `explain` вектор признаков и момент расчёта. Подключения к
-базе он не передаёт, и это решение, а не недосмотр: конвейер кладёт вектор в
-`prediction.features`, поэтому объяснение повторяется по сохранённому прогнозу
-через полгода без обращения к журналу тревог.
-
-Отсюда форма двух блоков с осью времени.
-
-- `timeseries` показывает среднюю частоту тревог по четырём непересекающимся
-  окнам. Вектор держит накопленные счётчики `n_alarms_1h`, `n_alarms_24h`,
-  `n_alarms_168h` и `n_alarms_720h`, то есть вложенные окна. Разность соседних
-  счётчиков даёт непересекающееся окно, деление на его длину даёт тревог в
-  сутки. Точка ставится в середину окна.
-- `timeline` показывает события, которые вектор называет смещением от момента
-  расчёта: последнюю тревогу доступа, последнюю тревогу вне режима охраны,
-  цепочку «дверь, объёмный датчик, движение» и снятие с охраны.
-
-Почасовой истории в векторе нет, и блок её не рисует. Ложная детализация хуже
-честной грубой шкалы.
+`explain` получает вектор и момент расчёта, соединения с базой он не получает.
+Конвейер кладёт вектор в `prediction.features`, поэтому объяснение повторяется
+по сохранённому прогнозу без обращения к журналу тревог. Блоки с осью времени
+ставят на неё то, что вектор называет смещением от момента расчёта.
 """
 
 from __future__ import annotations
@@ -66,54 +45,46 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
+from app.features.access import event_ctes, event_params
 from app.ml.protocol import Block, FeatureContext, FeatureVector, Window
 from app.ml.registry import register
 from app.ml.tracking import load_calibrator, load_model
 
 DIRECTION = "UNAUTHORIZED_ACCESS"
+# Режим охраны не менялся дольше недели значит его перестали вести.
+GUARD_SILENCE_HOURS = 7 * 24
 
 # Человеческая подпись признака для блока `factors`. Признак без записи здесь
 # показывается своим программным именем — это деградация, а не ошибка.
 FEATURE_LABELS: dict[str, str] = {
-    # Суточный набор.
-    "days_since_last_armed": "Суток с последней тревоги вне режима охраны",
-    "days_since_last_alarm": "Суток с последней тревоги доступа",
-    "armed_day_share_30d": "Доля суток с тревогой вне охраны за 30 суток",
+    "n_alarms_7d": "Тревог доступа на участке за неделю",
     "alarm_day_share_7d": "Доля суток с тревогой за неделю",
     "alarm_day_share_365d": "Доля суток с тревогой за год",
-    "n_alarms_7d": "Срабатываний за неделю",
-    "n_armed_90d": "Тревог вне охраны за квартал",
-    "obj_alarms_1d": "Тревог на соседних пикетах за сутки",
-    "obj_alarms_7d": "Тревог на соседних пикетах за неделю",
-    "obj_units_alarmed_7d": "Соседних пикетов с тревогой за неделю",
+    "days_since_last_alarm": "Суток с последней тревоги доступа",
+    "hours_since_last_alarm": "Часов с последней тревоги доступа",
+    "n_armed_7d": "Событий на участке за неделю",
+    "n_armed_90d": "Событий на участке за квартал",
+    "armed_day_share_30d": "Доля суток с событием за 30 суток",
+    "days_since_last_armed": "Суток с последнего события",
+    "hours_since_last_armed": "Часов с последнего события",
+    "armed_same_weekday_1w": "Событие было ровно неделю назад",
+    "n_channels": "Каналов доступа на участке",
+    "unit_age_days": "Суток работы участка",
     "disarm_hours_7d": "Часов без охраны за неделю",
     "disarm_share_30d": "Доля времени без охраны за 30 суток",
-    "armed_same_weekday_1w": "Тревога была ровно неделю назад",
-    "n_channels": "Каналов доступа на объекте",
-    "day_of_year": "День года",
+    "hours_since_guard_change": "Часов со смены режима охраны",
+    "obj_alarms_1d": "Тревог на объекте за сутки",
+    "obj_alarms_7d": "Тревог на объекте за неделю",
+    "obj_units_alarmed_7d": "Участков объекта с тревогой за неделю",
+    "net_event_share_1d": "Доля участков сети с событием за сутки",
+    "net_event_share_7d": "Доля участков сети с событием за неделю",
+    "date_event_share_prev_years": "Доля событий в эту дату в прошлые годы",
+    "day_of_week": "День недели",
     "day_of_month": "День месяца",
+    "day_of_year": "День года",
     "week_of_year": "Неделя года",
     "is_day_off": "Нерабочий день",
     "day_off_chain": "Длина цепочки нерабочих дней",
-    # Часовой набор.
-    "n_alarms_1h": "Срабатываний за последний час",
-    "n_alarms_24h": "Срабатываний за 24 часа",
-    "n_alarms_168h": "Срабатываний за 7 суток",
-    "n_alarms_720h": "Срабатываний за 30 суток",
-    "alarm_hour_share_720h": "Доля часов с тревогой за 30 суток",
-    "hours_since_last_alarm": "Часов с последней тревоги",
-    "night_share": "Доля тревог в ночное время",
-    "hour_of_day": "Час суток",
-    "day_of_week": "День недели",
-    "month": "Месяц",
-    "is_weekend": "Выходной день",
-    "neighbor_channels_1h": "Соседних каналов пикета в тревоге",
-    "is_disarmed": "Участок снят с охраны",
-    "has_access_sequence": "Цепочка «дверь — датчик — движение»",
-    "n_armed_alarms_24h": "Тревог вне режима охраны за 24 часа",
-    "n_armed_alarms_168h": "Тревог вне режима охраны за 7 суток",
-    "hours_since_last_armed_alarm": "Часов с последней тревоги вне режима охраны",
 }
 
 _MODEL_MISSING = (
@@ -129,8 +100,8 @@ def _model() -> Any | None:
     """Отдаёт модель направления, читая её с диска один раз на процесс.
 
     `load_model` ходит в реестр MLflow по сети и разбирает файл модели. Это
-    стоит 47 мс, а конвейер зовёт `predict` и `explain` на каждом из 3 947
-    объектов, то есть 7 894 раза за прогон. Замер T19a: на чтение модели
+    стоит 47 мс, а конвейер зовёт `predict` и `explain` на каждом
+    участке, то есть 7 894 раза за прогон. Замер T19a: на чтение модели
     уходило 46 % времени прогона.
 
     Пустой результат не кладётся в кэш. Модели нет значит она может появиться
@@ -176,8 +147,12 @@ def _explainer(model: Any) -> Any:
 
 
 def reset_cache() -> None:
-    """Забывает модель и объяснитель. Нужен тесту, который подменяет модель."""
+    """Забывает модель, объяснитель и признаки сети. Нужен тесту, который
+    подменяет модель или данные."""
+    from app.features import access_daily
+
     _CACHE.clear()
+    access_daily.reset_cache()
 
 
 def _row(model: Any, features: FeatureVector) -> list[list[float]]:
@@ -202,10 +177,7 @@ def shap_weight(contribution: float) -> float:
     Правило держит четыре свойства. Знак сохраняется. Порядок сохраняется,
     потому что функция строго возрастает. Значение лежит внутри диапазона.
     Масштаб один во всех карточках: он не зависит ни от набора признаков
-    строки, ни от переобучения модели. Замер на отложенной выборке 2026 года
-    показывает, что диапазон занят делом: у прогнозов выше порога 0,035251 вес
-    главного фактора лежит между 0,51 и 0,96 при медиане 0,69, а наибольший
-    вклад модели равен 4,0 логита, то есть весу 0,96.
+    строки, ни от переобучения модели.
 
     ## Почему сумма весов не равна вероятности
 
@@ -231,6 +203,11 @@ _FACTOR_NOTE = (
 )
 
 
+def _shown(value: float) -> str:
+    """Значение признака для карточки. Пустой признак модель получает как NaN."""
+    return "нет данных" if math.isnan(value) else f"{value:g}"
+
+
 def factors_block(
     names: Sequence[str],
     contributions: Sequence[float],
@@ -247,7 +224,7 @@ def factors_block(
         {
             "label": FEATURE_LABELS.get(name, name),
             "weight": round(shap_weight(float(value)), 6),
-            "value": f"{features.get(name, 0.0):g}",
+            "value": _shown(features.get(name, 0.0)),
         }
         for name, value in ranked
     ]
@@ -263,49 +240,41 @@ def factors_block(
     )
 
 
-def _rate_points(
-    features: FeatureVector,
-    at: datetime,
-    column: str,
-    windows: Sequence[tuple[int, int]],
-) -> list[dict[str, Any]]:
-    """Считает среднюю частоту тревог по непересекающимся окнам, тревог в сутки.
-
-    Окно задаётся парой «часов назад»: `(720, 168)` это отрезок от 720 до 168
-    часов назад. Накопленный счётчик окна `end` вычитается из счётчика окна
-    `start`. Счётчик `0` часов равен нулю по определению.
-    """
-    points: list[dict[str, Any]] = []
-    for start, end in windows:
-        older = float(features.get(column.format(hours=start), 0.0))
-        newer = float(features.get(column.format(hours=end), 0.0)) if end else 0.0
-        count = max(0.0, older - newer)
-        days = (start - end) / 24.0
-        middle = at - timedelta(hours=(start + end) / 2.0)
-        points.append({"t": middle.isoformat(), "v": round(count / days, 3)})
-    return points
+def _rate(count: float, days: float) -> float:
+    return round(max(0.0, count) / days, 3)
 
 
 def timeseries_block(features: FeatureVector, at: datetime) -> Block:
-    """Собирает блок `timeseries`: частота тревог по окнам наблюдения."""
+    """Собирает блок `timeseries`: частота тревог по окнам наблюдения.
+
+    Вектор держит накопленные счётчики вложенных окон. Разность соседних
+    счётчиков даёт непересекающееся окно, деление на его длину даёт тревог в
+    сутки. Точка ставится в середину окна.
+    """
+    week = float(features.get("obj_alarms_7d", 0.0))
+    day = float(features.get("obj_alarms_1d", 0.0))
     return Block(
         type="timeseries",
         title="Тревоги доступа по окнам наблюдения",
         data={
             "series": [
                 {
-                    "name": "Тревоги доступа",
+                    "name": "Тревоги на объекте",
                     "unit": "тревог в сутки",
-                    "points": _rate_points(
-                        features, at, "n_alarms_{hours}h", ((720, 168), (168, 24), (24, 1), (1, 0))
-                    ),
+                    "points": [
+                        {"t": (at - timedelta(days=4)).isoformat(), "v": _rate(week - day, 6)},
+                        {"t": (at - timedelta(hours=12)).isoformat(), "v": _rate(day, 1)},
+                    ],
                 },
                 {
-                    "name": "Тревоги вне режима охраны",
-                    "unit": "тревог в сутки",
-                    "points": _rate_points(
-                        features, at, "n_armed_alarms_{hours}h", ((168, 24), (24, 0))
-                    ),
+                    "name": "События на участке",
+                    "unit": "событий в сутки",
+                    "points": [
+                        {
+                            "t": (at - timedelta(days=3.5)).isoformat(),
+                            "v": _rate(float(features.get("n_armed_7d", 0.0)), 7),
+                        },
+                    ],
                 },
             ],
             "markerAt": at.isoformat(),
@@ -313,60 +282,54 @@ def timeseries_block(features: FeatureVector, at: datetime) -> Block:
     )
 
 
-def timeline_block(features: FeatureVector, at: datetime) -> Block:
-    """Собирает блок `timeline`: события, которые вектор признаков ещё помнит.
+def _hours_back(features: FeatureVector, name: str) -> float | None:
+    """Смещение события в часах. Пусто, если у участка такого события не было.
 
-    Единица без истории тревог получает `hours_since_last_alarm` равным нулю,
-    как и единица с тревогой в текущий час (`app/features/access.py`). Одно от
-    другого отличают счётчики окон: все нули значит истории нет, и события
-    «последняя тревога» в ленте не будет.
+    Без истории признак `hours_since_*` равен возрасту участка плюс одни
+    сутки (`app/features/access_daily.py`). Такое значение не событие, и
+    лента его не показывает.
     """
-    events: list[dict[str, Any]] = []
-    counters = ("n_alarms_1h", "n_alarms_24h", "n_alarms_168h", "n_alarms_720h")
-    armed_counters = ("n_armed_alarms_24h", "n_armed_alarms_168h")
+    value = features.get(name)
+    if value is None or math.isnan(value):
+        return None
+    age = features.get("unit_age_days")
+    if age is not None and not math.isnan(age) and value >= 24 * (age + 1):
+        return None
+    return float(value)
 
-    if any(features.get(name, 0.0) > 0 for name in (*counters, "hours_since_last_alarm")):
-        hours = float(features.get("hours_since_last_alarm", 0.0))
+
+def timeline_block(features: FeatureVector, at: datetime) -> Block:
+    """Собирает блок `timeline`: события, которые вектор признаков ещё помнит."""
+    events: list[dict[str, Any]] = []
+
+    hours = _hours_back(features, "hours_since_last_alarm")
+    if hours is not None:
         events.append(
             {
                 "at": (at - timedelta(hours=hours)).isoformat(),
                 "title": "Последняя тревога доступа",
                 "kind": "alarm",
-                "note": (
-                    f"За сутки {features.get('n_alarms_24h', 0.0):g}, "
-                    f"за 30 суток {features.get('n_alarms_720h', 0.0):g}"
-                ),
+                "note": f"За неделю на объекте {features.get('obj_alarms_7d', 0.0):g}",
             }
         )
 
-    if any(
-        features.get(name, 0.0) > 0 for name in (*armed_counters, "hours_since_last_armed_alarm")
-    ):
-        hours = float(features.get("hours_since_last_armed_alarm", 0.0))
+    hours = _hours_back(features, "hours_since_last_armed")
+    if hours is not None:
         events.append(
             {
                 "at": (at - timedelta(hours=hours)).isoformat(),
-                "title": "Последняя тревога вне режима охраны",
-                "kind": "alarm",
-                "note": "Такие тревоги весят в модели больше всех остальных признаков",
-            }
-        )
-
-    if features.get("has_access_sequence", 0.0) >= 1.0:
-        events.append(
-            {
-                "at": at.isoformat(),
-                "title": "Цепочка «дверь, объёмный датчик, движение»",
+                "title": "Последнее событие на участке",
                 "kind": "access",
-                "note": "Цепочка замкнулась в последние 15 минут",
+                "note": "Тревога вне окна снятия с охраны, которую правило признало событием",
             }
         )
 
-    if features.get("is_disarmed", 0.0) >= 1.0:
+    hours = _hours_back(features, "hours_since_guard_change")
+    if hours is not None:
         events.append(
             {
-                "at": at.isoformat(),
-                "title": "Участок снят с охраны",
+                "at": (at - timedelta(hours=hours)).isoformat(),
+                "title": "Смена режима охраны",
                 "kind": "access",
                 "note": "Тревоги внутри окна снятия модель за событие не считает",
             }
@@ -382,7 +345,7 @@ def timeline_block(features: FeatureVector, at: datetime) -> Block:
     )
 
     events.sort(key=lambda event: str(event["at"]), reverse=True)
-    return Block(type="timeline", title="События объекта", data={"events": events})
+    return Block(type="timeline", title="События участка", data={"events": events})
 
 
 class UnauthorizedAccess:
@@ -466,62 +429,39 @@ class UnauthorizedAccess:
     def suggest_work_type(self, features: FeatureVector, probability: float) -> str:
         """Называет тип работ по непосредственности сигнала, не по вероятности.
 
-        Порядок проверок от самого прямого признака проникновения к самому
-        общему. Цепочка «дверь — датчик — движение» это готовый сценарий
-        прохода: реагирует группа. Тревога в последний час без цепочки — это
-        ещё не подтверждённый проход, сначала смотрит осмотр. Снятая охрана
-        без свежей тревоги — повод проверить исправность СКУД, а не выезжать.
-        Всё остальное — плановая замена замка по накопленному риску.
+        Событие за последние сутки значит реагирует группа. Тревога за сутки
+        без события значит сначала осмотр входа. Режим охраны не менялся
+        дольше недели значит объект перестал вести режим, и проверять надо
+        СКУД: так вели себя 12 объектов из 47 в 2026 году (ADR 0001). Всё
+        остальное это плановая замена замка по накопленному риску.
         """
-        if features.get("has_access_sequence", 0.0) >= 1.0:
+        armed = _hours_back(features, "hours_since_last_armed")
+        if armed is not None and armed < 24:
             return "Выезд группы реагирования"
-        if features.get("n_alarms_1h", 0.0) >= 1.0:
+        alarm = _hours_back(features, "hours_since_last_alarm")
+        if alarm is not None and alarm < 24:
             return "Осмотр люка и запорного механизма"
-        if features.get("is_disarmed", 0.0) >= 1.0:
+        guard = _hours_back(features, "hours_since_guard_change")
+        if guard is not None and guard > GUARD_SILENCE_HOURS:
             return "Проверка СКУД"
         return "Замена замка"
 
     def label_rule(self, conn: Connection, facility_id: str, window: Window) -> bool:
-        """Отвечает, наступило ли проникновение на объекте в окне.
+        """Отвечает, было ли событие на участке в окне.
 
-        Повторяет метку обучения (ADR 0001, версия Б, закреплена в T04):
-        событие — тревога доступа (`ACCESS_ALARM_TYPES`) вне окна «Снято с
-        охраны». Окно открыто слева и закрыто справа, как в определении
-        метки: `window.start` — момент расчёта, в метку не входит.
+        Повторяет метку обучения: момент события по правилу
+        `app/features/access.py`. Окно открыто слева и закрыто справа:
+        `window.start` это момент расчёта, в метку он не входит.
         """
         row = conn.execute(
             text(
-                """
-                WITH toggle AS (
-                    SELECT occurred_at AS ts, alarm_type,
-                           lead(occurred_at) OVER (ORDER BY occurred_at) AS next_ts
-                    FROM alarm_event
-                    WHERE facility_id = :facility_id
-                      AND alarm_type IN (:armed, :disarmed)
-                      AND occurred_at <= :end
-                ),
-                window_ AS (
-                    SELECT ts AS win_start, coalesce(next_ts, :end) AS win_end
-                    FROM toggle
-                    WHERE alarm_type = :disarmed
-                )
-                SELECT 1 FROM alarm_event a
-                WHERE a.facility_id = :facility_id AND a.alarm_type = ANY(:types)
-                  AND a.occurred_at > :start AND a.occurred_at <= :end
-                  AND NOT EXISTS (
-                      SELECT 1 FROM window_ w
-                      WHERE a.occurred_at >= w.win_start AND a.occurred_at < w.win_end
-                  )
-                LIMIT 1
-                """
+                f"WITH {event_ctes('e.facility_id = :facility_id')} "
+                "SELECT 1 FROM event_moment WHERE ts > :start LIMIT 1"
             ),
             {
+                **event_params(window.start, window.end + timedelta(microseconds=1)),
                 "facility_id": facility_id,
-                "types": list(ACCESS_ALARM_TYPES),
-                "armed": SECURITY_ARMED,
-                "disarmed": SECURITY_DISARMED,
                 "start": window.start,
-                "end": window.end,
             },
         ).fetchone()
         return row is not None

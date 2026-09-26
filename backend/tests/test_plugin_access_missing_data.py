@@ -1,11 +1,11 @@
 """Устойчивость плагина доступа к отсутствию данных.
 
 Два случая, которые конвейер обязан пережить без исключения: единица без
-единой сработки за 720 часов и единица, которой нет в справочнике объектов
-(`facility`). `build_features` не читает таблицу `facility` вообще — она
-только фильтрует `alarm_event` по `facility_id` — поэтому оба случая обязаны
-дать нулевой, а не пустой вектор признаков, и предиктор обязан отдать
-вероятность и объяснение, а не упасть.
+единой сработки и единица, которой нет в справочнике объектов
+(`facility`). Признаки берут из `facility` только срок жизни и объект, и
+пустой ответ там не ошибка. Оба случая обязаны дать нулевой, а не пустой
+вектор признаков, и предиктор обязан отдать вероятность и объяснение, а не
+упасть.
 """
 
 from __future__ import annotations
@@ -88,26 +88,29 @@ def stub_model(monkeypatch: pytest.MonkeyPatch) -> StubModel:
     return model
 
 
+# Счётчики без истории равны нулю. Давность без истории равна возрасту
+# участка плюс одни сутки, как в `ml/access/panel.py`, поэтому она здесь не
+# перечислена.
 _NO_HISTORY_KEYS = (
-    "n_alarms_1h",
-    "n_alarms_24h",
-    "n_alarms_168h",
-    "n_alarms_720h",
-    "alarm_hour_share_720h",
-    "hours_since_last_alarm",
-    "night_share",
-    "neighbor_channels_1h",
-    "is_disarmed",
-    "has_access_sequence",
-    "n_armed_alarms_24h",
-    "n_armed_alarms_168h",
-    "hours_since_last_armed_alarm",
+    "n_alarms_7d",
+    "n_armed_7d",
+    "n_armed_90d",
+    "armed_day_share_30d",
+    "alarm_day_share_7d",
+    "armed_same_weekday_1w",
+    "disarm_hours_7d",
+    "obj_alarms_1d",
+    "obj_alarms_7d",
+    "obj_units_alarmed_7d",
+    "n_channels",
+    "unit_age_days",
 )
 
 
 def _assert_no_alarm_history(features: dict[str, float]) -> None:
     for name in _NO_HISTORY_KEYS:
         assert features[name] == 0.0, f"{name} обязан быть 0.0 без единой записи в alarm_event"
+    assert features["hours_since_last_alarm"] == 24.0
 
 
 def _assert_valid_forecast(plugin: UnauthorizedAccess, features: dict[str, float]) -> None:
@@ -127,7 +130,7 @@ def _assert_valid_forecast(plugin: UnauthorizedAccess, features: dict[str, float
 
 
 @pytest.mark.usefixtures("db")
-def test_unit_without_a_single_alarm_in_720h(stub_model: StubModel, fake_shap: None) -> None:
+def test_unit_without_a_single_alarm(stub_model: StubModel, fake_shap: None) -> None:
     fid = "F-ACC-NO-ALARMS"
     with engine().begin() as conn:
         conn.execute(
