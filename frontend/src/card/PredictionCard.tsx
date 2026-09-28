@@ -106,6 +106,16 @@ export function PredictionCard({ id, meta }: PredictionCardProps) {
               <span>Создана заявка на превентивное обслуживание</span>
               <Mono>{prediction.orderId}</Mono>
             </Link>
+          ) : prediction.facilityOrderId ? (
+            // Автозаявка на объект одна, пока открыта. Свежий прогноз своей не
+            // получает и показывает ту, что уже есть.
+            <Link
+              to={`/orders?order=${encodeURIComponent(prediction.facilityOrderId)}`}
+              className="mt-3 flex items-center justify-between gap-2 rounded border border-line bg-sunken px-2 py-1.5 text-[12px] text-text-dim hover:border-line-strong"
+            >
+              <span>По объекту уже открыта заявка по прошлому прогнозу</span>
+              <Mono>{prediction.facilityOrderId}</Mono>
+            </Link>
           ) : null}
         </header>
 

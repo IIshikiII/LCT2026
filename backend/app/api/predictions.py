@@ -63,9 +63,29 @@ ORDER_ID = (
     .label("order_id")
 )
 
+# Открытая заявка того же объекта и направления, которую создал другой прогноз.
+# Автозаявка на объект одна, пока открыта (`auto_orders.has_open_order`), и
+# свежий прогноз своей заявки не получает. Карточка ссылается на ту, что есть,
+# иначе высокий риск без заявки выглядит как сбой.
+_OWNER = prediction.alias("owner")
+FACILITY_ORDER_ID = (
+    select(work_order.c.id)
+    .join(_OWNER, _OWNER.c.id == work_order.c.prediction_id)
+    .where(
+        work_order.c.facility_id == prediction.c.facility_id,
+        _OWNER.c.direction == prediction.c.direction,
+        _OWNER.c.id != prediction.c.id,
+        work_order.c.status.notin_(auto_orders.CLOSED_STATUSES),
+    )
+    .order_by(work_order.c.created_at.desc())
+    .limit(1)
+    .scalar_subquery()
+    .label("facility_order_id")
+)
+
 JOINED = prediction.join(facility, facility.c.id == prediction.c.facility_id)
 
-BASE = select(prediction, facility, ORDER_ID).select_from(JOINED)
+BASE = select(prediction, facility, ORDER_ID, FACILITY_ORDER_ID).select_from(JOINED)
 
 
 def _filtered(
@@ -101,7 +121,10 @@ def _filtered(
 
 
 def row_to_prediction(row: Any) -> Prediction:
-    return mappers.prediction(row, mappers.facility_ref(row), row.order_id)
+    # Своя заявка важнее заявки объекта: ссылка на чужую нужна, только когда
+    # своей нет.
+    facility_order = None if row.order_id else row.facility_order_id
+    return mappers.prediction(row, mappers.facility_ref(row), row.order_id, facility_order)
 
 
 @router.get("/predictions", response_model=Page[Prediction], response_model_by_alias=True)

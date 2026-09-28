@@ -201,6 +201,12 @@ POST /predictions/{id}/actions/{code} → PredictionDetail
 
 `PredictionDetail` = `Prediction` + `blocks: CardBlock[]` + `actions: ActionDef[]`.
 
+`Prediction.orderId` это заявка, которую создал сам прогноз. Автозаявка на
+объект и направление одна, пока она открыта, поэтому свежий прогноз того же
+объекта своей заявки не получает. Тогда сервер отдаёт `facilityOrderId`:
+открытую заявку объекта от другого прогноза. Карточка показывает ссылку на неё.
+При своей заявке `facilityOrderId` пустой.
+
 `CardBlock` = `{ type, title, data }`. Форма `data` блока `factors`:
 
 ```ts

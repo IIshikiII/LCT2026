@@ -123,6 +123,7 @@ export const PredictionSchema = dto({
   facility: FacilityRefSchema,
   summary: z.string(),
   orderId: opt(z.string()),
+  facilityOrderId: opt(z.string()),
   assignee: opt(z.string()),
   verdict: opt(z.string()),
   dispatcherLevel: opt(z.string()),

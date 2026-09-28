@@ -181,7 +181,12 @@ function seesOrder(user: MockUser, order: OrderRecord): boolean {
 /** Карточка прогноза с кнопками, отобранными по правам роли. */
 function detailFor(record: PredictionRecord, user: MockUser) {
   const detail = buildDetail(record)
-  return { ...detail, actions: allowed(detail.actions, user) }
+  const facilityOrderId = facilityOrderOf(record)
+  return {
+    ...detail,
+    ...(facilityOrderId ? { facilityOrderId } : {}),
+    actions: allowed(detail.actions, user),
+  }
 }
 
 /** Заявка с кнопками, отобранными по правам роли. */
@@ -296,10 +301,31 @@ function paginate<T>(items: T[], request: Request) {
   return { items: items.slice(start, start + pageSize), page, pageSize, total: items.length }
 }
 
+const CLOSED_ORDER_STATUSES = new Set(['CLOSED_CONFIRMED', 'CLOSED_NOT_CONFIRMED', 'REJECTED'])
+
+/**
+ * Открытая заявка того же объекта и направления от другого прогноза. Как у
+ * сервера: приходит, только когда своей заявки у прогноза нет.
+ */
+function facilityOrderOf(record: PredictionRecord): string | undefined {
+  if (record.orderId) return undefined
+  const open = db()
+    .orders.filter(
+      (o) =>
+        o.facility.id === record.facility.id &&
+        o.direction === record.direction &&
+        o.predictionId !== record.id &&
+        !CLOSED_ORDER_STATUSES.has(o.status),
+    )
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+  return open[0]?.id
+}
+
 /** Прогноз в том виде, в каком его отдаёт API: без служебных полей сида. */
 function toPrediction(record: PredictionRecord): Prediction {
   const { plugin: _plugin, facilityRecord: _facility, ...rest } = record
-  return rest
+  const facilityOrderId = facilityOrderOf(record)
+  return facilityOrderId ? { ...rest, facilityOrderId } : rest
 }
 
 /* ---------------------------------------------------------------- ручки */
