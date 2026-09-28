@@ -16,10 +16,11 @@
 - тот же замер отдельно по давности прошлой тревоги на единице;
 - точность и полнота при заданном числе тревог в сутки.
 
-Прогноз на сутки T строится на 00:00 суток T − 1, за 24 часа до их начала.
+Прогноз на сутки T строится на 00:00 суток T − `panel.LEAD_DAYS`. Сейчас это
+ноль: прогноз на ближайшие сутки.
 
 Наивная планка: событие было на участке в последние известные сутки, то есть в
-сутки T − 2.
+сутки T − `LEAD_DAYS` − 1.
 
 Результат: `out/daily_model.txt`, `out/daily_model.joblib`,
 `out/daily_metrics.json`, `out/daily_selected.json`.
@@ -46,6 +47,7 @@ import numpy as np
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import cv  # noqa: E402
+import panel as panel_module  # noqa: E402
 
 MODEL = cv.OUT / "daily_model.txt"
 METRICS = cv.OUT / "daily_metrics.json"
@@ -214,7 +216,7 @@ def main() -> None:
     result = {
         "grid": PANEL.stem.removesuffix("_panel"),
         "horizon_hours": 24,
-        "lead_hours": 24,
+        "lead_hours": 24 * panel_module.LEAD_DAYS,
         "seed": cv.SEED,
         "early_stopping_metric": cv.PARAMS["metric"],
         "trees": booster.num_trees(),
