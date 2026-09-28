@@ -14,6 +14,7 @@ COMMANDS = (
     "seed",
     "create-user",
     "reset-demo",
+    "reset-predictions",
     "reset-keys",
     "run-pipeline",
     "publish-metrics",
@@ -202,6 +203,18 @@ def main(argv: list[str] | None = None) -> int:
             f"сброс: {done.predictions} прогнозов снова новые, "
             f"{done.orders} заявок вернулись в начало, "
             f"{done.log_entries} записей журнала удалено"
+        )
+        return 0
+
+    if args.command == "reset-predictions":
+        from app.db import engine
+        from app.domain.reset import reset_predictions
+
+        with engine().begin() as conn:
+            done = reset_predictions(conn)
+        print(
+            f"прогнозы с нуля: удалено {done.predictions} прогнозов, {done.orders} заявок, "
+            f"{done.log_entries} записей журнала. Первый прогон посчитает всё заново"
         )
         return 0
 

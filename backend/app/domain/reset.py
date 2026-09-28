@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.engine import Connection
 
 from app.tables import action_log, prediction, work_order
@@ -74,4 +74,21 @@ def reset_demo(conn: Connection) -> ResetResult:
         delete(action_log).where(action_log.c.entity_type.in_(("prediction", "order")))
     ).rowcount
 
+    return ResetResult(predictions=int(predictions), orders=int(orders), log_entries=int(entries))
+
+
+def reset_predictions(conn: Connection) -> ResetResult:
+    """Удаляет прогнозы, заявки и их журнал действий. Отдаёт числа для отчёта.
+
+    После этого первый прогон конвейера считает все направления заново, как
+    при первом запуске стенда. Объекты, события, погода, прогоны конвейера,
+    замеры моделей и учётные записи остаются.
+    """
+    entries = conn.execute(
+        delete(action_log).where(action_log.c.entity_type.in_(("prediction", "order")))
+    ).rowcount
+    orders = conn.execute(delete(work_order)).rowcount
+    predictions = conn.execute(delete(prediction)).rowcount
+    # Номера заявок тоже с начала: 2026-0001, как на новом стенде.
+    conn.execute(text("ALTER SEQUENCE work_order_number_seq RESTART WITH 1"))
     return ResetResult(predictions=int(predictions), orders=int(orders), log_entries=int(entries))
