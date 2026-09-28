@@ -13,7 +13,6 @@ import { db } from './db'
 import { MAX_COMPUTE_MS, MIN_HORIZON_HOURS, buildDetail } from './db/predictions'
 import { BASE_DIRECTIONS } from './directions'
 import { devFlags } from './devFlags'
-import { TARGET_PRECISION, TARGET_RECALL } from './db/metrics'
 
 describe('справочники', () => {
   it('содержат объёмы из спецификации', () => {
@@ -190,16 +189,14 @@ describe('метрики моделей', () => {
     expect(db().metrics).toHaveLength(BASE_DIRECTIONS.length)
   })
 
-  it('видны и в зелёном, и в красном состоянии — иначе виджет нечем показать', () => {
-    const measured = db().metrics.flatMap((m) =>
-      m.precision !== undefined && m.recall !== undefined
-        ? [{ precision: m.precision, recall: m.recall }]
-        : [],
-    )
-    const green = measured.filter((m) => m.precision >= TARGET_PRECISION && m.recall >= TARGET_RECALL)
-    const red = measured.filter((m) => m.precision < TARGET_PRECISION || m.recall < TARGET_RECALL)
-    expect(green.length).toBeGreaterThan(0)
-    expect(red.length).toBeGreaterThan(0)
+  it('у каждого замера есть наивное правило с числами — виджету есть с чем сравнить', () => {
+    const measured = db().metrics.filter((m) => m.precision !== undefined)
+    expect(measured.length).toBeGreaterThan(0)
+    for (const m of measured) {
+      expect(m.baselineRule).toBeTruthy()
+      expect(m.baselinePrecision).toBeTypeOf('number')
+      expect(m.baselineRecall).toBeTypeOf('number')
+    }
   })
 
   it('показывают и направление без замера точности, с пояснением', () => {

@@ -51,7 +51,11 @@ export const floodRisk: DirectionPlugin = {
 
   workTypes: ['Проверка приямка и насоса', 'Гидроизоляция', 'Откачка воды'],
 
-  quality: { precision: 0.74, recall: 0.51 },
+  quality: {
+    precision: 0.38,
+    recall: 0.4,
+    baseline: { rule: 'вода на пикете была вчера', precision: 0.33, recall: 0.33 },
+  },
   share: 0.12,
 
   appliesTo: (f) => f.kind === FACILITY_KINDS.pump || f.kind === FACILITY_KINDS.chamber,

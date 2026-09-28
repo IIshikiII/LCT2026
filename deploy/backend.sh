@@ -184,6 +184,14 @@ backend_migrate() {
     dc run --rm pipeline uv run --no-sync python -m app.cli migrate
 }
 
+# Замер моделей в базу. Идёт при каждой выкладке, а не только при посеве:
+# посев пропускается, когда прогнозы уже есть, и дашборд показывал бы замер
+# прежней версии модели.
+backend_metrics() {
+    log "Публикую замер моделей"
+    dc run --rm pipeline uv run --no-sync python -m app.cli publish-metrics
+}
+
 # Посев синтетики. Делается один раз: повторный посев не плодит дублей, но и
 # не нужен, а прогон конвейера после него долгий.
 #
@@ -215,9 +223,6 @@ backend_seed() {
 
     log "Сею объекты и события"
     dc run --rm pipeline uv run --no-sync python -m app.cli seed $fresh --facilities "$SEED_FACILITIES"
-
-    log "Публикую замер модели"
-    dc run --rm pipeline uv run --no-sync python -m app.cli publish-metrics
 
     log "Считаю прогнозы"
     dc run --rm pipeline uv run --no-sync python -m app.cli run-pipeline

@@ -45,6 +45,9 @@ def test_model_metrics_return_a_bare_array() -> None:
         "evaluatedAt",
         "method",
         "note",
+        "baselineRule",
+        "baselinePrecision",
+        "baselineRecall",
     }
 
 
@@ -103,6 +106,28 @@ def test_pipeline_health_carries_both_targets() -> None:
     body = get("/metrics/pipeline")
     assert body["targetComputeMs"] == TARGET_COMPUTE_MS == 300_000
     assert body["targetHorizonHours"] == TARGET_HORIZON_HOURS == 24
+
+
+def test_stream_lag_comes_from_the_last_run_with_events() -> None:
+    """Тихая минута без событий не стирает задержку: виджет не мигает."""
+    with engine().begin() as conn:
+        for shift, events, lag in ((-0.6, 3, 45_000), (-0.5, 0, None)):
+            conn.execute(
+                pipeline_run.insert(),
+                {
+                    "started_at": NOW + timedelta(hours=shift),
+                    "finished_at": NOW + timedelta(hours=shift, seconds=10),
+                    "duration_ms": 10_000,
+                    "prediction_count": 0,
+                    "status": "DONE",
+                    "stream_events": events,
+                    "stream_lag_ms": lag,
+                },
+            )
+
+    body = get("/metrics/pipeline")
+    assert body["streamLagMs"] == 45_000
+    assert body["streamEvents"] == 3
 
 
 def test_freshness_grows_from_the_moment_of_the_run() -> None:

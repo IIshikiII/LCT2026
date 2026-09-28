@@ -360,7 +360,9 @@ backend/
   втором случае и только один раз.
 - `SessionResponse`: `accessToken, tokenType, expiresIn, user`.
 - `ModelMetric`: `{ direction, precision, recall, targetPrecision,
-  targetRecall, evaluatedAt }`.
+  targetRecall, evaluatedAt, method?, note?, baselineRule?, baselinePrecision?,
+  baselineRecall? }`. Правило «событие было вчера» считается тем же замером,
+  что и модель, и лежит в `model_metric` (миграция 015).
 - `PipelineHealth`: `{ lastRunAt, lastRunMs, freshnessMinutes, maxComputeMs,
   minHorizonHours, targetComputeMs, targetHorizonHours }`.
 - `DashboardSummary`: `{ byLevel, byDirection, byStatus, byOrderStatus, total }`,

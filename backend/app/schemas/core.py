@@ -131,6 +131,10 @@ class ModelMetric(Dto):
     evaluated_at: str
     method: str | None = None
     note: str | None = None
+    # Наивное правило на той же выборке: что это за правило и его числа.
+    baseline_rule: str | None = None
+    baseline_precision: float | None = None
+    baseline_recall: float | None = None
 
 
 class PipelineHealth(Dto):

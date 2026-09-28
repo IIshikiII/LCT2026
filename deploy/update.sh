@@ -135,6 +135,7 @@ if [ "$DEPLOY_BACKEND" = yes ] && [ "$FRONT_ONLY" != yes ]; then
     publish_model
     backend_up
     backend_migrate
+    backend_metrics
     backend_seed
     backend_stream
     [ "$DO_RESET" != yes ] || backend_reset

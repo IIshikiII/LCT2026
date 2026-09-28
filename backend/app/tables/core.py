@@ -304,6 +304,9 @@ model_metric = Table(
     _ts("evaluated_at", nullable=False),
     Column("method", Text, nullable=False, default="offline_holdout"),
     Column("model_version", Text),
+    # Наивное правило на той же выборке. Миграция 015.
+    Column("baseline_precision", Float),
+    Column("baseline_recall", Float),
 )
 
 schema_migration = Table(

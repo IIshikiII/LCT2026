@@ -281,7 +281,8 @@ POST /orders/{id}/actions/{code}                  → WorkOrder
 ```
 GET /metrics/models      → ModelMetric[]   { direction, precision?, recall?,
                                              targetPrecision, targetRecall, evaluatedAt,
-                                             method?, note? }
+                                             method?, note?, baselineRule?,
+                                             baselinePrecision?, baselineRecall? }
 GET /metrics/pipeline    → { lastRunAt, lastRunMs, freshnessMinutes,
                              maxComputeMs, minHorizonHours,
                              targetComputeMs, targetHorizonHours,
@@ -298,6 +299,16 @@ GET /alerts              → Alert[]: { code, level, count, title, hint?,
 «не измерена» и показывает `note` как есть. Ноль вместо пустоты читался бы как
 провал, молчание — как пропуск.
 
+`baselineRule` называет наивное правило, с которым сравнивается модель, например
+«событие на участке было вчера». `baselinePrecision` и `baselineRecall` это его
+точность и полнота на той же выборке, что и у модели. Виджет «Здоровье модели»
+показывает две группы колонок: модель и правило. Умолчания ТЗ
+`targetPrecision` и `targetRecall` сервер по-прежнему отдаёт, но виджет их не
+показывает: порогом приёмки они не являются (ТЗ §9).
+
+`streamLagMs` берётся из последнего прогона за час, который получил события
+потока. Тихая минута задержку не стирает.
+
 Журнал без параметра `sort` идёт по критичности, при равной критичности новее
 выше. Порядок уровней берётся из `riskLevels` меты, а не из кода. Любая
 сортировка по колонке добирает равные значения новизной. `sort=risk` значит ту
@@ -313,9 +324,9 @@ GET /alerts              → Alert[]: { code, level, count, title, hint?,
 а не массивы с фиксированными ключами. Появилось направление — появился ключ,
 дашборд подхватил.
 
-Целевые значения ТЗ (`targetPrecision`, `targetRecall`, `targetComputeMs`,
-`targetHorizonHours`) приходят с сервера. Фронт их не хардкодит: поменялось ТЗ —
-поменялся ответ, а не код.
+Границы ТЗ (`targetComputeMs`, `targetHorizonHours`, `targetStreamLagMs`)
+приходят с сервера. Фронт их не хардкодит и не подписывает: он выделяет только
+значение, которое границу нарушает.
 
 ## Как добавить ручку: пример целиком
 

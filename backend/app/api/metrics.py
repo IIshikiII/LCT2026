@@ -41,6 +41,10 @@ DEFAULT_TARGET_RECALL = 0.5
 # Значение статуса, которым конвейер помечает успешный прогон. Задача 10.
 RUN_DONE = "DONE"
 
+# Сколько смотреть назад в поисках прогона с событиями потока. Минуты без
+# тревог обычны: на стенде события несут около 60 % прогонов.
+STREAM_LOOKBACK = timedelta(hours=1)
+
 # Свежесть, когда прогонов не было вовсе. Год заведомо вне нормы, поэтому
 # виджет покажет отказ, а не зелёную галочку.
 NEVER_MINUTES = 525_600.0
@@ -85,6 +89,9 @@ def model_metrics(
                     target_recall=row.target_recall,
                     evaluated_at=common.iso(row.evaluated_at),
                     method=row.method,
+                    baseline_rule=item.baseline_rule or None,
+                    baseline_precision=row.baseline_precision,
+                    baseline_recall=row.baseline_recall,
                 )
             )
         elif item.quality_note:
@@ -137,6 +144,20 @@ def pipeline_health(
     ).first()
     max_compute_ms, min_horizon = measured or (None, None)
 
+    # Задержка потока берётся из последнего прогона, который получил события.
+    # Прогон без событий задержки не знает, и виджет мигал бы «событий не
+    # было» в каждую тихую минуту.
+    streamed = conn.execute(
+        select(pipeline_run.c.stream_lag_ms, pipeline_run.c.stream_events)
+        .where(
+            pipeline_run.c.status == RUN_DONE,
+            pipeline_run.c.stream_events > 0,
+            pipeline_run.c.started_at >= at - STREAM_LOOKBACK,
+        )
+        .order_by(pipeline_run.c.started_at.desc())
+        .limit(1)
+    ).first()
+
     return PipelineHealth(
         last_run_at=common.iso(at),
         last_run_ms=run.duration_ms or 0,
@@ -145,8 +166,8 @@ def pipeline_health(
         min_horizon_hours=min_horizon or 0,
         target_compute_ms=TARGET_COMPUTE_MS,
         target_horizon_hours=TARGET_HORIZON_HOURS,
-        stream_lag_ms=run.stream_lag_ms,
-        stream_events=run.stream_events or 0,
+        stream_lag_ms=streamed.stream_lag_ms if streamed else None,
+        stream_events=streamed.stream_events if streamed else 0,
         target_stream_lag_ms=TARGET_STREAM_LAG_MS,
     )
 

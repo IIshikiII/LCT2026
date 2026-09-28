@@ -1,10 +1,9 @@
 /**
- * Метрики моделей и состояние конвейера — то, ради чего на дашборде существует
- * виджет соответствия метрикам ТЗ.
+ * Метрики моделей и состояние конвейера для виджетов «Здоровье модели» и
+ * «Конвейер расчёта».
  *
- * Значения `quality` заданы в плагинах направлений так, чтобы виджет было видно
- * в обоих состояниях: часть направлений выше целевых, одно — ниже по Precision.
- * Иначе на защите непонятно, что виджет вообще умеет краснеть.
+ * Значения `quality` заданы в плагинах направлений. Модель сравнивается с
+ * наивным правилом на той же выборке, числа близки к замерам настоящих моделей.
  */
 import type { ModelMetric, PipelineHealth } from '@/shared/api/types'
 import { activeDirections } from '../directions'
@@ -30,6 +29,9 @@ export function buildModelMetrics(): ModelMetric[] {
       ...base,
       precision: plugin.quality.precision,
       recall: plugin.quality.recall,
+      baselineRule: plugin.quality.baseline?.rule,
+      baselinePrecision: plugin.quality.baseline?.precision,
+      baselineRecall: plugin.quality.baseline?.recall,
       evaluatedAt: iso(hoursFrom(NOW, -6)),
       method: 'offline_holdout',
     }

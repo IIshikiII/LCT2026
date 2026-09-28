@@ -1,13 +1,11 @@
 /**
- * Соответствие метрикам ТЗ: Precision против 0.7 и Recall против 0.5 по каждому
- * направлению.
+ * Здоровье модели: Precision и Recall модели рядом с наивным правилом на той
+ * же выборке.
  *
- * Виджет существует ровно для того, чтобы жюри увидело выполнение метрик, не
- * открывая ноутбук с моделью (spec §9). Поэтому целевые значения показаны
- * рядом с фактическими, а не спрятаны в подсказку.
- *
- * Цели приходят с бэкенда (`targetPrecision`, `targetRecall`) — фронт их не
- * хардкодит: поменяется ТЗ, поменяется и порог, без пересборки.
+ * Умолчания ТЗ 0.7 и 0.5 порогом приёмки не являются (ТЗ §9, ответ заказчика
+ * 2.3), поэтому виджет их не показывает. Модель сравнивается с правилом
+ * «событие было вчера»: это честная планка для редкого события. Название
+ * правила приходит с сервера полем `baselineRule`, фронт его не знает.
  *
  * Строка без чисел значит «точность не измерена». Пояснение приходит полем
  * `note`, виджет показывает его как есть: молчание о направлении читалось бы
@@ -15,58 +13,48 @@
  */
 import { useMeta, useModelMetrics } from '@/shared/api/queries'
 import type { ModelMetric } from '@/shared/api/types'
+import { cn } from '@/shared/lib/cn'
 import { fmtScore } from '@/shared/lib/format'
 import { directionLabel } from '@/shared/lib/risk'
 import { Panel } from '@/shared/ui/Panel'
 import { ErrorState, Skeleton } from '@/shared/ui/states'
 
-function ScoreCell({
-  value,
-  target,
-  label,
-}: {
-  value: number | undefined
-  target: number
-  label: string
-}) {
-  if (value === undefined) {
-    return (
-      <span className="flex flex-col items-end leading-tight">
-        <span className="text-[12px] text-text-dim" title={`${label} не измерена`}>
-          не измерена
-        </span>
-        <span className="text-[11px] text-text-mute">цель {fmtScore(target)}</span>
-      </span>
-    )
-  }
-  const ok = value >= target
+const GRID = 'grid grid-cols-[minmax(0,1fr)_4rem_4rem_4rem_4rem] items-baseline gap-x-2'
+
+function Score({ value, dim = false }: { value: number | undefined; dim?: boolean }) {
   return (
-    <span className="flex flex-col items-end leading-tight">
-      <span
-        className="mono text-[13px]"
-        style={{ color: ok ? 'var(--color-risk-low)' : 'var(--color-risk-high)' }}
-        title={ok ? `${label} выше цели` : `${label} ниже цели ${fmtScore(target)}`}
-      >
-        {fmtScore(value)}
-        {/* Знак дублирует цвет: только цветом кодировать нельзя. */}
-        <span className="ml-1">{ok ? '✓' : '!'}</span>
-      </span>
-      <span className="text-[11px] text-text-mute">цель {fmtScore(target)}</span>
+    <span className={cn('mono text-right text-[13px]', dim ? 'text-text-dim' : 'text-text')}>
+      {value === undefined ? '—' : fmtScore(value)}
     </span>
   )
 }
 
 function MetricRow({ metric }: { metric: ModelMetric }) {
   const meta = useMeta()
+  const label = directionLabel(metric.direction, meta)
+  const measured = metric.precision !== undefined
   return (
-    <li className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-line/60 py-1.5 last:border-b-0">
-      <span className="min-w-0 truncate text-[13px] text-text-dim">
-        {directionLabel(metric.direction, meta)}
+    <li className={cn(GRID, 'border-b border-line/60 py-1.5 last:border-b-0')}>
+      <span className="min-w-0">
+        <span className="block truncate text-[13px] text-text-dim">{label}</span>
+        {metric.baselineRule ? (
+          <span className="block truncate text-[11px] text-text-mute" title={metric.baselineRule}>
+            правило: {metric.baselineRule}
+          </span>
+        ) : null}
       </span>
-      <ScoreCell value={metric.precision} target={metric.targetPrecision} label="Precision" />
-      <ScoreCell value={metric.recall} target={metric.targetRecall} label="Recall" />
+      {measured ? (
+        <>
+          <Score value={metric.precision} />
+          <Score value={metric.recall} />
+          <Score value={metric.baselinePrecision} dim />
+          <Score value={metric.baselineRecall} dim />
+        </>
+      ) : (
+        <span className="col-span-4 text-right text-[12px] text-text-dim">не измерена</span>
+      )}
       {metric.note ? (
-        <span className="col-span-3 text-[11px] leading-snug text-text-mute">{metric.note}</span>
+        <span className="col-span-5 text-[11px] leading-snug text-text-mute">{metric.note}</span>
       ) : null}
     </li>
   )
@@ -76,15 +64,26 @@ export function ModelMetrics() {
   const query = useModelMetrics()
 
   return (
-    <Panel title="Соответствие метрикам ТЗ" className="md:col-span-3 xl:col-span-4">
+    <Panel title="Здоровье модели" className="md:col-span-3 xl:col-span-4">
       {query.isPending ? (
         <Skeleton className="h-24" />
       ) : query.isError ? (
         <ErrorState onRetry={() => void query.refetch()} />
       ) : (
         <>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 border-b border-line pb-1 text-[11px] text-text-mute">
+          <div className={cn(GRID, 'text-[11px] text-text-mute')}>
+            <span />
+            <span className="col-span-2 text-center">Модель</span>
+            <span className="col-span-2 text-center">Правило</span>
+          </div>
+          <div className={cn(GRID, 'border-b border-line pb-1 text-[11px] text-text-mute')}>
             <span>Направление</span>
+            <span className="text-right" title="Precision, точность">
+              Precision
+            </span>
+            <span className="text-right" title="Recall, полнота">
+              Recall
+            </span>
             <span className="text-right">Precision</span>
             <span className="text-right">Recall</span>
           </div>

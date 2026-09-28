@@ -170,6 +170,9 @@ export const ModelMetricSchema = dto({
   evaluatedAt: z.string(),
   method: opt(z.string()),
   note: opt(z.string()),
+  baselineRule: opt(z.string()),
+  baselinePrecision: opt(z.number()),
+  baselineRecall: opt(z.number()),
 })
 
 /**
