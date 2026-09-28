@@ -279,7 +279,7 @@ preflight.
 |---|---|---|
 | `implementer` | sonnet | код по готовому описанию |
 | `data-analyst` | sonnet | счёт по выгрузке в DuckDB |
-| `doc-writer` | sonnet | документы по правилам STE |
+| `doc-writer` | sonnet | документы по правилам STR |
 | `verifier` | sonnet | прогон ворот и краткий доклад |
 
 Итерация на Opus поручает им механику. Дорогая модель тратится на выбор
