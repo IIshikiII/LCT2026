@@ -1,7 +1,7 @@
 {
   "grid": "rolling",
   "horizon_hours": 24,
-  "lead_hours": 24,
+  "lead_hours": 0,
   "seed": 4217,
   "early_stopping_metric": "binary_logloss",
   "trees": 43,
