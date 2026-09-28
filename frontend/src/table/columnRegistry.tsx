@@ -227,8 +227,13 @@ export const orderColumns: Record<string, ColumnDef<WorkOrder>> = {
   workType: {
     key: 'workType',
     header: 'Вид работ',
+    width: 440,
     sortable: true,
-    cell: (row) => <span className="text-text-dim">{row.workType}</span>,
+    cell: (row) => (
+      <span className="line-clamp-2 text-text-dim" title={row.workType}>
+        {row.workType}
+      </span>
+    ),
   },
   dueAt: {
     key: 'dueAt',
@@ -258,7 +263,7 @@ export const orderColumns: Record<string, ColumnDef<WorkOrder>> = {
   orderStatus: {
     key: 'orderStatus',
     header: 'Статус',
-    width: 180,
+    width: 230,
     sortable: true,
     cell: (row, meta) => (
       <Badge color={statusColor(row.status, 'order', meta)}>
@@ -269,12 +274,14 @@ export const orderColumns: Record<string, ColumnDef<WorkOrder>> = {
   prediction: {
     key: 'prediction',
     header: 'Прогноз',
-    width: 100,
+    // Ширины нет: колонка берёт остаток строки, и код прогноза не ломается
+    // на несколько строк.
     cell: (row) => (
       <Link
         to={`/journal?prediction=${encodeURIComponent(row.predictionId)}`}
         onClick={(event) => event.stopPropagation()}
-        className="text-text-dim underline decoration-line-strong underline-offset-2 hover:text-text"
+        title={row.predictionId}
+        className="whitespace-nowrap text-text-dim underline decoration-line-strong underline-offset-2 hover:text-text"
       >
         <Mono>{row.predictionId}</Mono>
       </Link>
