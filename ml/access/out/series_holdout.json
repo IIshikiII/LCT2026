@@ -1,0 +1,1056 @@
+{
+  "рабочий": {
+    "features": 20,
+    "mean": {
+      "pr_auc": 0.0891,
+      "pr_auc_lift": 10.894,
+      "precision_at_naive_recall": 0.2341,
+      "recall_at_naive_alerts": 0.1663,
+      "alerts_per_day": 1.5933,
+      "recall_at_5_per_day": 0.2329
+    },
+    "runs": [
+      {
+        "seed": 4217,
+        "trees": 45,
+        "pr_auc": 0.096428,
+        "pr_auc_lift": 11.784,
+        "precision_at_naive_recall": 0.265873,
+        "recall_at_naive_alerts": 0.173116,
+        "threshold": 0.140342,
+        "alerts_per_day": 1.39,
+        "curve": {
+          "2": {
+            "precision": 0.20442,
+            "recall": 0.150713,
+            "alerts": 362,
+            "hits": 74,
+            "threshold": 0.114379
+          },
+          "5": {
+            "precision": 0.128177,
+            "recall": 0.236253,
+            "alerts": 905,
+            "hits": 116,
+            "threshold": 0.05875
+          },
+          "10": {
+            "precision": 0.079006,
+            "recall": 0.291242,
+            "alerts": 1810,
+            "hits": 143,
+            "threshold": 0.038005
+          }
+        },
+        "by_recency": [
+          {
+            "group": "последние известные сутки",
+            "rows": 504,
+            "events": 68,
+            "model": {
+              "precision": 0.305085,
+              "recall": 0.794118,
+              "alerts": 177,
+              "hits": 54
+            },
+            "naive": {
+              "precision": 0.139875,
+              "recall": 0.985294,
+              "alerts": 479,
+              "hits": 67
+            }
+          },
+          {
+            "group": "2–7 суток",
+            "rows": 2378,
+            "events": 86,
+            "model": {
+              "precision": 0.119403,
+              "recall": 0.093023,
+              "alerts": 67,
+              "hits": 8
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "8–30 суток",
+            "rows": 7003,
+            "events": 74,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 2,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "больше 30 суток",
+            "rows": 50115,
+            "events": 263,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 1,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          }
+        ],
+        "series": {
+          "rows": 479,
+          "continued": 67,
+          "kept": 177,
+          "kept_continued": 54,
+          "stopped": 302,
+          "stopped_right": 289,
+          "series_pr_auc": 0.407923
+        }
+      },
+      {
+        "seed": 1301,
+        "trees": 80,
+        "pr_auc": 0.082666,
+        "pr_auc_lift": 10.102,
+        "precision_at_naive_recall": 0.217532,
+        "recall_at_naive_alerts": 0.158859,
+        "threshold": 0.142368,
+        "alerts_per_day": 1.7,
+        "curve": {
+          "2": {
+            "precision": 0.187845,
+            "recall": 0.138493,
+            "alerts": 362,
+            "hits": 68,
+            "threshold": 0.123792
+          },
+          "5": {
+            "precision": 0.117127,
+            "recall": 0.215886,
+            "alerts": 905,
+            "hits": 106,
+            "threshold": 0.065865
+          },
+          "10": {
+            "precision": 0.074033,
+            "recall": 0.272912,
+            "alerts": 1810,
+            "hits": 134,
+            "threshold": 0.043237
+          }
+        },
+        "by_recency": [
+          {
+            "group": "последние известные сутки",
+            "rows": 504,
+            "events": 68,
+            "model": {
+              "precision": 0.271357,
+              "recall": 0.794118,
+              "alerts": 199,
+              "hits": 54
+            },
+            "naive": {
+              "precision": 0.139875,
+              "recall": 0.985294,
+              "alerts": 479,
+              "hits": 67
+            }
+          },
+          {
+            "group": "2–7 суток",
+            "rows": 2378,
+            "events": 86,
+            "model": {
+              "precision": 0.128713,
+              "recall": 0.151163,
+              "alerts": 101,
+              "hits": 13
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "8–30 суток",
+            "rows": 7003,
+            "events": 74,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "больше 30 суток",
+            "rows": 50115,
+            "events": 263,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 8,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          }
+        ],
+        "series": {
+          "rows": 479,
+          "continued": 67,
+          "kept": 199,
+          "kept_continued": 54,
+          "stopped": 280,
+          "stopped_right": 267,
+          "series_pr_auc": 0.360422
+        }
+      },
+      {
+        "seed": 7717,
+        "trees": 42,
+        "pr_auc": 0.088343,
+        "pr_auc_lift": 10.796,
+        "precision_at_naive_recall": 0.218954,
+        "recall_at_naive_alerts": 0.167006,
+        "threshold": 0.11418,
+        "alerts_per_day": 1.69,
+        "curve": {
+          "2": {
+            "precision": 0.19337,
+            "recall": 0.142566,
+            "alerts": 362,
+            "hits": 70,
+            "threshold": 0.105521
+          },
+          "5": {
+            "precision": 0.133702,
+            "recall": 0.246436,
+            "alerts": 905,
+            "hits": 121,
+            "threshold": 0.051669
+          },
+          "10": {
+            "precision": 0.085635,
+            "recall": 0.315682,
+            "alerts": 1810,
+            "hits": 155,
+            "threshold": 0.030409
+          }
+        },
+        "by_recency": [
+          {
+            "group": "последние известные сутки",
+            "rows": 504,
+            "events": 68,
+            "model": {
+              "precision": 0.262887,
+              "recall": 0.75,
+              "alerts": 194,
+              "hits": 51
+            },
+            "naive": {
+              "precision": 0.139875,
+              "recall": 0.985294,
+              "alerts": 479,
+              "hits": 67
+            }
+          },
+          {
+            "group": "2–7 суток",
+            "rows": 2378,
+            "events": 86,
+            "model": {
+              "precision": 0.135135,
+              "recall": 0.174419,
+              "alerts": 111,
+              "hits": 15
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "8–30 суток",
+            "rows": 7003,
+            "events": 74,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "больше 30 суток",
+            "rows": 50115,
+            "events": 263,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          }
+        ],
+        "series": {
+          "rows": 479,
+          "continued": 67,
+          "kept": 194,
+          "kept_continued": 51,
+          "stopped": 285,
+          "stopped_right": 269,
+          "series_pr_auc": 0.358436
+        }
+      }
+    ]
+  },
+  "рабочий и серия": {
+    "features": 24,
+    "mean": {
+      "pr_auc": 0.091,
+      "pr_auc_lift": 11.1193,
+      "precision_at_naive_recall": 0.2179,
+      "recall_at_naive_alerts": 0.1704,
+      "alerts_per_day": 1.7167,
+      "recall_at_5_per_day": 0.239
+    },
+    "runs": [
+      {
+        "seed": 4217,
+        "trees": 44,
+        "pr_auc": 0.093548,
+        "pr_auc_lift": 11.432,
+        "precision_at_naive_recall": 0.219672,
+        "recall_at_naive_alerts": 0.169043,
+        "threshold": 0.102922,
+        "alerts_per_day": 1.69,
+        "curve": {
+          "2": {
+            "precision": 0.196133,
+            "recall": 0.144603,
+            "alerts": 362,
+            "hits": 71,
+            "threshold": 0.091988
+          },
+          "5": {
+            "precision": 0.129282,
+            "recall": 0.238289,
+            "alerts": 905,
+            "hits": 117,
+            "threshold": 0.054617
+          },
+          "10": {
+            "precision": 0.08453,
+            "recall": 0.311609,
+            "alerts": 1810,
+            "hits": 153,
+            "threshold": 0.03196
+          }
+        },
+        "by_recency": [
+          {
+            "group": "последние известные сутки",
+            "rows": 504,
+            "events": 68,
+            "model": {
+              "precision": 0.26087,
+              "recall": 0.794118,
+              "alerts": 207,
+              "hits": 54
+            },
+            "naive": {
+              "precision": 0.139875,
+              "recall": 0.985294,
+              "alerts": 479,
+              "hits": 67
+            }
+          },
+          {
+            "group": "2–7 суток",
+            "rows": 2378,
+            "events": 86,
+            "model": {
+              "precision": 0.12766,
+              "recall": 0.139535,
+              "alerts": 94,
+              "hits": 12
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "8–30 суток",
+            "rows": 7003,
+            "events": 74,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 1,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "больше 30 суток",
+            "rows": 50115,
+            "events": 263,
+            "model": {
+              "precision": 0.333333,
+              "recall": 0.003802,
+              "alerts": 3,
+              "hits": 1
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          }
+        ],
+        "series": {
+          "rows": 479,
+          "continued": 67,
+          "kept": 207,
+          "kept_continued": 54,
+          "stopped": 272,
+          "stopped_right": 259,
+          "series_pr_auc": 0.363565
+        }
+      },
+      {
+        "seed": 1301,
+        "trees": 52,
+        "pr_auc": 0.086951,
+        "pr_auc_lift": 10.626,
+        "precision_at_naive_recall": 0.190341,
+        "recall_at_naive_alerts": 0.160896,
+        "threshold": 0.110403,
+        "alerts_per_day": 1.94,
+        "curve": {
+          "2": {
+            "precision": 0.187845,
+            "recall": 0.138493,
+            "alerts": 362,
+            "hits": 68,
+            "threshold": 0.107439
+          },
+          "5": {
+            "precision": 0.125967,
+            "recall": 0.232179,
+            "alerts": 905,
+            "hits": 114,
+            "threshold": 0.0535
+          },
+          "10": {
+            "precision": 0.085635,
+            "recall": 0.315682,
+            "alerts": 1810,
+            "hits": 155,
+            "threshold": 0.029741
+          }
+        },
+        "by_recency": [
+          {
+            "group": "последние известные сутки",
+            "rows": 504,
+            "events": 68,
+            "model": {
+              "precision": 0.247706,
+              "recall": 0.794118,
+              "alerts": 218,
+              "hits": 54
+            },
+            "naive": {
+              "precision": 0.139875,
+              "recall": 0.985294,
+              "alerts": 479,
+              "hits": 67
+            }
+          },
+          {
+            "group": "2–7 суток",
+            "rows": 2378,
+            "events": 86,
+            "model": {
+              "precision": 0.102564,
+              "recall": 0.139535,
+              "alerts": 117,
+              "hits": 12
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "8–30 суток",
+            "rows": 7003,
+            "events": 74,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 1,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "больше 30 суток",
+            "rows": 50115,
+            "events": 263,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 15,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          }
+        ],
+        "series": {
+          "rows": 479,
+          "continued": 67,
+          "kept": 218,
+          "kept_continued": 54,
+          "stopped": 261,
+          "stopped_right": 248,
+          "series_pr_auc": 0.339897
+        }
+      },
+      {
+        "seed": 7717,
+        "trees": 46,
+        "pr_auc": 0.092467,
+        "pr_auc_lift": 11.3,
+        "precision_at_naive_recall": 0.243636,
+        "recall_at_naive_alerts": 0.181263,
+        "threshold": 0.134997,
+        "alerts_per_day": 1.52,
+        "curve": {
+          "2": {
+            "precision": 0.20442,
+            "recall": 0.150713,
+            "alerts": 362,
+            "hits": 74,
+            "threshold": 0.102206
+          },
+          "5": {
+            "precision": 0.133702,
+            "recall": 0.246436,
+            "alerts": 905,
+            "hits": 121,
+            "threshold": 0.052869
+          },
+          "10": {
+            "precision": 0.085635,
+            "recall": 0.315682,
+            "alerts": 1810,
+            "hits": 155,
+            "threshold": 0.031024
+          }
+        },
+        "by_recency": [
+          {
+            "group": "последние известные сутки",
+            "rows": 504,
+            "events": 68,
+            "model": {
+              "precision": 0.288235,
+              "recall": 0.720588,
+              "alerts": 170,
+              "hits": 49
+            },
+            "naive": {
+              "precision": 0.139875,
+              "recall": 0.985294,
+              "alerts": 479,
+              "hits": 67
+            }
+          },
+          {
+            "group": "2–7 суток",
+            "rows": 2378,
+            "events": 86,
+            "model": {
+              "precision": 0.117021,
+              "recall": 0.127907,
+              "alerts": 94,
+              "hits": 11
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "8–30 суток",
+            "rows": 7003,
+            "events": 74,
+            "model": {
+              "precision": 0.6,
+              "recall": 0.081081,
+              "alerts": 10,
+              "hits": 6
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "больше 30 суток",
+            "rows": 50115,
+            "events": 263,
+            "model": {
+              "precision": 1.0,
+              "recall": 0.003802,
+              "alerts": 1,
+              "hits": 1
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          }
+        ],
+        "series": {
+          "rows": 479,
+          "continued": 67,
+          "kept": 170,
+          "kept_continued": 49,
+          "stopped": 309,
+          "stopped_right": 291,
+          "series_pr_auc": 0.36209
+        }
+      }
+    ]
+  },
+  "рабочий и все кандидаты": {
+    "features": 31,
+    "mean": {
+      "pr_auc": 0.0814,
+      "pr_auc_lift": 9.9457,
+      "precision_at_naive_recall": 0.1916,
+      "recall_at_naive_alerts": 0.1629,
+      "alerts_per_day": 1.9867,
+      "recall_at_5_per_day": 0.2234
+    },
+    "runs": [
+      {
+        "seed": 4217,
+        "trees": 65,
+        "pr_auc": 0.086567,
+        "pr_auc_lift": 10.579,
+        "precision_at_naive_recall": 0.196481,
+        "recall_at_naive_alerts": 0.169043,
+        "threshold": 0.108367,
+        "alerts_per_day": 1.88,
+        "curve": {
+          "2": {
+            "precision": 0.198895,
+            "recall": 0.14664,
+            "alerts": 362,
+            "hits": 72,
+            "threshold": 0.104413
+          },
+          "5": {
+            "precision": 0.127072,
+            "recall": 0.234216,
+            "alerts": 905,
+            "hits": 115,
+            "threshold": 0.058959
+          },
+          "10": {
+            "precision": 0.083978,
+            "recall": 0.309572,
+            "alerts": 1810,
+            "hits": 152,
+            "threshold": 0.03591
+          }
+        },
+        "by_recency": [
+          {
+            "group": "последние известные сутки",
+            "rows": 504,
+            "events": 68,
+            "model": {
+              "precision": 0.237069,
+              "recall": 0.808824,
+              "alerts": 232,
+              "hits": 55
+            },
+            "naive": {
+              "precision": 0.139875,
+              "recall": 0.985294,
+              "alerts": 479,
+              "hits": 67
+            }
+          },
+          {
+            "group": "2–7 суток",
+            "rows": 2378,
+            "events": 86,
+            "model": {
+              "precision": 0.105769,
+              "recall": 0.127907,
+              "alerts": 104,
+              "hits": 11
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "8–30 суток",
+            "rows": 7003,
+            "events": 74,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 4,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "больше 30 суток",
+            "rows": 50115,
+            "events": 263,
+            "model": {
+              "precision": 1.0,
+              "recall": 0.003802,
+              "alerts": 1,
+              "hits": 1
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          }
+        ],
+        "series": {
+          "rows": 479,
+          "continued": 67,
+          "kept": 232,
+          "kept_continued": 55,
+          "stopped": 247,
+          "stopped_right": 235,
+          "series_pr_auc": 0.353954
+        }
+      },
+      {
+        "seed": 1301,
+        "trees": 59,
+        "pr_auc": 0.071103,
+        "pr_auc_lift": 8.689,
+        "precision_at_naive_recall": 0.151927,
+        "recall_at_naive_alerts": 0.142566,
+        "threshold": 0.122356,
+        "alerts_per_day": 2.44,
+        "curve": {
+          "2": {
+            "precision": 0.171271,
+            "recall": 0.126273,
+            "alerts": 362,
+            "hits": 62,
+            "threshold": 0.135186
+          },
+          "5": {
+            "precision": 0.107182,
+            "recall": 0.197556,
+            "alerts": 905,
+            "hits": 97,
+            "threshold": 0.085364
+          },
+          "10": {
+            "precision": 0.066298,
+            "recall": 0.244399,
+            "alerts": 1810,
+            "hits": 120,
+            "threshold": 0.05693
+          }
+        },
+        "by_recency": [
+          {
+            "group": "последние известные сутки",
+            "rows": 504,
+            "events": 68,
+            "model": {
+              "precision": 0.266667,
+              "recall": 0.764706,
+              "alerts": 195,
+              "hits": 52
+            },
+            "naive": {
+              "precision": 0.139875,
+              "recall": 0.985294,
+              "alerts": 479,
+              "hits": 67
+            }
+          },
+          {
+            "group": "2–7 суток",
+            "rows": 2378,
+            "events": 86,
+            "model": {
+              "precision": 0.121495,
+              "recall": 0.151163,
+              "alerts": 107,
+              "hits": 13
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "8–30 суток",
+            "rows": 7003,
+            "events": 74,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "больше 30 суток",
+            "rows": 50115,
+            "events": 263,
+            "model": {
+              "precision": 0.014388,
+              "recall": 0.007605,
+              "alerts": 139,
+              "hits": 2
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          }
+        ],
+        "series": {
+          "rows": 479,
+          "continued": 67,
+          "kept": 195,
+          "kept_continued": 52,
+          "stopped": 284,
+          "stopped_right": 269,
+          "series_pr_auc": 0.313429
+        }
+      },
+      {
+        "seed": 7717,
+        "trees": 68,
+        "pr_auc": 0.086488,
+        "pr_auc_lift": 10.569,
+        "precision_at_naive_recall": 0.226351,
+        "recall_at_naive_alerts": 0.177189,
+        "threshold": 0.133022,
+        "alerts_per_day": 1.64,
+        "curve": {
+          "2": {
+            "precision": 0.21547,
+            "recall": 0.158859,
+            "alerts": 362,
+            "hits": 78,
+            "threshold": 0.113125
+          },
+          "5": {
+            "precision": 0.129282,
+            "recall": 0.238289,
+            "alerts": 905,
+            "hits": 117,
+            "threshold": 0.056893
+          },
+          "10": {
+            "precision": 0.077348,
+            "recall": 0.285132,
+            "alerts": 1810,
+            "hits": 140,
+            "threshold": 0.035598
+          }
+        },
+        "by_recency": [
+          {
+            "group": "последние известные сутки",
+            "rows": 504,
+            "events": 68,
+            "model": {
+              "precision": 0.257732,
+              "recall": 0.735294,
+              "alerts": 194,
+              "hits": 50
+            },
+            "naive": {
+              "precision": 0.139875,
+              "recall": 0.985294,
+              "alerts": 479,
+              "hits": 67
+            }
+          },
+          {
+            "group": "2–7 суток",
+            "rows": 2378,
+            "events": 86,
+            "model": {
+              "precision": 0.120879,
+              "recall": 0.127907,
+              "alerts": 91,
+              "hits": 11
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "8–30 суток",
+            "rows": 7003,
+            "events": 74,
+            "model": {
+              "precision": 0.666667,
+              "recall": 0.108108,
+              "alerts": 12,
+              "hits": 8
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          },
+          {
+            "group": "больше 30 суток",
+            "rows": 50115,
+            "events": 263,
+            "model": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 1,
+              "hits": 0
+            },
+            "naive": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "alerts": 0,
+              "hits": 0
+            }
+          }
+        ],
+        "series": {
+          "rows": 479,
+          "continued": 67,
+          "kept": 194,
+          "kept_continued": 50,
+          "stopped": 285,
+          "stopped_right": 268,
+          "series_pr_auc": 0.344586
+        }
+      }
+    ]
+  },
+  "naive": {
+    "precision": 0.139875,
+    "recall": 0.136456,
+    "alerts": 479,
+    "hits": 67
+  },
+  "days": 181
+}

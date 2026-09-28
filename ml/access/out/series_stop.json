@@ -1,0 +1,476 @@
+{
+  "history": {
+    "rows": 7806,
+    "continued": 1518,
+    "features": {
+      "streak_len": [
+        {
+          "bin": "[1, 2)",
+          "rows": 6292,
+          "continued": 846,
+          "share": 0.1345
+        },
+        {
+          "bin": "[2, 3)",
+          "rows": 843,
+          "continued": 273,
+          "share": 0.3238
+        },
+        {
+          "bin": "[3, 5)",
+          "rows": 395,
+          "continued": 194,
+          "share": 0.4911
+        },
+        {
+          "bin": "[5, 8)",
+          "rows": 146,
+          "continued": 96,
+          "share": 0.6575
+        },
+        {
+          "bin": "[8, 1000000)",
+          "rows": 130,
+          "continued": 109,
+          "share": 0.8385
+        }
+      ],
+      "gap_before_streak": [
+        {
+          "bin": "[0, 2)",
+          "rows": 934,
+          "continued": 411,
+          "share": 0.44
+        },
+        {
+          "bin": "[2, 8)",
+          "rows": 2015,
+          "continued": 513,
+          "share": 0.2546
+        },
+        {
+          "bin": "[8, 31)",
+          "rows": 1458,
+          "continued": 251,
+          "share": 0.1722
+        },
+        {
+          "bin": "[31, 91)",
+          "rows": 1226,
+          "continued": 142,
+          "share": 0.1158
+        },
+        {
+          "bin": "[91, 1000000)",
+          "rows": 1798,
+          "continued": 186,
+          "share": 0.1034
+        }
+      ],
+      "last_ev_hours": [
+        {
+          "bin": "[1, 2)",
+          "rows": 5837,
+          "continued": 897,
+          "share": 0.1537
+        },
+        {
+          "bin": "[2, 3)",
+          "rows": 1204,
+          "continued": 332,
+          "share": 0.2757
+        },
+        {
+          "bin": "[3, 5)",
+          "rows": 545,
+          "continued": 178,
+          "share": 0.3266
+        },
+        {
+          "bin": "[5, 1000000)",
+          "rows": 220,
+          "continued": 111,
+          "share": 0.5045
+        }
+      ],
+      "last_ev_span_h": [
+        {
+          "bin": "[0, 1)",
+          "rows": 5837,
+          "continued": 897,
+          "share": 0.1537
+        },
+        {
+          "bin": "[1, 3)",
+          "rows": 870,
+          "continued": 176,
+          "share": 0.2023
+        },
+        {
+          "bin": "[3, 8)",
+          "rows": 602,
+          "continued": 168,
+          "share": 0.2791
+        },
+        {
+          "bin": "[8, 1000000)",
+          "rows": 497,
+          "continued": 277,
+          "share": 0.5573
+        }
+      ],
+      "ev_near_uir": [
+        {
+          "bin": "[0, 1)",
+          "rows": 6449,
+          "continued": 1346,
+          "share": 0.2087
+        },
+        {
+          "bin": "[1, 2)",
+          "rows": 1357,
+          "continued": 172,
+          "share": 0.1268
+        }
+      ],
+      "uir_obj_1d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 5856,
+          "continued": 1178,
+          "share": 0.2012
+        },
+        {
+          "bin": "[1, 10)",
+          "rows": 1088,
+          "continued": 247,
+          "share": 0.227
+        },
+        {
+          "bin": "[10, 1000000)",
+          "rows": 862,
+          "continued": 93,
+          "share": 0.1079
+        }
+      ],
+      "uir_sec_1d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 6851,
+          "continued": 1398,
+          "share": 0.2041
+        },
+        {
+          "bin": "[1, 1000000)",
+          "rows": 955,
+          "continued": 120,
+          "share": 0.1257
+        }
+      ],
+      "fault_obj_1d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 6756,
+          "continued": 1404,
+          "share": 0.2078
+        },
+        {
+          "bin": "[1, 10)",
+          "rows": 712,
+          "continued": 89,
+          "share": 0.125
+        },
+        {
+          "bin": "[10, 1000000)",
+          "rows": 338,
+          "continued": 25,
+          "share": 0.074
+        }
+      ],
+      "flood_obj_7d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 6949,
+          "continued": 1408,
+          "share": 0.2026
+        },
+        {
+          "bin": "[1, 1000000)",
+          "rows": 857,
+          "continued": 110,
+          "share": 0.1284
+        }
+      ],
+      "power_obj_7d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 7640,
+          "continued": 1510,
+          "share": 0.1976
+        },
+        {
+          "bin": "[1, 1000000)",
+          "rows": 166,
+          "continued": 8,
+          "share": 0.0482
+        }
+      ],
+      "fire_obj_7d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 5653,
+          "continued": 1181,
+          "share": 0.2089
+        },
+        {
+          "bin": "[1, 5)",
+          "rows": 910,
+          "continued": 159,
+          "share": 0.1747
+        },
+        {
+          "bin": "[5, 1000000)",
+          "rows": 1243,
+          "continued": 178,
+          "share": 0.1432
+        }
+      ]
+    }
+  },
+  "holdout": {
+    "rows": 479,
+    "continued": 67,
+    "model_kept": 177,
+    "model_kept_continued": 54,
+    "model_stopped": 302,
+    "model_stopped_right": 289,
+    "features": {
+      "streak_len": [
+        {
+          "bin": "[1, 2)",
+          "rows": 412,
+          "continued": 48,
+          "share": 0.1165
+        },
+        {
+          "bin": "[2, 3)",
+          "rows": 48,
+          "continued": 15,
+          "share": 0.3125
+        },
+        {
+          "bin": "[3, 5)",
+          "rows": 18,
+          "continued": 4,
+          "share": 0.2222
+        },
+        {
+          "bin": "[5, 8)",
+          "rows": 1,
+          "continued": 0,
+          "share": 0.0
+        }
+      ],
+      "gap_before_streak": [
+        {
+          "bin": "[0, 2)",
+          "rows": 44,
+          "continued": 16,
+          "share": 0.3636
+        },
+        {
+          "bin": "[2, 8)",
+          "rows": 91,
+          "continued": 24,
+          "share": 0.2637
+        },
+        {
+          "bin": "[8, 31)",
+          "rows": 71,
+          "continued": 12,
+          "share": 0.169
+        },
+        {
+          "bin": "[31, 91)",
+          "rows": 99,
+          "continued": 5,
+          "share": 0.0505
+        },
+        {
+          "bin": "[91, 1000000)",
+          "rows": 153,
+          "continued": 8,
+          "share": 0.0523
+        }
+      ],
+      "last_ev_hours": [
+        {
+          "bin": "[1, 2)",
+          "rows": 373,
+          "continued": 40,
+          "share": 0.1072
+        },
+        {
+          "bin": "[2, 3)",
+          "rows": 60,
+          "continued": 14,
+          "share": 0.2333
+        },
+        {
+          "bin": "[3, 5)",
+          "rows": 31,
+          "continued": 6,
+          "share": 0.1935
+        },
+        {
+          "bin": "[5, 1000000)",
+          "rows": 15,
+          "continued": 7,
+          "share": 0.4667
+        }
+      ],
+      "last_ev_span_h": [
+        {
+          "bin": "[0, 1)",
+          "rows": 373,
+          "continued": 40,
+          "share": 0.1072
+        },
+        {
+          "bin": "[1, 3)",
+          "rows": 51,
+          "continued": 6,
+          "share": 0.1176
+        },
+        {
+          "bin": "[3, 8)",
+          "rows": 29,
+          "continued": 9,
+          "share": 0.3103
+        },
+        {
+          "bin": "[8, 1000000)",
+          "rows": 26,
+          "continued": 12,
+          "share": 0.4615
+        }
+      ],
+      "ev_near_uir": [
+        {
+          "bin": "[0, 1)",
+          "rows": 438,
+          "continued": 67,
+          "share": 0.153
+        },
+        {
+          "bin": "[1, 2)",
+          "rows": 41,
+          "continued": 0,
+          "share": 0.0
+        }
+      ],
+      "uir_obj_1d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 432,
+          "continued": 66,
+          "share": 0.1528
+        },
+        {
+          "bin": "[1, 10)",
+          "rows": 45,
+          "continued": 0,
+          "share": 0.0
+        },
+        {
+          "bin": "[10, 1000000)",
+          "rows": 2,
+          "continued": 1,
+          "share": 0.5
+        }
+      ],
+      "uir_sec_1d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 471,
+          "continued": 66,
+          "share": 0.1401
+        },
+        {
+          "bin": "[1, 1000000)",
+          "rows": 8,
+          "continued": 1,
+          "share": 0.125
+        }
+      ],
+      "fault_obj_1d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 445,
+          "continued": 62,
+          "share": 0.1393
+        },
+        {
+          "bin": "[1, 10)",
+          "rows": 31,
+          "continued": 5,
+          "share": 0.1613
+        },
+        {
+          "bin": "[10, 1000000)",
+          "rows": 3,
+          "continued": 0,
+          "share": 0.0
+        }
+      ],
+      "flood_obj_7d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 450,
+          "continued": 66,
+          "share": 0.1467
+        },
+        {
+          "bin": "[1, 1000000)",
+          "rows": 29,
+          "continued": 1,
+          "share": 0.0345
+        }
+      ],
+      "power_obj_7d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 441,
+          "continued": 63,
+          "share": 0.1429
+        },
+        {
+          "bin": "[1, 1000000)",
+          "rows": 38,
+          "continued": 4,
+          "share": 0.1053
+        }
+      ],
+      "fire_obj_7d": [
+        {
+          "bin": "[0, 1)",
+          "rows": 365,
+          "continued": 51,
+          "share": 0.1397
+        },
+        {
+          "bin": "[1, 5)",
+          "rows": 90,
+          "continued": 14,
+          "share": 0.1556
+        },
+        {
+          "bin": "[5, 1000000)",
+          "rows": 24,
+          "continued": 2,
+          "share": 0.0833
+        }
+      ]
+    }
+  }
+}
