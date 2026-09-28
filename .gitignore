@@ -17,29 +17,19 @@ node_modules/
 
 # Editor / OS
 .DS_Store
+._*
 *.log
 .idea/
 .vscode/*
 !.vscode/extensions.json
 
-# Claude Code — personal machine-local settings
-.claude/settings.local.json
-# Выгрузка на 15,9 ГБ. Разбор, расшифровки и ТЗ остаются в репозитории.
-/raw_task/dataset
+# Выгрузка заказчика на 15,9 ГБ в репозиторий не входит.
+/raw_task/
 # EDA — локальное окружение анализа данных
 .venv/
 eda/
 # Тетради: результаты счёта и кэш раскладки UMAP, пересчитываются запуском
 notebooks/out/
-
-# Автономный цикл: сессионные файлы. Цель, план и журнал остаются в репозитории.
-loop/logs/
-loop/scratch/
-loop/settings.loop.json
-loop/GATES.md
-loop/STATUS.md
-loop/STOP
-loop/BLOCKED.txt
 
 # Витрины обучения: пересчитываются скриптом. Модель и замер остаются.
 ml/*/out/*.parquet
@@ -53,5 +43,3 @@ ml/fire/out/kp_since_1932.txt
 ml/fire/out/monthly_progress.txt
 ml/fire/out/*.log
 
-# Презентация для сдачи: собирается локально, в репозитории не хранится.
-presentation/

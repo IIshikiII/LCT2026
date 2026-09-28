@@ -1,6 +1,6 @@
 # ADR 0006. Статусы прогноза и заявки
 
-Схема со стрелками: [`../../../ARM-ODS-lifecycle.md`](../../../ARM-ODS-lifecycle.md).
+Схема со стрелками: [`docs/ARM-ODS-lifecycle.md`](../../../docs/ARM-ODS-lifecycle.md).
 
 ## Контекст
 

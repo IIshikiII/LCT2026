@@ -68,7 +68,7 @@ def blocks_of(raw: Any) -> list[CardBlock]:
     """Разбирает JSONB `blocks`.
 
     Битый блок пропускается, а не роняет карточку. Направление
-    `UNAUTHORIZED_ACCESS` отдаёт мусор намеренно, спецификация §13.
+    `UNAUTHORIZED_ACCESS` отдаёт мусор намеренно, спецификация §12.
     """
     if not isinstance(raw, list):
         return []

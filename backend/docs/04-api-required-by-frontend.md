@@ -123,8 +123,7 @@ unknown type.
 
 No parameters. The server picks the window, and the card draws what arrives. The
 contract carried optional `from` and `to` earlier. Nothing ever sent them, so
-they are gone. Specification §4 still lists them, and task 1 of
-`05-gap-tasks.md` removes them.
+they are gone. Specification §4 still lists them.
 
 Returns `{ series: Series[], markerAt?: string }`. `markerAt` marks the moment of
 the prediction on the chart. The mocks set it to `computedAt`.
