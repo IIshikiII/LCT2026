@@ -22,6 +22,7 @@ import { env } from '@/shared/config/env'
 import { fmtFreshness } from '@/shared/lib/format'
 import { Button } from '@/shared/ui/Button'
 import { Icon } from '@/shared/ui/Icon'
+import { AlertBadge } from './Alerts'
 
 export function Header() {
   const pipeline = usePipelineHealth()
@@ -66,6 +67,7 @@ export function Header() {
       ) : null}
 
       <div className="ml-auto flex items-center gap-4">
+        {session ? <AlertBadge meta={meta} /> : null}
         <span className="text-[12px] text-text-mute" aria-live="polite">
           данные:{' '}
           <span className="mono text-text-dim">

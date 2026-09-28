@@ -50,6 +50,10 @@ def test_the_open_list_stays_short() -> None:
     намеренно: панель рисуется на экране входа, где токена ещё нет.
     Наполняются они только при флаге `TEST_STAND`, иначе отдают пустой
     список. ADR 0007.
+
+    Приём потока СМВУ открыт для сессии диспетчера, но закрыт своим ключом
+    `STREAM_TOKEN`: его зовёт система, а не человек. Без ключа ручка отвечает
+    404. ADR 0017.
     """
     assert (
         frozenset(
@@ -62,6 +66,7 @@ def test_the_open_list_stays_short() -> None:
                 "/api/v1/openapi.json",
                 "/api/v1/auth/test-accounts",
                 "/api/v1/auth/test-accounts/{demo_set}",
+                "/api/v1/stream/events",
             }
         )
         == PUBLIC_PATHS

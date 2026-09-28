@@ -1,6 +1,6 @@
 """Перенос замера модели в базу. Спецификация §9, §10.
 
-Дашборд показывает виджет «Соответствие метрикам ТЗ» из таблицы
+Дашборд показывает виджет «Здоровье модели» из таблицы
 `model_metric`. Таблицу никто не наполнял: обучение писало числа в
 `ml/access/out/metrics.json`, а сервис читал пустую таблицу и рисовал пустой
 виджет. Этот модуль соединяет два конца.
@@ -71,6 +71,18 @@ def _point(payload: dict[str, Any]) -> tuple[float, float] | None:
     return float(precision), float(recall)
 
 
+def _baseline(payload: dict[str, Any]) -> tuple[float | None, float | None]:
+    """Точность и полнота наивного правила «событие было вчера».
+
+    Доступ кладёт правило в `decision.naive`, подтопление в `test.naive`.
+    Замер без правила отдаёт пустые значения, и дашборд пишет прочерк.
+    """
+    for naive in (payload.get("decision", {}).get("naive"), payload.get("test", {}).get("naive")):
+        if isinstance(naive, dict) and "precision" in naive and "recall" in naive:
+            return float(naive["precision"]), float(naive["recall"])
+    return None, None
+
+
 def publish(conn: Connection, direction: str) -> bool:
     """Кладёт замер направления в `model_metric`. Отдаёт True, когда положил.
 
@@ -87,6 +99,7 @@ def publish(conn: Connection, direction: str) -> bool:
         return False
 
     precision, recall = point
+    baseline_precision, baseline_recall = _baseline(payload)
     targets = payload.get("targets", {})
 
     conn.execute(delete(model_metric).where(model_metric.c.direction == direction))
@@ -103,6 +116,8 @@ def publish(conn: Connection, direction: str) -> bool:
             "evaluated_at": datetime.now(UTC),
             "method": METHOD,
             "model_version": payload.get("model_version"),
+            "baseline_precision": baseline_precision,
+            "baseline_recall": baseline_recall,
         },
     )
     log.info(

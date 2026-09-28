@@ -201,6 +201,12 @@ POST /predictions/{id}/actions/{code} → PredictionDetail
 
 `PredictionDetail` = `Prediction` + `blocks: CardBlock[]` + `actions: ActionDef[]`.
 
+`Prediction.orderId` это заявка, которую создал сам прогноз. Автозаявка на
+объект и направление одна, пока она открыта, поэтому свежий прогноз того же
+объекта своей заявки не получает. Тогда сервер отдаёт `facilityOrderId`:
+открытую заявку объекта от другого прогноза. Карточка показывает ссылку на неё.
+При своей заявке `facilityOrderId` пустой.
+
 `CardBlock` = `{ type, title, data }`. Форма `data` блока `factors`:
 
 ```ts
@@ -279,22 +285,54 @@ POST /orders/{id}/actions/{code}                  → WorkOrder
 ### Метрики и дашборд
 
 ```
-GET /metrics/models      → ModelMetric[]   { direction, precision, recall,
-                                             targetPrecision, targetRecall, evaluatedAt }
+GET /metrics/models      → ModelMetric[]   { direction, precision?, recall?,
+                                             targetPrecision, targetRecall, evaluatedAt,
+                                             method?, note?, baselineRule?,
+                                             baselinePrecision?, baselineRecall? }
 GET /metrics/pipeline    → { lastRunAt, lastRunMs, freshnessMinutes,
                              maxComputeMs, minHorizonHours,
-                             targetComputeMs, targetHorizonHours }
+                             targetComputeMs, targetHorizonHours,
+                             streamLagMs?, streamEvents?, targetStreamLagMs? }
 GET /dashboard/summary   → { byLevel, byDirection, byStatus, byOrderStatus, total }
 GET /dashboard/top-risks?limit=10 → Prediction[]
+GET /alerts              → Alert[]: { code, level, count, title, hint?,
+                             filter, repeatMinutes, newestAt? }
 ```
+
+Пустые `precision` и `recall` значат «точность не измерена». Тогда `note`
+говорит почему, а `method` называет способ работы направления:
+`offline_holdout` у модели, `expert_rules` у экспертных правил. Виджет пишет
+«не измерена» и показывает `note` как есть. Ноль вместо пустоты читался бы как
+провал, молчание — как пропуск.
+
+`baselineRule` называет наивное правило, с которым сравнивается модель, например
+«событие на участке было вчера». `baselinePrecision` и `baselineRecall` это его
+точность и полнота на той же выборке, что и у модели. Виджет «Здоровье модели»
+показывает две группы колонок: модель и правило. Умолчания ТЗ
+`targetPrecision` и `targetRecall` сервер по-прежнему отдаёт, но виджет их не
+показывает: порогом приёмки они не являются (ТЗ §9).
+
+`streamLagMs` берётся из последнего прогона за час, который получил события
+потока. Тихая минута задержку не стирает.
+
+Журнал без параметра `sort` идёт по критичности, при равной критичности новее
+выше. Порядок уровней берётся из `riskLevels` меты, а не из кода. Любая
+сортировка по колонке добирает равные значения новизной. `sort=risk` значит ту
+же критичность. Тот же порядок у `/dashboard/top-risks`.
+
+`/alerts` отдаёт действующие тревоги. Пустой список значит тревоги нет. Что
+тревожно, решает сервер: сейчас это прогнозы критического уровня, которые
+никто не взял в работу (backend ADR 0019). `filter` это параметры журнала,
+которые показывают ровно эти инциденты, `repeatMinutes` это шаг напоминания.
+Фронт опрашивает ручку раз в 30 секунд и кодов уровней и статусов не знает.
 
 `byLevel`, `byDirection`, `byStatus`, `byOrderStatus` — это `Record<string, number>`,
 а не массивы с фиксированными ключами. Появилось направление — появился ключ,
 дашборд подхватил.
 
-Целевые значения ТЗ (`targetPrecision`, `targetRecall`, `targetComputeMs`,
-`targetHorizonHours`) приходят с сервера. Фронт их не хардкодит: поменялось ТЗ —
-поменялся ответ, а не код.
+Границы ТЗ (`targetComputeMs`, `targetHorizonHours`, `targetStreamLagMs`)
+приходят с сервера. Фронт их не хардкодит и не подписывает: он выделяет только
+значение, которое границу нарушает.
 
 ## Как добавить ручку: пример целиком
 

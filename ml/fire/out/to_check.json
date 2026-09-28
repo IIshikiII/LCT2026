@@ -1,0 +1,41 @@
+[
+  {
+    "to_object": 3,
+    "object_id": 4610,
+    "to_months": [
+      2,
+      5,
+      8,
+      11
+    ],
+    "check_day_share_in_to_months": 0.0674,
+    "check_day_share_other_months": 0.0266,
+    "lift": 2.53
+  },
+  {
+    "to_object": 15,
+    "object_id": 3360,
+    "to_months": [
+      1,
+      4,
+      7,
+      10
+    ],
+    "check_day_share_in_to_months": 0.0381,
+    "check_day_share_other_months": 0.0079,
+    "lift": 4.82
+  },
+  {
+    "to_object": 18,
+    "object_id": 3902,
+    "to_months": [
+      1,
+      4,
+      7,
+      10
+    ],
+    "check_day_share_in_to_months": 0.0327,
+    "check_day_share_other_months": 0.0199,
+    "lift": 1.64
+  }
+]

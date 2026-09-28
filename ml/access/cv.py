@@ -39,6 +39,11 @@ EARLY_STOPPING = 100
 
 # Ранняя остановка идёт по logloss. Средняя точность на редком классе шумит, и
 # остановка по ней оставляла от 7 до 155 деревьев в зависимости от семени.
+#
+# Параметры заданы вручную. Подбор через Optuna (`tune.py`, `out/tune.json`)
+# поднял PR-AUC на отрезках с 0,0782 до 0,0838, но в работу не взят: на
+# отложенной выборке точность в рабочей точке упала с 0,266 до 0,214, а
+# PR-AUC в среднем по трём семенам не изменился. Разбор в `DETAILS.md`.
 PARAMS = {
     "objective": "binary",
     "metric": "binary_logloss",
@@ -80,9 +85,10 @@ def load(path: pathlib.Path = PANEL) -> Panel:
     rel = f"read_parquet('{path.as_posix()}')"
     names = [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM {rel}").fetchall()]
     columns = [c for c in names if c not in NOT_FEATURES]
+    # Скользящая панель держит несколько строк на сутки: порядок задаёт `as_of`.
     frame = con.execute(
         f"SELECT {', '.join(columns)}, label, naive, day FROM {rel} "
-        f"ORDER BY object_id, gallery, section, day"
+        f"ORDER BY object_id, gallery, section, day, as_of"
     ).df()
     return Panel(
         x=frame[columns].to_numpy(dtype=np.float32),

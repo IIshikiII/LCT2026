@@ -41,4 +41,6 @@ export const endpoints = {
   pipelineHealth: () => '/metrics/pipeline',
   dashboardSummary: () => '/dashboard/summary',
   dashboardTopRisks: () => '/dashboard/top-risks',
+  /** Действующие уведомления о тревоге (ТЗ §10). */
+  alerts: () => '/alerts',
 } as const

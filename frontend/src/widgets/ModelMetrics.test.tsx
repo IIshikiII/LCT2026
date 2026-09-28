@@ -1,9 +1,10 @@
 /**
- * Критерий приёмки (spec §12): виджет показывает Precision и Recall против
- * целевых 0.7 и 0.5, а виджет конвейера — время расчёта против 5 минут и
- * минимальный горизонт против 24 часов.
+ * Виджет «Здоровье модели» сравнивает Precision и Recall модели с наивным
+ * правилом на той же выборке. Умолчаний ТЗ 0.7 и 0.5 на нём нет: порогом
+ * приёмки они не являются (ТЗ §9).
  *
- * Это то, по чему жюри проверяет метрики ТЗ, не открывая ноутбук с моделью.
+ * Виджет конвейера показывает замер без подписей требований. Нарушенное
+ * требование отмечено знаком «!».
  */
 import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
@@ -13,44 +14,61 @@ import { ModelMetrics } from './ModelMetrics'
 import { PipelineHealth } from './PipelineHealth'
 import { WidgetRenderer } from './widgetRegistry'
 
-describe('виджет метрик моделей', () => {
-  it('показывает строку на каждое направление с целевыми значениями', async () => {
+describe('виджет «Здоровье модели»', () => {
+  it('показывает строку на каждое направление и две группы: модель и правило', async () => {
     renderWithProviders(<ModelMetrics />)
 
-    expect(await screen.findByText('Precision')).toBeInTheDocument()
-    expect(screen.getByText('Recall')).toBeInTheDocument()
+    expect(screen.getByText('Здоровье модели')).toBeInTheDocument()
+    expect(await screen.findByText('Модель')).toBeInTheDocument()
+    expect(screen.getByText('Правило')).toBeInTheDocument()
 
     const rows = await screen.findAllByRole('listitem')
     expect(rows).toHaveLength(db().metrics.length)
-
-    // Цели видны рядом с фактическими значениями, а не спрятаны в подсказку.
-    expect(screen.getAllByText('цель 0,70').length).toBe(db().metrics.length)
-    expect(screen.getAllByText('цель 0,50').length).toBe(db().metrics.length)
   })
 
-  it('отмечает выполнение и невыполнение цели, а не только цветом', async () => {
+  it('называет правило и показывает его числа рядом с числами модели', async () => {
     renderWithProviders(<ModelMetrics />)
     await screen.findAllByRole('listitem')
 
-    const metrics = db().metrics
-    const good = metrics.find((m) => m.precision >= m.targetPrecision)
-    const bad = metrics.find((m) => m.precision < m.targetPrecision)
-    expect(good, 'в сиде должно быть направление с Precision выше цели').toBeDefined()
-    expect(bad, 'и хотя бы одно ниже — иначе красное состояние не показать').toBeDefined()
+    const compared = db().metrics.filter((m) => m.baselineRule)
+    expect(compared.length, 'в сиде должно быть направление с правилом').toBeGreaterThan(0)
+    for (const metric of compared) {
+      expect(screen.getByText(`правило: ${metric.baselineRule}`)).toBeInTheDocument()
+    }
+  })
 
-    expect(screen.getAllByText(/✓/).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/!/).length).toBeGreaterThan(0)
+  it('не показывает умолчания ТЗ и отметки выполнения', async () => {
+    renderWithProviders(<ModelMetrics />)
+    await screen.findAllByRole('listitem')
+
+    expect(screen.queryByText(/цель/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/✓/)).not.toBeInTheDocument()
+  })
+})
+
+describe('направление без замера точности', () => {
+  it('пишет «не измерена» и пояснение сервера, а не ноль и не молчание', async () => {
+    renderWithProviders(<ModelMetrics />)
+    await screen.findAllByRole('listitem')
+
+    const unmeasured = db().metrics.filter((m) => m.precision === undefined)
+    expect(unmeasured.length, 'в сиде должно быть направление без замера').toBeGreaterThan(0)
+    expect(screen.getAllByText('не измерена')).toHaveLength(unmeasured.length)
+    for (const metric of unmeasured) {
+      expect(screen.getByText(metric.note ?? '')).toBeInTheDocument()
+    }
   })
 })
 
 describe('виджет конвейера', () => {
-  it('сравнивает время расчёта и горизонт с целями ТЗ', async () => {
+  it('показывает замер без подписей целей и без галочек', async () => {
     renderWithProviders(<PipelineHealth />)
 
     expect(await screen.findByText('Время формирования прогноза')).toBeInTheDocument()
-    expect(screen.getByText('Минимальный горизонт')).toBeInTheDocument()
-    expect(screen.getByText(/цель < 5 мин/)).toBeInTheDocument()
-    expect(screen.getByText(/цель ≥ 24 ч/)).toBeInTheDocument()
+    expect(screen.getByText('Горизонт прогноза')).toBeInTheDocument()
+    expect(screen.getByText('Задержка потока')).toBeInTheDocument()
+    expect(screen.queryByText(/цель/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/✓/)).not.toBeInTheDocument()
   })
 })
 

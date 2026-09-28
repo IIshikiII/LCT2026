@@ -15,3 +15,13 @@ def _register_access() -> None:
 
 if not registry.known("UNAUTHORIZED_ACCESS"):
     _register_access()
+
+
+def _register_flood() -> None:
+    from app.features.flood import BUILDERS, DIRECTION
+
+    registry.register(DIRECTION, BUILDERS)
+
+
+if not registry.known("FLOOD_RISK"):
+    _register_flood()

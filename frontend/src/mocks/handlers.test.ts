@@ -12,9 +12,15 @@ import { endpoints } from '@/shared/api/endpoints'
 import {
   FacilityCollectionSchema,
   LineCollectionSchema,
+  PredictionDetailSchema,
   WorkOrderSchema,
 } from '@/shared/api/schemas'
-import type { FacilityCollection, LineCollection, WorkOrder } from '@/shared/api/types'
+import type {
+  FacilityCollection,
+  LineCollection,
+  PredictionDetail,
+  WorkOrder,
+} from '@/shared/api/types'
 import { signInAs } from '@/test/session'
 import { db } from './db'
 import { resetMockDb } from './handlers'
@@ -117,5 +123,36 @@ describe('POST /orders/{id}/actions/close', () => {
 
     expect(closed.status).toBe('CLOSED_CONFIRMED')
     expect(closed.outcome?.factConfirmed).toBe(true)
+  })
+})
+
+describe('GET /predictions/{id}: заявка объекта', () => {
+  const detail = (id: string) =>
+    apiGet<PredictionDetail>(endpoints.prediction(id), PredictionDetailSchema)
+
+  /** Кладёт прогноз без заявки на объект и направление открытой заявки. */
+  function neighbourOfOpenOrder() {
+    const open = db().orders.find(
+      (o) => !['CLOSED_CONFIRMED', 'CLOSED_NOT_CONFIRMED', 'REJECTED'].includes(o.status),
+    )!
+    const owner = db().predictionById.get(open.predictionId)!
+    const other = db().predictions.find((p) => !p.orderId && p.id !== owner.id)!
+    other.facility = owner.facility
+    other.direction = owner.direction
+    return { open, owner, other }
+  }
+
+  it('прогноз без своей заявки ссылается на открытую заявку объекта', async () => {
+    const { open, other } = neighbourOfOpenOrder()
+    const body = await detail(other.id)
+    expect(body.orderId).toBeUndefined()
+    expect(body.facilityOrderId).toBe(open.id)
+  })
+
+  it('своя заявка важнее заявки объекта', async () => {
+    const { open, owner } = neighbourOfOpenOrder()
+    const body = await detail(owner.id)
+    expect(body.orderId).toBe(open.id)
+    expect(body.facilityOrderId).toBeUndefined()
   })
 })

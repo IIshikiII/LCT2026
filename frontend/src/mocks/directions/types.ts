@@ -39,7 +39,14 @@ export interface DirectionPlugin {
    * Recall > 0.5. Значения подобраны так, чтобы виджет метрик было видно и в
    * зелёном, и в красном состоянии (docs/04-mocks.md).
    */
-  quality: { precision: number; recall: number }
+  quality:
+    | {
+        precision: number
+        recall: number
+        /** наивное правило на той же выборке, с ним сравнивает дашборд */
+        baseline?: { rule: string; precision: number; recall: number }
+      }
+    | { method: string; note: string }
   /** Относительная доля прогнозов этого направления в общем потоке. */
   share: number
   /** Каким объектам направление вообще применимо. */

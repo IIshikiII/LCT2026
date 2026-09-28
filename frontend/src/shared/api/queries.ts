@@ -19,6 +19,7 @@ import {
 } from './filters'
 import { queryKeys } from './queryKeys'
 import {
+  AlertListSchema,
   AppMetaSchema,
   DashboardSummarySchema,
   LoginChallengeSchema,
@@ -36,6 +37,7 @@ import {
   WorkOrderSchema,
 } from './schemas'
 import type {
+  Alert,
   AppMeta,
   DashboardSummary,
   FacilityCollection,
@@ -242,6 +244,21 @@ export function usePipelineHealth() {
     queryKey: queryKeys.pipelineHealth(),
     queryFn: ({ signal }) =>
       apiGet<PipelineHealth>(endpoints.pipelineHealth(), PipelineHealthSchema, { signal }),
+  })
+}
+
+/**
+ * Уведомления о тревоге. Опрос вдвое чаще журнала: тревога не ждёт минуту.
+ * Работает и в фоне вкладки, чтобы число в заголовке окна было свежим.
+ */
+export const ALERTS_POLL_MS = 30_000
+
+export function useAlerts() {
+  return useQuery({
+    queryKey: queryKeys.alerts(),
+    queryFn: ({ signal }) => apiGet<Alert[]>(endpoints.alerts(), AlertListSchema, { signal }),
+    refetchInterval: ALERTS_POLL_MS,
+    refetchIntervalInBackground: true,
   })
 }
 

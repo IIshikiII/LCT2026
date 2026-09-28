@@ -1,0 +1,208 @@
+{
+  "variant": "recent_reg2",
+  "holdout_read": false,
+  "windows": {
+    "7": {
+      "folds": [
+        {
+          "valid": "2022-07-01..2023-07-01",
+          "naive": {
+            "precision": 0.251534,
+            "recall": 0.250765,
+            "alerts": 326,
+            "hits": 82
+          },
+          "model": {
+            "precision": 0.256966,
+            "recall": 0.253823,
+            "alerts": 323,
+            "hits": 83
+          },
+          "beats_both": true
+        },
+        {
+          "valid": "2023-07-01..2024-07-01",
+          "naive": {
+            "precision": 0.266129,
+            "recall": 0.266129,
+            "alerts": 372,
+            "hits": 99
+          },
+          "model": {
+            "precision": 0.287918,
+            "recall": 0.301075,
+            "alerts": 389,
+            "hits": 112
+          },
+          "beats_both": true
+        },
+        {
+          "valid": "2024-07-01..2025-07-01",
+          "naive": {
+            "precision": 0.159533,
+            "recall": 0.159533,
+            "alerts": 257,
+            "hits": 41
+          },
+          "model": {
+            "precision": 0.173585,
+            "recall": 0.178988,
+            "alerts": 265,
+            "hits": 46
+          },
+          "beats_both": true
+        }
+      ],
+      "pooled": {
+        "naive": {
+          "precision": 0.232461,
+          "recall": 0.232218,
+          "alerts": 955,
+          "hits": 222
+        },
+        "model": {
+          "precision": 0.246673,
+          "recall": 0.252092,
+          "alerts": 977,
+          "hits": 241
+        },
+        "beats_both": true
+      }
+    },
+    "30": {
+      "folds": [
+        {
+          "valid": "2022-07-01..2023-07-01",
+          "naive": {
+            "precision": 0.251534,
+            "recall": 0.250765,
+            "alerts": 326,
+            "hits": 82
+          },
+          "model": {
+            "precision": 0.250704,
+            "recall": 0.272171,
+            "alerts": 355,
+            "hits": 89
+          },
+          "beats_both": false
+        },
+        {
+          "valid": "2023-07-01..2024-07-01",
+          "naive": {
+            "precision": 0.266129,
+            "recall": 0.266129,
+            "alerts": 372,
+            "hits": 99
+          },
+          "model": {
+            "precision": 0.304813,
+            "recall": 0.306452,
+            "alerts": 374,
+            "hits": 114
+          },
+          "beats_both": true
+        },
+        {
+          "valid": "2024-07-01..2025-07-01",
+          "naive": {
+            "precision": 0.159533,
+            "recall": 0.159533,
+            "alerts": 257,
+            "hits": 41
+          },
+          "model": {
+            "precision": 0.198413,
+            "recall": 0.194553,
+            "alerts": 252,
+            "hits": 50
+          },
+          "beats_both": true
+        }
+      ],
+      "pooled": {
+        "naive": {
+          "precision": 0.232461,
+          "recall": 0.232218,
+          "alerts": 955,
+          "hits": 222
+        },
+        "model": {
+          "precision": 0.2579,
+          "recall": 0.264644,
+          "alerts": 981,
+          "hits": 253
+        },
+        "beats_both": true
+      }
+    },
+    "90": {
+      "folds": [
+        {
+          "valid": "2022-07-01..2023-07-01",
+          "naive": {
+            "precision": 0.251534,
+            "recall": 0.250765,
+            "alerts": 326,
+            "hits": 82
+          },
+          "model": {
+            "precision": 0.235772,
+            "recall": 0.266055,
+            "alerts": 369,
+            "hits": 87
+          },
+          "beats_both": false
+        },
+        {
+          "valid": "2023-07-01..2024-07-01",
+          "naive": {
+            "precision": 0.266129,
+            "recall": 0.266129,
+            "alerts": 372,
+            "hits": 99
+          },
+          "model": {
+            "precision": 0.312169,
+            "recall": 0.317204,
+            "alerts": 378,
+            "hits": 118
+          },
+          "beats_both": true
+        },
+        {
+          "valid": "2024-07-01..2025-07-01",
+          "naive": {
+            "precision": 0.159533,
+            "recall": 0.159533,
+            "alerts": 257,
+            "hits": 41
+          },
+          "model": {
+            "precision": 0.183267,
+            "recall": 0.178988,
+            "alerts": 251,
+            "hits": 46
+          },
+          "beats_both": true
+        }
+      ],
+      "pooled": {
+        "naive": {
+          "precision": 0.232461,
+          "recall": 0.232218,
+          "alerts": 955,
+          "hits": 222
+        },
+        "model": {
+          "precision": 0.251503,
+          "recall": 0.262552,
+          "alerts": 998,
+          "hits": 251
+        },
+        "beats_both": true
+      }
+    }
+  },
+  "chosen_window": 30
+}

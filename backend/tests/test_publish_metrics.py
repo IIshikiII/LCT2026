@@ -1,6 +1,6 @@
 """Перенос замера модели в базу. Спецификация §9, §10.
 
-Виджет «Соответствие метрикам ТЗ» стоял пустым: обучение писало числа в файл,
+Виджет «Здоровье модели» стоял пустым: обучение писало числа в файл,
 а сервис читал пустую таблицу. Тест держит соединение этих двух концов.
 """
 
@@ -110,3 +110,45 @@ def test_publishing_twice_keeps_one_row(artifacts: Path, seeded: None) -> None:
         rows = list(conn.execute(select(model_metric).where(model_metric.c.direction == DIRECTION)))
 
     assert len(rows) == 1
+
+
+def test_the_naive_rule_is_published_next_to_the_model(artifacts: Path, seeded: None) -> None:
+    """Дашборд сравнивает модель с правилом «событие было вчера» на той же выборке."""
+    _write(artifacts, {**MEASURE, "decision": {**MEASURE["decision"],
+                                               "naive": {"precision": 0.14, "recall": 0.136}}})
+
+    with engine().begin() as conn:
+        publish_module.publish(conn, DIRECTION)
+
+    with engine().connect() as conn:
+        row = conn.execute(select(model_metric).where(model_metric.c.direction == DIRECTION)).one()
+
+    assert row.baseline_precision == pytest.approx(0.14)
+    assert row.baseline_recall == pytest.approx(0.136)
+
+
+def test_the_naive_rule_is_also_read_from_the_test_block(artifacts: Path, seeded: None) -> None:
+    """Подтопление держит правило в `test.naive`."""
+    _write(artifacts, {**MEASURE, "test": {"naive": {"precision": 0.329, "recall": 0.326}}})
+
+    with engine().begin() as conn:
+        publish_module.publish(conn, DIRECTION)
+
+    with engine().connect() as conn:
+        row = conn.execute(select(model_metric).where(model_metric.c.direction == DIRECTION)).one()
+
+    assert row.baseline_precision == pytest.approx(0.329)
+    assert row.baseline_recall == pytest.approx(0.326)
+
+
+def test_a_measure_without_the_rule_leaves_it_empty(artifacts: Path, seeded: None) -> None:
+    _write(artifacts, MEASURE)
+
+    with engine().begin() as conn:
+        publish_module.publish(conn, DIRECTION)
+
+    with engine().connect() as conn:
+        row = conn.execute(select(model_metric).where(model_metric.c.direction == DIRECTION)).one()
+
+    assert row.baseline_precision is None
+    assert row.baseline_recall is None

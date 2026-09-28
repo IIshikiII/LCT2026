@@ -1,0 +1,412 @@
+[
+  {
+    "name": "v1",
+    "note": "сетка: сутки, все группы",
+    "config": {
+      "grid": "day",
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal"
+      ],
+      "train_window_days": 0
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "cal_hour",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year",
+      "cal_day_of_week",
+      "cal_is_day_off",
+      "cal_is_holiday",
+      "cal_day_off_chain"
+    ],
+    "rows_train": 143370,
+    "rows_valid_daily": 14479,
+    "base_valid_daily": 0.021203,
+    "naive_valid": {
+      "precision": 0.253247,
+      "recall": 0.254072,
+      "alerts": 308,
+      "hits": 78
+    },
+    "runs": [
+      {
+        "seed": 4217,
+        "trees": 68,
+        "pr_auc_valid": 0.284174,
+        "precision_at_naive_recall": 0.385366,
+        "threshold_at_naive_recall": 0.143891
+      },
+      {
+        "seed": 1301,
+        "trees": 72,
+        "pr_auc_valid": 0.284197,
+        "precision_at_naive_recall": 0.379808,
+        "threshold_at_naive_recall": 0.145132
+      },
+      {
+        "seed": 7717,
+        "trees": 74,
+        "pr_auc_valid": 0.287257,
+        "precision_at_naive_recall": 0.351111,
+        "threshold_at_naive_recall": 0.137441
+      }
+    ],
+    "pr_auc_valid_mean": 0.285209,
+    "pr_auc_valid_spread": 0.003083,
+    "precision_at_naive_recall_mean": 0.372095,
+    "beats_naive_valid": true,
+    "seconds": 3
+  },
+  {
+    "name": "v2",
+    "note": "сетка: час, все группы",
+    "config": {
+      "grid": "hour",
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal"
+      ],
+      "train_window_days": 0
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "cal_hour",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year",
+      "cal_day_of_week",
+      "cal_is_day_off",
+      "cal_is_holiday",
+      "cal_day_off_chain"
+    ],
+    "rows_train": 3440880,
+    "rows_valid_daily": 14479,
+    "base_valid_daily": 0.021203,
+    "naive_valid": {
+      "precision": 0.253247,
+      "recall": 0.254072,
+      "alerts": 308,
+      "hits": 78
+    },
+    "runs": [
+      {
+        "seed": 4217,
+        "trees": 54,
+        "pr_auc_valid": 0.28085,
+        "precision_at_naive_recall": 0.349558,
+        "threshold_at_naive_recall": 0.140245
+      },
+      {
+        "seed": 1301,
+        "trees": 52,
+        "pr_auc_valid": 0.284737,
+        "precision_at_naive_recall": 0.387255,
+        "threshold_at_naive_recall": 0.154105
+      },
+      {
+        "seed": 7717,
+        "trees": 36,
+        "pr_auc_valid": 0.285321,
+        "precision_at_naive_recall": 0.395,
+        "threshold_at_naive_recall": 0.139674
+      }
+    ],
+    "pr_auc_valid_mean": 0.283636,
+    "pr_auc_valid_spread": 0.004471,
+    "precision_at_naive_recall_mean": 0.377271,
+    "beats_naive_valid": true,
+    "seconds": 26
+  },
+  {
+    "name": "v3",
+    "note": "группы: насосы единицы",
+    "config": {
+      "grid": "day",
+      "groups": [
+        "pump"
+      ],
+      "train_window_days": 0
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "unit_pumps"
+    ],
+    "rows_train": 143370,
+    "rows_valid_daily": 14479,
+    "base_valid_daily": 0.021203,
+    "naive_valid": {
+      "precision": 0.253247,
+      "recall": 0.254072,
+      "alerts": 308,
+      "hits": 78
+    },
+    "runs": [
+      {
+        "seed": 4217,
+        "trees": 179,
+        "pr_auc_valid": 0.20381,
+        "precision_at_naive_recall": 0.239394,
+        "threshold_at_naive_recall": 0.122189
+      },
+      {
+        "seed": 1301,
+        "trees": 143,
+        "pr_auc_valid": 0.203802,
+        "precision_at_naive_recall": 0.244582,
+        "threshold_at_naive_recall": 0.117771
+      },
+      {
+        "seed": 7717,
+        "trees": 80,
+        "pr_auc_valid": 0.207667,
+        "precision_at_naive_recall": 0.233038,
+        "threshold_at_naive_recall": 0.11726
+      }
+    ],
+    "pr_auc_valid_mean": 0.205093,
+    "pr_auc_valid_spread": 0.003865,
+    "precision_at_naive_recall_mean": 0.239005,
+    "beats_naive_valid": false,
+    "seconds": 2
+  },
+  {
+    "name": "v4",
+    "note": "группы: насосы и история событий",
+    "config": {
+      "grid": "day",
+      "groups": [
+        "pump",
+        "evt"
+      ],
+      "train_window_days": 0
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days"
+    ],
+    "rows_train": 143370,
+    "rows_valid_daily": 14479,
+    "base_valid_daily": 0.021203,
+    "naive_valid": {
+      "precision": 0.253247,
+      "recall": 0.254072,
+      "alerts": 308,
+      "hits": 78
+    },
+    "runs": [
+      {
+        "seed": 4217,
+        "trees": 61,
+        "pr_auc_valid": 0.272125,
+        "precision_at_naive_recall": 0.318548,
+        "threshold_at_naive_recall": 0.113068
+      },
+      {
+        "seed": 1301,
+        "trees": 22,
+        "pr_auc_valid": 0.271057,
+        "precision_at_naive_recall": 0.369159,
+        "threshold_at_naive_recall": 0.097006
+      },
+      {
+        "seed": 7717,
+        "trees": 43,
+        "pr_auc_valid": 0.27564,
+        "precision_at_naive_recall": 0.393035,
+        "threshold_at_naive_recall": 0.124856
+      }
+    ],
+    "pr_auc_valid_mean": 0.272941,
+    "pr_auc_valid_spread": 0.004583,
+    "precision_at_naive_recall_mean": 0.360247,
+    "beats_naive_valid": true,
+    "seconds": 1
+  },
+  {
+    "name": "v5",
+    "note": "абляция: все группы без насосов единицы; замер вклада, не поиск",
+    "config": {
+      "grid": "day",
+      "groups": [
+        "evt",
+        "obj",
+        "cx",
+        "cal"
+      ],
+      "train_window_days": 0
+    },
+    "columns": [
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "cal_hour",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year",
+      "cal_day_of_week",
+      "cal_is_day_off",
+      "cal_is_holiday",
+      "cal_day_off_chain"
+    ],
+    "rows_train": 143370,
+    "rows_valid_daily": 14479,
+    "base_valid_daily": 0.021203,
+    "naive_valid": {
+      "precision": 0.253247,
+      "recall": 0.254072,
+      "alerts": 308,
+      "hits": 78
+    },
+    "runs": [
+      {
+        "seed": 4217,
+        "trees": 80,
+        "pr_auc_valid": 0.284481,
+        "precision_at_naive_recall": 0.351111,
+        "threshold_at_naive_recall": 0.134795
+      },
+      {
+        "seed": 1301,
+        "trees": 24,
+        "pr_auc_valid": 0.276871,
+        "precision_at_naive_recall": 0.344978,
+        "threshold_at_naive_recall": 0.10258
+      },
+      {
+        "seed": 7717,
+        "trees": 56,
+        "pr_auc_valid": 0.275501,
+        "precision_at_naive_recall": 0.337607,
+        "threshold_at_naive_recall": 0.129259
+      }
+    ],
+    "pr_auc_valid_mean": 0.278951,
+    "pr_auc_valid_spread": 0.00898,
+    "precision_at_naive_recall_mean": 0.344565,
+    "beats_naive_valid": true,
+    "seconds": 1
+  }
+]

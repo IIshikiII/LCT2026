@@ -203,3 +203,76 @@ def test_unknown_guard_mode_drops_the_day() -> None:
         ).fetchall()
     }
     assert days == {dt.date(2024, 2, 28), dt.date(2024, 3, 2)}
+
+
+# --- скользящая точка расчёта ------------------------------------------------
+
+ROLL_HOUR = 12
+ROLL_AT = _at(POINT, ROLL_HOUR)
+# До точки расчёта в сутки POINT: признаки свежести обязаны это видеть.
+ROLL_PAST = [
+    *PAST_ALARMS,
+    (_at(POINT, 3), 2, 1),
+    (_at(POINT, 11), 6, 2),
+]
+# С момента t и позже. Тревога в 15:00 попадает в окно метки (t, t + 24 ч].
+ROLL_FUTURE = [
+    (_at(POINT, ROLL_HOUR), 5, 2),
+    (_at(POINT, 15), 4, 1),
+    (ts("2024-03-02T09:00:00"), 3, 1),
+    (ts("2024-03-10T06:00:00"), 8, 3),
+]
+
+
+def _rolling_row(alarms: list[tuple[dt.datetime, int, int]]) -> dict[str, object]:
+    con = _connect(alarms)
+    panel_module.build_day_grid(con)
+    panel_module.build_daily_counts(con)
+    panel_module.build_panel(con, guard_filter=False)
+    panel_module.build_rolling(con, (0, 6, 12, 18))
+    frame = con.execute(
+        "SELECT * FROM panel_rolling WHERE as_of = ?", [ROLL_AT]
+    ).df()
+    assert len(frame) == 1, "ожидалась ровно одна строка на точку расчёта"
+    return frame.iloc[0].to_dict()
+
+
+@pytest.fixture(scope="module")
+def rolling_past() -> dict[str, object]:
+    return _rolling_row(ROLL_PAST)
+
+
+@pytest.fixture(scope="module")
+def rolling_future() -> dict[str, object]:
+    return _rolling_row(ROLL_PAST + ROLL_FUTURE)
+
+
+def test_the_rolling_point_sees_the_same_day(rolling_past: dict[str, object]) -> None:
+    """Контроль: свежесть видит тревоги суток до t, иначе тест ниже пуст."""
+    assert rolling_past["as_of_hour"] == ROLL_HOUR
+    assert rolling_past["alarms_last_1h"] == 6
+    assert rolling_past["alarms_last_6h"] == 6
+    assert rolling_past["events_last_6h"] == 6
+    assert rolling_past["hours_since_last_alarm_t"] == 1
+    assert rolling_past["naive"] == 1
+
+
+def test_rolling_future_changes_no_feature(
+    rolling_past: dict[str, object], rolling_future: dict[str, object]
+) -> None:
+    """Тревоги с момента t и позже не меняют ни один признак."""
+    skip = {"label", "naive", "object_id", "gallery", "section", "day", "as_of"}
+    differs = [
+        name
+        for name, value in rolling_past.items()
+        if name not in skip and not _same(rolling_future[name], value)
+    ]
+    assert differs == [], f"эти признаки заглянули в будущее: {differs}"
+
+
+def test_the_rolling_label_looks_24_hours_ahead(
+    rolling_past: dict[str, object], rolling_future: dict[str, object]
+) -> None:
+    """Метка это событие в окне (t, t + 24 ч]: тревога в 15:00 её поднимает."""
+    assert rolling_past["label"] == 0
+    assert rolling_future["label"] == 1

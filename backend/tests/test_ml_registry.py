@@ -102,12 +102,12 @@ def test_a_direction_without_a_predictor_is_skipped_and_reported(
     monkeypatch.setattr(
         registry,
         "active_directions",
-        lambda: (direction("SENSOR_FAILURE"), direction("FLOOD_RISK")),
+        lambda: (direction("SENSOR_FAILURE"), direction("COLD_RISK")),
     )
     registry.register(FakePredictor("SENSOR_FAILURE"))
 
     assert [item.code for item in registry.active()] == ["SENSOR_FAILURE"]
-    assert registry.missing() == ("FLOOD_RISK",)
+    assert registry.missing() == ("COLD_RISK",)
 
 
 def test_a_new_plugin_file_registers_itself(
@@ -121,22 +121,22 @@ def test_a_new_plugin_file_registers_itself(
     import app.ml.plugins as package
 
     folder = tmp_path  # type: ignore[assignment]
-    module_path = folder / "flood_risk.py"  # type: ignore[operator]
+    module_path = folder / "cold_risk.py"  # type: ignore[operator]
     module_path.write_text(
         "from app.ml import register\n"
         "from tests.test_ml_registry import FakePredictor\n"
-        "register(FakePredictor('FLOOD_RISK', 0.9))\n",
+        "register(FakePredictor('COLD_RISK', 0.9))\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(package, "__path__", [str(folder), *package.__path__])
-    monkeypatch.setattr(registry, "active_directions", lambda: (direction("FLOOD_RISK"),))
+    monkeypatch.setattr(registry, "active_directions", lambda: (direction("COLD_RISK"),))
 
-    predictor = registry.get("FLOOD_RISK")
+    predictor = registry.get("COLD_RISK")
     assert predictor is not None
     assert predictor.predict({}) == 0.9
     assert registry.missing() == ()
 
-    sys.modules.pop("app.ml.plugins.flood_risk", None)
+    sys.modules.pop("app.ml.plugins.cold_risk", None)
 
 
 def test_the_context_forbids_data_after_the_moment_of_the_run() -> None:

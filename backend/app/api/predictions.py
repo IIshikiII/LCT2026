@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from sqlalchemy import Select, func, select
+from sqlalchemy import ColumnElement, Select, UnaryExpression, case, func, select
 from sqlalchemy.engine import Connection
 
 from app.api import common, mappers
@@ -21,16 +21,38 @@ from app.tables import facility, prediction, sensor_reading, work_order
 
 router = APIRouter(tags=["predictions"])
 
+# Критичность уровня числом из реестра: чем выше, тем опаснее. Уровень это
+# строка, и порядок знает только реестр.
+SEVERITY: ColumnElement[Any] = case(
+    {level.code: level.order for level in catalog.RISK_LEVELS},
+    value=prediction.c.level,
+    else_=0,
+)
+
 SORT_FIELDS = {
     "computedAt": prediction.c.computed_at,
     "probability": prediction.c.probability,
-    "risk": prediction.c.probability,
+    "risk": SEVERITY,
     "horizon": prediction.c.horizon_hours,
     "direction": prediction.c.direction,
     "status": prediction.c.status,
     "summary": prediction.c.summary,
     "facility": facility.c.address,
 }
+
+
+def ordering(sort: str | None) -> tuple[UnaryExpression[Any], ...]:
+    """Порядок журнала. По умолчанию сначала критичность, потом новизна.
+
+    Диспетчер смотрит сверху вниз: критический прогноз выше высокого, а среди
+    равных по уровню свежий выше старого. Сортировка по полю из запроса тоже
+    добирает равные значения новизной.
+    """
+    newest = prediction.c.computed_at.desc()
+    if not sort:
+        return (SEVERITY.desc(), newest)
+    return (common.order_by(sort, SORT_FIELDS, SEVERITY.desc()), newest)
+
 
 # Заявка на прогноз одна. Подзапрос дешевле join с группировкой.
 ORDER_ID = (
@@ -41,9 +63,29 @@ ORDER_ID = (
     .label("order_id")
 )
 
+# Открытая заявка того же объекта и направления, которую создал другой прогноз.
+# Автозаявка на объект одна, пока открыта (`auto_orders.has_open_order`), и
+# свежий прогноз своей заявки не получает. Карточка ссылается на ту, что есть,
+# иначе высокий риск без заявки выглядит как сбой.
+_OWNER = prediction.alias("owner")
+FACILITY_ORDER_ID = (
+    select(work_order.c.id)
+    .join(_OWNER, _OWNER.c.id == work_order.c.prediction_id)
+    .where(
+        work_order.c.facility_id == prediction.c.facility_id,
+        _OWNER.c.direction == prediction.c.direction,
+        _OWNER.c.id != prediction.c.id,
+        work_order.c.status.notin_(auto_orders.CLOSED_STATUSES),
+    )
+    .order_by(work_order.c.created_at.desc())
+    .limit(1)
+    .scalar_subquery()
+    .label("facility_order_id")
+)
+
 JOINED = prediction.join(facility, facility.c.id == prediction.c.facility_id)
 
-BASE = select(prediction, facility, ORDER_ID).select_from(JOINED)
+BASE = select(prediction, facility, ORDER_ID, FACILITY_ORDER_ID).select_from(JOINED)
 
 
 def _filtered(
@@ -79,7 +121,10 @@ def _filtered(
 
 
 def row_to_prediction(row: Any) -> Prediction:
-    return mappers.prediction(row, mappers.facility_ref(row), row.order_id)
+    # Своя заявка важнее заявки объекта: ссылка на чужую нужна, только когда
+    # своей нет.
+    facility_order = None if row.order_id else row.facility_order_id
+    return mappers.prediction(row, mappers.facility_ref(row), row.order_id, facility_order)
 
 
 @router.get("/predictions", response_model=Page[Prediction], response_model_by_alias=True)
@@ -104,7 +149,7 @@ def list_predictions(
 
     rows = conn.execute(
         _filtered(BASE, *where)
-        .order_by(common.order_by(sort, SORT_FIELDS, prediction.c.computed_at.desc()))
+        .order_by(*ordering(sort))
         .limit(page_size)
         .offset((page - 1) * page_size)
     ).all()

@@ -5,8 +5,8 @@
 и API нечем кормить на чистой базе после `docker compose up`. Этот модуль
 наполняет три таблицы, которых достаточно для прогона: `collector`, `facility`
 и `alarm_event` с событиями доступа (`app/features/access.py` держит словарь
-типов). Полноту не выгрузки, а витрины: `sensor_reading`, `inspection`,
-`weather_hourly` и прочие таблицы направлений здесь не наполняются, потому что
+типов). Полноту не выгрузки, а витрины: `sensor_reading`, `inspection`
+и прочие таблицы направлений здесь не наполняются, потому что
 конвейер направления доступа их не читает, а расширять генератор ради данных,
 которые никто не проверит, значит выбросить эту работу, когда придёт настоящая
 выгрузка (см. `docs/05-gap-tasks.md`, задача 10).
@@ -52,8 +52,23 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection
 
 from app.features.access import ACCESS_ALARM_TYPES, SECURITY_ARMED, SECURITY_DISARMED
+from app.synth.fire import fire_rows
+from app.synth.flood import flood_rows
 from app.synth.geo import OKRUGS, point_on
-from app.tables import action_log, alarm_event, collector, facility, prediction, work_order
+from app.synth.weather import weather_rows
+from app.tables import (
+    action_log,
+    alarm_event,
+    collector,
+    facility,
+    flood_water_day,
+    maintenance_window,
+    prediction,
+    sensor,
+    sensor_reading,
+    weather_hourly,
+    work_order,
+)
 
 DEFAULT_SEED = 20260101
 DEFAULT_FACILITY_COUNT = 60
@@ -71,6 +86,7 @@ class SynthResult:
     collector_count: int
     facility_count: int
     alarm_event_count: int
+    sensor_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -248,7 +264,8 @@ def generate(
     facility_count: int = DEFAULT_FACILITY_COUNT,
     now: datetime | None = None,
 ) -> SynthResult:
-    """Наполняет `collector`, `facility` и `alarm_event` синтетикой доступа."""
+    """Наполняет `collector`, `facility`, `sensor`, `alarm_event` и
+    `sensor_reading` синтетикой доступа, подтопления и пожара."""
     rng = random.Random(seed)
     now = (now or datetime.now(UTC)).replace(microsecond=0)
 
@@ -256,6 +273,17 @@ def generate(
     collector_seeds = _collector_seeds(collector_count)
     facility_rows = _facility_rows(rng, facility_count, collector_seeds)
     event_rows = _alarm_event_rows(rng, facility_rows, now)
+    # Насосы и затопления идут своим генератором (`app/synth/flood.py`), поток
+    # доступа от них не меняется. Номера строк после слияния раздаются заново.
+    sensor_rows, flood_events = flood_rows(seed, facility_rows, now, HISTORY_DAYS)
+    # Пожарная сигнализация, температура, окна ППР (ADR 0016).
+    fire = fire_rows(seed, facility_rows, now, HISTORY_DAYS)
+    event_rows = sorted(
+        [*event_rows, *flood_events, *fire["events"]],
+        key=lambda item: (item["facility_id"], item["occurred_at"], item["alarm_type"]),
+    )
+    for next_id, row in enumerate(event_rows, start=1):
+        row["id"] = next_id
     collector_rows = [seed.as_row() for seed in collector_seeds]
 
     if collector_rows:
@@ -268,16 +296,56 @@ def generate(
             pg_insert(facility).on_conflict_do_nothing(index_elements=["id"]),
             facility_rows,
         )
+    if sensor_rows:
+        conn.execute(
+            pg_insert(sensor).on_conflict_do_nothing(index_elements=["id"]),
+            sensor_rows,
+        )
+    if fire["sensors"]:
+        conn.execute(
+            pg_insert(sensor).on_conflict_do_nothing(index_elements=["id"]),
+            fire["sensors"],
+        )
+    # Номера показаний строятся из порядка, как у событий: повторный посев с
+    # тем же `now` бьёт в те же ключи и уходит через `ON CONFLICT`.
+    readings = sorted(fire["readings"], key=lambda r: (r["sensor_id"], r["observed_at"]))
+    for next_id, row in enumerate(readings, start=1):
+        row["id"] = next_id
+    if readings:
+        conn.execute(
+            pg_insert(sensor_reading).on_conflict_do_nothing(index_elements=["id", "observed_at"]),
+            readings,
+        )
+    if fire["windows"]:
+        conn.execute(
+            maintenance_window.delete().where(maintenance_window.c.source.like("синтетика%"))
+        )
+        conn.execute(maintenance_window.insert(), fire["windows"])
+    for item in fire["commissioning"]:
+        conn.execute(
+            collector.update()
+            .where(collector.c.code == item["code"])
+            .values(commissioning_until=item["until"])
+        )
     if event_rows:
         conn.execute(
             pg_insert(alarm_event).on_conflict_do_nothing(index_elements=["id", "occurred_at"]),
             event_rows,
         )
+    # Погода нужна признакам подтопления (ADR 0013). Настоящий ряд грузит
+    # команда `load-weather`, и посев его не перезаписывает.
+    conn.execute(
+        pg_insert(weather_hourly).on_conflict_do_nothing(
+            index_elements=["observed_at", "district"]
+        ),
+        weather_rows(seed, now, HISTORY_DAYS),
+    )
 
     return SynthResult(
         collector_count=len(collector_rows),
         facility_count=len(facility_rows),
         alarm_event_count=len(event_rows),
+        sensor_count=len(sensor_rows),
     )
 
 
@@ -292,6 +360,18 @@ def wipe_synthetic(conn: Connection) -> int:
     Учётные записи и прогоны конвейера не трогаются — они не про географию.
     """
     removed = 0
-    for table in (action_log, work_order, prediction, alarm_event, facility, collector):
+    tables = (
+        action_log,
+        work_order,
+        prediction,
+        flood_water_day,
+        alarm_event,
+        sensor_reading,
+        maintenance_window,
+        sensor,
+        facility,
+        collector,
+    )
+    for table in tables:
         removed += int(conn.execute(table.delete()).rowcount)
     return removed

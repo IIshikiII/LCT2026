@@ -45,6 +45,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from app.features import live_charts
 from app.features.access import event_ctes, event_params
 from app.ml.protocol import Block, FeatureContext, FeatureVector, Window
 from app.ml.registry import register
@@ -197,10 +198,7 @@ def shap_weight(contribution: float) -> float:
 
 
 _FACTOR_WEIGHT_FLOOR = 0.02
-_FACTOR_NOTE = (
-    "Полосы показывают силу и направление фактора, а не слагаемые "
-    "вероятности: вклады SHAP складываются в логарифме шансов, а не в ней."
-)
+_FACTOR_NOTE = "Полоса вправо повышает риск, влево снижает, длина показывает силу влияния."
 
 
 def _shown(value: float) -> str:
@@ -352,6 +350,36 @@ class UnauthorizedAccess:
     """Предиктор направления. Спецификация §7, `docs/08-ml-plugin.md`."""
 
     code = DIRECTION
+
+    def applies(self, conn: Connection, facility_id: str) -> bool:
+        """Отвечает, участок ли это доступа. ADR 0017.
+
+        Загрузчик выгрузки пишет рядом участки, пикеты пожара и подтопления и
+        объекты целиком. Модель училась только на участках. Синтетика вида
+        единицы не знает, и направление считается на каждой её строке.
+        """
+        kind = conn.execute(
+            text("SELECT kind FROM facility WHERE id = :facility_id"),
+            {"facility_id": facility_id},
+        ).scalar()
+        if kind is None:
+            return True
+        if kind != "section":
+            return False
+        # Участок пожара без датчиков доступа модели не нужен (ADR 0018).
+        return bool(
+            conn.execute(
+                text(
+                    "SELECT EXISTS (SELECT 1 FROM sensor WHERE facility_id = :facility_id "
+                    "AND sensor_type IN ('CONTACT', 'MOTION'))"
+                ),
+                {"facility_id": facility_id},
+            ).scalar()
+        )
+
+    def live_blocks(self, conn: Connection, facility_id: str, at: datetime) -> list[Block]:
+        """Тревоги участка и режим охраны из свежих данных. ADR 0018."""
+        return live_charts.access_blocks(conn, facility_id, at)
 
     def build_features(self, ctx: FeatureContext) -> FeatureVector:
         """Считает ровно те признаки, которые назвала модель.

@@ -1,0 +1,962 @@
+[
+  {
+    "name": "base",
+    "kind": "search",
+    "note": "гипотеза 1: набор ADR 0011 на метке ADR 0012",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.011788,
+        "pr_auc": 0.222296,
+        "naive": {
+          "precision": 0.251534,
+          "recall": 0.250765,
+          "alerts": 326,
+          "hits": 82
+        },
+        "at_threshold": {
+          "precision": 0.353234,
+          "recall": 0.217125,
+          "alerts": 201,
+          "hits": 71
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.013374,
+        "pr_auc": 0.243614,
+        "naive": {
+          "precision": 0.266129,
+          "recall": 0.266129,
+          "alerts": 372,
+          "hits": 99
+        },
+        "at_threshold": {
+          "precision": 0.197694,
+          "recall": 0.322581,
+          "alerts": 607,
+          "hits": 120
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.009251,
+        "pr_auc": 0.133271,
+        "naive": {
+          "precision": 0.159533,
+          "recall": 0.159533,
+          "alerts": 257,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.210884,
+          "recall": 0.120623,
+          "alerts": 147,
+          "hits": 31
+        }
+      }
+    ],
+    "pr_auc_mean": 0.199727,
+    "pr_auc_seed_spread": 0.007974,
+    "oof_naive": {
+      "precision": 0.232461,
+      "recall": 0.232218,
+      "alerts": 955,
+      "hits": 222
+    },
+    "oof_threshold": 0.080421,
+    "oof_at_threshold": {
+      "precision": 0.232461,
+      "recall": 0.232218,
+      "alerts": 955,
+      "hits": 222
+    },
+    "beats_naive_both_oof": false,
+    "seconds": 4
+  },
+  {
+    "name": "check",
+    "kind": "search",
+    "note": "гипотеза_2:_история_проверок_отделяет_пикеты_с_частыми_проверками",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal",
+        "check"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "check_hours_168h",
+      "check_hours_720h",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.011788,
+        "pr_auc": 0.219817,
+        "naive": {
+          "precision": 0.251534,
+          "recall": 0.250765,
+          "alerts": 326,
+          "hits": 82
+        },
+        "at_threshold": {
+          "precision": 0.273408,
+          "recall": 0.223242,
+          "alerts": 267,
+          "hits": 73
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.013374,
+        "pr_auc": 0.247183,
+        "naive": {
+          "precision": 0.266129,
+          "recall": 0.266129,
+          "alerts": 372,
+          "hits": 99
+        },
+        "at_threshold": {
+          "precision": 0.219601,
+          "recall": 0.325269,
+          "alerts": 551,
+          "hits": 121
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.009251,
+        "pr_auc": 0.133273,
+        "naive": {
+          "precision": 0.159533,
+          "recall": 0.159533,
+          "alerts": 257,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.218978,
+          "recall": 0.116732,
+          "alerts": 137,
+          "hits": 30
+        }
+      }
+    ],
+    "pr_auc_mean": 0.200091,
+    "pr_auc_seed_spread": 0.010692,
+    "oof_naive": {
+      "precision": 0.232461,
+      "recall": 0.232218,
+      "alerts": 955,
+      "hits": 222
+    },
+    "oof_threshold": 0.080144,
+    "oof_at_threshold": {
+      "precision": 0.234555,
+      "recall": 0.23431,
+      "alerts": 955,
+      "hits": 224
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 3
+  },
+  {
+    "name": "weather",
+    "kind": "search",
+    "note": "гипотеза_3:_погода_до_точки_расчёта",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal",
+        "weather"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "weather_precip_24h",
+      "weather_precip_72h",
+      "weather_precip_168h",
+      "weather_rain_72h",
+      "weather_snowfall_72h",
+      "weather_temp_mean_24h",
+      "weather_temp_max_72h",
+      "weather_snow_depth_cm",
+      "weather_melt_72h_cm",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.011788,
+        "pr_auc": 0.223754,
+        "naive": {
+          "precision": 0.251534,
+          "recall": 0.250765,
+          "alerts": 326,
+          "hits": 82
+        },
+        "at_threshold": {
+          "precision": 0.325991,
+          "recall": 0.2263,
+          "alerts": 227,
+          "hits": 74
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.013374,
+        "pr_auc": 0.239311,
+        "naive": {
+          "precision": 0.266129,
+          "recall": 0.266129,
+          "alerts": 372,
+          "hits": 99
+        },
+        "at_threshold": {
+          "precision": 0.209877,
+          "recall": 0.319892,
+          "alerts": 567,
+          "hits": 119
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.009251,
+        "pr_auc": 0.130129,
+        "naive": {
+          "precision": 0.159533,
+          "recall": 0.159533,
+          "alerts": 257,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.21118,
+          "recall": 0.132296,
+          "alerts": 161,
+          "hits": 34
+        }
+      }
+    ],
+    "pr_auc_mean": 0.197731,
+    "pr_auc_seed_spread": 0.004394,
+    "oof_naive": {
+      "precision": 0.232461,
+      "recall": 0.232218,
+      "alerts": 955,
+      "hits": 222
+    },
+    "oof_threshold": 0.078995,
+    "oof_at_threshold": {
+      "precision": 0.237696,
+      "recall": 0.237448,
+      "alerts": 955,
+      "hits": 227
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 4
+  },
+  {
+    "name": "all",
+    "kind": "search",
+    "note": "гипотеза_4:_проверки_и_погода_вместе",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal",
+        "check",
+        "weather"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "check_hours_168h",
+      "check_hours_720h",
+      "weather_precip_24h",
+      "weather_precip_72h",
+      "weather_precip_168h",
+      "weather_rain_72h",
+      "weather_snowfall_72h",
+      "weather_temp_mean_24h",
+      "weather_temp_max_72h",
+      "weather_snow_depth_cm",
+      "weather_melt_72h_cm",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.011788,
+        "pr_auc": 0.226576,
+        "naive": {
+          "precision": 0.251534,
+          "recall": 0.250765,
+          "alerts": 326,
+          "hits": 82
+        },
+        "at_threshold": {
+          "precision": 0.371585,
+          "recall": 0.207951,
+          "alerts": 183,
+          "hits": 68
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.013374,
+        "pr_auc": 0.247086,
+        "naive": {
+          "precision": 0.266129,
+          "recall": 0.266129,
+          "alerts": 372,
+          "hits": 99
+        },
+        "at_threshold": {
+          "precision": 0.200663,
+          "recall": 0.325269,
+          "alerts": 603,
+          "hits": 121
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.009251,
+        "pr_auc": 0.131698,
+        "naive": {
+          "precision": 0.159533,
+          "recall": 0.159533,
+          "alerts": 257,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.213018,
+          "recall": 0.140078,
+          "alerts": 169,
+          "hits": 36
+        }
+      }
+    ],
+    "pr_auc_mean": 0.201787,
+    "pr_auc_seed_spread": 0.005205,
+    "oof_naive": {
+      "precision": 0.232461,
+      "recall": 0.232218,
+      "alerts": 955,
+      "hits": 222
+    },
+    "oof_threshold": 0.076993,
+    "oof_at_threshold": {
+      "precision": 0.235602,
+      "recall": 0.235356,
+      "alerts": 955,
+      "hits": 225
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 4
+  },
+  {
+    "name": "recent",
+    "kind": "search",
+    "note": "гипотеза 5: свежесть внутри суток сверх вчерашней воды",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal",
+        "check",
+        "weather",
+        "recent"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "recent_evt_hours_6h",
+      "recent_evt_hours_12h",
+      "recent_check_hours_24h",
+      "recent_pump_on_share_6h",
+      "check_hours_168h",
+      "check_hours_720h",
+      "weather_precip_24h",
+      "weather_precip_72h",
+      "weather_precip_168h",
+      "weather_rain_72h",
+      "weather_snowfall_72h",
+      "weather_temp_mean_24h",
+      "weather_temp_max_72h",
+      "weather_snow_depth_cm",
+      "weather_melt_72h_cm",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.011788,
+        "pr_auc": 0.22351,
+        "naive": {
+          "precision": 0.251534,
+          "recall": 0.250765,
+          "alerts": 326,
+          "hits": 82
+        },
+        "at_threshold": {
+          "precision": 0.392045,
+          "recall": 0.211009,
+          "alerts": 176,
+          "hits": 69
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.013374,
+        "pr_auc": 0.246797,
+        "naive": {
+          "precision": 0.266129,
+          "recall": 0.266129,
+          "alerts": 372,
+          "hits": 99
+        },
+        "at_threshold": {
+          "precision": 0.20598,
+          "recall": 0.333333,
+          "alerts": 602,
+          "hits": 124
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.009251,
+        "pr_auc": 0.139567,
+        "naive": {
+          "precision": 0.159533,
+          "recall": 0.159533,
+          "alerts": 257,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.19774,
+          "recall": 0.136187,
+          "alerts": 177,
+          "hits": 35
+        }
+      }
+    ],
+    "pr_auc_mean": 0.203291,
+    "pr_auc_seed_spread": 0.006434,
+    "oof_naive": {
+      "precision": 0.232461,
+      "recall": 0.232218,
+      "alerts": 955,
+      "hits": 222
+    },
+    "oof_threshold": 0.076803,
+    "oof_at_threshold": {
+      "precision": 0.238743,
+      "recall": 0.238494,
+      "alerts": 955,
+      "hits": 228
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 4
+  },
+  {
+    "name": "recent_reg",
+    "kind": "search",
+    "note": "гипотеза 6: слабый сигнал просит осторожного бустера",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal",
+        "check",
+        "weather",
+        "recent"
+      ],
+      "params": {
+        "num_leaves": 7,
+        "min_data_in_leaf": 500,
+        "lambda_l2": 10.0,
+        "learning_rate": 0.03,
+        "feature_fraction": 0.6
+      }
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "recent_evt_hours_6h",
+      "recent_evt_hours_12h",
+      "recent_check_hours_24h",
+      "recent_pump_on_share_6h",
+      "check_hours_168h",
+      "check_hours_720h",
+      "weather_precip_24h",
+      "weather_precip_72h",
+      "weather_precip_168h",
+      "weather_rain_72h",
+      "weather_snowfall_72h",
+      "weather_temp_mean_24h",
+      "weather_temp_max_72h",
+      "weather_snow_depth_cm",
+      "weather_melt_72h_cm",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.011788,
+        "pr_auc": 0.237368,
+        "naive": {
+          "precision": 0.251534,
+          "recall": 0.250765,
+          "alerts": 326,
+          "hits": 82
+        },
+        "at_threshold": {
+          "precision": 0.255747,
+          "recall": 0.272171,
+          "alerts": 348,
+          "hits": 89
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.013374,
+        "pr_auc": 0.26296,
+        "naive": {
+          "precision": 0.266129,
+          "recall": 0.266129,
+          "alerts": 372,
+          "hits": 99
+        },
+        "at_threshold": {
+          "precision": 0.268293,
+          "recall": 0.325269,
+          "alerts": 451,
+          "hits": 121
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.009251,
+        "pr_auc": 0.141862,
+        "naive": {
+          "precision": 0.159533,
+          "recall": 0.159533,
+          "alerts": 257,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.25,
+          "recall": 0.151751,
+          "alerts": 156,
+          "hits": 39
+        }
+      }
+    ],
+    "pr_auc_mean": 0.214063,
+    "pr_auc_seed_spread": 0.001632,
+    "oof_naive": {
+      "precision": 0.232461,
+      "recall": 0.232218,
+      "alerts": 955,
+      "hits": 222
+    },
+    "oof_threshold": 0.083199,
+    "oof_at_threshold": {
+      "precision": 0.260733,
+      "recall": 0.26046,
+      "alerts": 955,
+      "hits": 249
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 8
+  },
+  {
+    "name": "recent_reg2",
+    "kind": "search",
+    "note": "гипотеза 7: ещё осторожнее",
+    "config": {
+      "groups": [
+        "pump",
+        "evt",
+        "obj",
+        "cx",
+        "cal",
+        "check",
+        "weather",
+        "recent"
+      ],
+      "params": {
+        "num_leaves": 4,
+        "min_data_in_leaf": 1000,
+        "lambda_l2": 30.0,
+        "learning_rate": 0.02,
+        "feature_fraction": 0.5
+      }
+    },
+    "columns": [
+      "pump_changes_1h",
+      "pump_changes_6h",
+      "pump_changes_24h",
+      "pump_blink_hours_24h",
+      "pump_blink_hours_168h",
+      "pump_on_share_24h",
+      "pump_on_share_168h",
+      "pump_on_growth_24_720",
+      "pump_unavailable_24h",
+      "pump_unavailable_168h",
+      "pump_all_running_24h",
+      "pump_all_running_168h",
+      "evt_hours_24h",
+      "evt_hours_168h",
+      "evt_hours_720h",
+      "evt_hours_2160h",
+      "evt_hours_8760h",
+      "evt_moments_168h",
+      "evt_hours_since_last",
+      "obj_events_24h",
+      "obj_events_168h",
+      "obj_pump_changes_24h",
+      "obj_pump_blink_24h",
+      "obj_pump_unavailable_24h",
+      "obj_pump_all_running_24h",
+      "obj_pump_on_minutes_24h",
+      "cx_events_24h",
+      "cx_events_168h",
+      "cx_pump_blink_24h",
+      "cx_pump_unavailable_24h",
+      "cx_pump_all_running_168h",
+      "unit_pumps",
+      "unit_flood_sensors",
+      "unit_age_days",
+      "recent_evt_hours_6h",
+      "recent_evt_hours_12h",
+      "recent_check_hours_24h",
+      "recent_pump_on_share_6h",
+      "check_hours_168h",
+      "check_hours_720h",
+      "weather_precip_24h",
+      "weather_precip_72h",
+      "weather_precip_168h",
+      "weather_rain_72h",
+      "weather_snowfall_72h",
+      "weather_temp_mean_24h",
+      "weather_temp_max_72h",
+      "weather_snow_depth_cm",
+      "weather_melt_72h_cm",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.011788,
+        "pr_auc": 0.238916,
+        "naive": {
+          "precision": 0.251534,
+          "recall": 0.250765,
+          "alerts": 326,
+          "hits": 82
+        },
+        "at_threshold": {
+          "precision": 0.251366,
+          "recall": 0.281346,
+          "alerts": 366,
+          "hits": 92
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.013374,
+        "pr_auc": 0.26423,
+        "naive": {
+          "precision": 0.266129,
+          "recall": 0.266129,
+          "alerts": 372,
+          "hits": 99
+        },
+        "at_threshold": {
+          "precision": 0.285366,
+          "recall": 0.314516,
+          "alerts": 410,
+          "hits": 117
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.009251,
+        "pr_auc": 0.144931,
+        "naive": {
+          "precision": 0.159533,
+          "recall": 0.159533,
+          "alerts": 257,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.212291,
+          "recall": 0.14786,
+          "alerts": 179,
+          "hits": 38
+        }
+      }
+    ],
+    "pr_auc_mean": 0.216026,
+    "pr_auc_seed_spread": 0.000463,
+    "oof_naive": {
+      "precision": 0.232461,
+      "recall": 0.232218,
+      "alerts": 955,
+      "hits": 222
+    },
+    "oof_threshold": 0.092818,
+    "oof_at_threshold": {
+      "precision": 0.258639,
+      "recall": 0.258368,
+      "alerts": 955,
+      "hits": 247
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 16
+  }
+]

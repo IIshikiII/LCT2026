@@ -48,7 +48,11 @@ export const unauthorizedAccess: DirectionPlugin = {
     'Выезд группы реагирования',
   ],
 
-  quality: { precision: 0.68, recall: 0.52 },
+  quality: {
+    precision: 0.27,
+    recall: 0.14,
+    baseline: { rule: 'событие на участке было вчера', precision: 0.14, recall: 0.14 },
+  },
   share: 0.18,
 
   appliesTo: (f) =>
@@ -118,7 +122,7 @@ export const unauthorizedAccess: DirectionPlugin = {
           },
           { label: 'Удалённость от поста охраны', weight: 0.19, value: `${rnd.int(1, 9)} км` },
         ],
-        'Полосы показывают силу и направление фактора, а не слагаемые вероятности.',
+        'Полоса вправо повышает риск, влево снижает, длина показывает силу влияния.',
       ),
 
       timelineBlock('Журнал доступов за 30 суток', journal),

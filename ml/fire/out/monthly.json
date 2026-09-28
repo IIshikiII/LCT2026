@@ -1,0 +1,97 @@
+{
+  "opening": "четвёртое: сценарий ежемесячного дообучения, без подбора",
+  "variant": "wide_reg",
+  "rounds": 335,
+  "rounds_source": "ключ --rounds: медиана лучших итераций из прерванного прогона",
+  "window_days": 7,
+  "half_life_days": 365,
+  "excluded_object": 5962,
+  "base": 0.000751,
+  "rule": {
+    "precision": 0.13438,
+    "recall": 0.127695,
+    "alerts": 573,
+    "hits": 77,
+    "hits_by_month": [
+      1,
+      2,
+      1,
+      1,
+      8,
+      6,
+      1,
+      15,
+      6,
+      10,
+      12,
+      14
+    ]
+  },
+  "static_model": {
+    "precision": 0.132174,
+    "recall": 0.126036,
+    "alerts": 575,
+    "hits": 76,
+    "pr_auc": 0.051029,
+    "beats_rule": false,
+    "hits_by_month": [
+      2,
+      2,
+      1,
+      1,
+      8,
+      7,
+      0,
+      15,
+      6,
+      10,
+      10,
+      14
+    ]
+  },
+  "monthly_plain": {
+    "precision": 0.127303,
+    "recall": 0.126036,
+    "alerts": 597,
+    "hits": 76,
+    "pr_auc": 0.056985,
+    "beats_rule": false,
+    "hits_by_month": [
+      2,
+      2,
+      2,
+      1,
+      7,
+      7,
+      1,
+      15,
+      6,
+      10,
+      10,
+      13
+    ]
+  },
+  "monthly_weighted": {
+    "precision": 0.120954,
+    "recall": 0.117745,
+    "alerts": 587,
+    "hits": 71,
+    "pr_auc": 0.050008,
+    "beats_rule": false,
+    "hits_by_month": [
+      1,
+      0,
+      1,
+      1,
+      7,
+      7,
+      0,
+      15,
+      6,
+      10,
+      10,
+      13
+    ]
+  },
+  "opened_at": "2026-09-25T21:18:50"
+}

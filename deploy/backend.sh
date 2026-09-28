@@ -9,8 +9,8 @@
 #   1. Docker ставится из репозиториев Ubuntu, без сторонних источников.
 #   2. backend/.env собирается один раз и переживает выкладки: в нём лежит
 #      ключ подписи токенов, и перегенерация ключа снимала бы все сессии.
-#   3. Обученная модель переносится из ml/access/out в ARTIFACTS_DIR, откуда
-#      её читает плагин направления.
+#   3. Обученные модели переносятся из ml/access/out и ml/flood/out в
+#      ARTIFACTS_DIR, откуда их читают плагины направлений.
 #   4. Поднимаются две службы: db и api. Реестр MLflow на стенде не нужен,
 #      модель берётся файлом.
 #   5. Миграции, посев, публикация замера, прогон конвейера.
@@ -23,6 +23,10 @@ COMPOSE_DIR="$REPO/backend"
 # Куда плагин направления «несанкционированный доступ» ходит за моделью.
 MODEL_SOURCE="$REPO/ml/access/out"
 MODEL_TARGET="$COMPOSE_DIR/artifacts/unauthorized_access"
+
+# То же для направления «риск подтопления» (ADR 0009).
+FLOOD_SOURCE="$REPO/ml/flood/out"
+FLOOD_TARGET="$COMPOSE_DIR/artifacts/flood_risk"
 
 # Короткое имя для docker compose. Вызывается из каталога backend.
 dc() { (cd "$COMPOSE_DIR" && sudo docker compose "$@"); }
@@ -78,6 +82,13 @@ ensure_backend_env() {
     # Пусто значит реестр MLflow не поднят и модель читается файлом. Без этой
     # строки compose подставит адрес несуществующей службы.
     set_env_line "$env_file" MLFLOW_TRACKING_URI ""
+    set_env_line "$env_file" DEMO_LEVELS "${DEMO_LEVELS:-}"
+    # Ключ потока СМВУ создаётся один раз, как ключ подписи: заглушка и API
+    # читают его из одного файла. ADR 0017.
+    if [ -z "$(read_env "$env_file" STREAM_TOKEN)" ]; then
+        set_env_line "$env_file" STREAM_TOKEN "$(openssl rand -hex 24)"
+        echo "    ключ потока СМВУ создан"
+    fi
 }
 
 read_env() {
@@ -122,6 +133,24 @@ publish_model() {
         rm -f "$MODEL_TARGET/calibration.joblib"
         echo "    модель на месте, калибратора нет — шкала сырая"
     fi
+
+    if [ ! -f "$FLOOD_SOURCE/model.joblib" ]; then
+        warn "Нет $FLOOD_SOURCE/model.joblib — направление подтопления останется без модели."
+        return 0
+    fi
+    log "Публикую модель направления «риск подтопления»"
+    mkdir -p "$FLOOD_TARGET"
+    cp "$FLOOD_SOURCE/model.joblib" "$FLOOD_TARGET/latest.joblib"
+    cp "$FLOOD_SOURCE/metrics.json" "$FLOOD_TARGET/metrics.json"
+    # Классификатор воды размечает сутки «вода или проверка» (ADR 0013). Без
+    # него водой считается только сигнал ночью или в нерабочий день.
+    if [ -f "$FLOOD_SOURCE/pu_classifier.joblib" ]; then
+        cp "$FLOOD_SOURCE/pu_classifier.joblib" "$FLOOD_TARGET/pu_classifier.joblib"
+        echo "    модель и классификатор воды на месте, шкала сырая"
+    else
+        rm -f "$FLOOD_TARGET/pu_classifier.joblib"
+        warn "Нет $FLOOD_SOURCE/pu_classifier.joblib — вода размечается только по времени."
+    fi
 }
 
 # --- службы ------------------------------------------------------------
@@ -155,14 +184,34 @@ backend_migrate() {
     dc run --rm pipeline uv run --no-sync python -m app.cli migrate
 }
 
+# Замер моделей в базу. Идёт при каждой выкладке, а не только при посеве:
+# посев пропускается, когда прогнозы уже есть, и дашборд показывал бы замер
+# прежней версии модели.
+backend_metrics() {
+    log "Публикую замер моделей"
+    dc run --rm pipeline uv run --no-sync python -m app.cli publish-metrics
+}
+
 # Посев синтетики. Делается один раз: повторный посев не плодит дублей, но и
 # не нужен, а прогон конвейера после него долгий.
 #
 # RESEED=yes сносит прежнюю синтетику и сеет заново. Это нужно, когда меняется
 # сама раскладка данных, а не их количество: обычный посев вставляет с
 # `on_conflict_do_nothing` и старые строки оставляет как есть.
+# Настоящая выгрузка лежит в базе, если загрузчик записал своё состояние.
+# Посев синтетики её стёр бы, поэтому при ней он пропускается. ADR 0017.
+has_dataset() {
+    [ "$(dc exec -T db psql -U "${POSTGRES_USER:-arm}" -d "${POSTGRES_DB:-arm}" -tAc \
+        "SELECT count(*) FROM ingest_state WHERE key = 'dataset'" 2>/dev/null \
+        | tr -d '[:space:]')" = 1 ]
+}
+
 backend_seed() {
     local fresh=""
+    if has_dataset && [ "${RESEED:-no}" != yes ]; then
+        echo "    в базе настоящая выгрузка, посев синтетики пропущен"
+        return 0
+    fi
 
     if [ "${RESEED:-no}" = yes ]; then
         warn "Пересев: прежние объекты, прогнозы и заявки будут сняты."
@@ -175,9 +224,6 @@ backend_seed() {
     log "Сею объекты и события"
     dc run --rm pipeline uv run --no-sync python -m app.cli seed $fresh --facilities "$SEED_FACILITIES"
 
-    log "Публикую замер модели"
-    dc run --rm pipeline uv run --no-sync python -m app.cli publish-metrics
-
     log "Считаю прогнозы"
     dc run --rm pipeline uv run --no-sync python -m app.cli run-pipeline
 }
@@ -189,6 +235,17 @@ prediction_count() {
 
 # Возвращает демонстрационные данные в исходное состояние. Прогнозы снова
 # новые, следы работы диспетчеров и бригад сняты.
+# Конвейер раз в минуту и заглушка СМВУ. Им нужен отрезок потока, который
+# кладёт `deploy/push-data.sh` или команда `ingest`. ADR 0017.
+backend_stream() {
+    if [ ! -f "$COMPOSE_DIR/data/stream/slice.json" ]; then
+        warn "Нет backend/data/stream/slice.json — поток СМВУ и расписание не подняты."
+        return 0
+    fi
+    log "Поднимаю конвейер по расписанию и заглушку СМВУ"
+    dc --profile stream up -d --build scheduler smvu-stub
+}
+
 backend_reset() {
     log "Возвращаю демонстрационные данные в исходное состояние"
     dc run --rm pipeline uv run --no-sync python -m app.cli reset-demo

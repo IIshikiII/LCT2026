@@ -48,3 +48,10 @@ ml/*/out/*.csv
 
 # Байт-код Python
 **/__pycache__/
+ml/fire/out/monthly_cache/
+ml/fire/out/kp_since_1932.txt
+ml/fire/out/monthly_progress.txt
+ml/fire/out/*.log
+
+# Презентация для сдачи: собирается локально, в репозитории не хранится.
+presentation/

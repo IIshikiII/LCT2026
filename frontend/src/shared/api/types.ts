@@ -150,6 +150,11 @@ export interface Prediction {
   summary: string
   /** автоматически созданная заявка, если она есть */
   orderId?: string
+  /**
+   * открытая заявка того же объекта и направления от другого прогноза;
+   * приходит, только когда своей заявки нет: автозаявка на объект одна
+   */
+  facilityOrderId?: string
   /** кто взял прогноз в работу */
   assignee?: string
   /** 'AGREED' | 'CORRECTED' — согласился диспетчер с уровнем или исправил */
@@ -195,16 +200,42 @@ export interface WorkOrder {
 
 export interface ModelMetric {
   direction: string
-  precision: number
-  recall: number
+  /** пусто, когда точность не измерена: тогда есть `note` */
+  precision?: number
+  recall?: number
   /** цель по ТЗ: 0.7 */
   targetPrecision: number
   /** цель по ТЗ: 0.5 */
   targetRecall: number
   evaluatedAt: string
+  /** способ работы направления: `offline_holdout`, `expert_rules` */
+  method?: string
+  /** почему точность не измерена, человеческим языком */
+  note?: string
+  /** наивное правило, с которым сравнивается модель: «событие было вчера» */
+  baselineRule?: string
+  /** точность и полнота этого правила на той же выборке */
+  baselinePrecision?: number
+  baselineRecall?: number
 }
 
 /** Состояние конвейера расчёта — доказательство метрик «< 5 мин» и «>= 24 ч». */
+/**
+ * Уведомление о тревоге, `GET /alerts`. Живёт, пока сервер его отдаёт.
+ * `filter` это параметры журнала, которые показывают ровно эти инциденты.
+ */
+export interface Alert {
+  code: string
+  level: string
+  count: number
+  title: string
+  hint?: string
+  filter: Record<string, string[]>
+  /** через сколько минут напомнить снова, пока тревога жива */
+  repeatMinutes: number
+  newestAt?: string | null
+}
+
 export interface PipelineHealth {
   lastRunAt: string
   lastRunMs: number
@@ -216,6 +247,12 @@ export interface PipelineHealth {
   /** целевые значения по ТЗ, приходят с бэкенда, чтобы не хардкодить на фронте */
   targetComputeMs: number
   targetHorizonHours: number
+  /** наибольшая задержка потока за последний прогон, мс; null — событий не было */
+  streamLagMs?: number | null
+  /** событий потока, учтённых последним прогоном */
+  streamEvents?: number
+  /** граница задержки потока по ТЗ, мс */
+  targetStreamLagMs?: number
 }
 
 /**

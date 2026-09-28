@@ -134,3 +134,20 @@ def test_a_second_reset_changes_nothing() -> None:
 
     assert again.predictions == 0
     assert again.orders == 0
+
+
+def test_reset_predictions_leaves_an_empty_journal_and_restarts_numbers() -> None:
+    """Сброс прогнозов готовит стенд к первому прогону: журнал пуст, номера
+    заявок снова с единицы."""
+    from app.domain.auto_orders import next_number
+    from app.domain.reset import reset_predictions
+    from app.tables import facility
+
+    with engine().begin() as conn:
+        facilities = conn.execute(select(func.count()).select_from(facility)).scalar_one()
+        done = reset_predictions(conn)
+        assert done.predictions > 0
+        for table in (prediction, work_order):
+            assert conn.execute(select(func.count()).select_from(table)).scalar_one() == 0
+        assert conn.execute(select(func.count()).select_from(facility)).scalar_one() == facilities
+        assert next_number(conn).endswith("-0001")

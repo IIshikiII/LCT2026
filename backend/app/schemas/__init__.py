@@ -9,6 +9,8 @@ from __future__ import annotations
 from app.schemas.base import Dto, Page
 from app.schemas.core import (
     ActionDef,
+    Alert,
+    AlertFilter,
     CardBlock,
     DashboardSummary,
     FacilityRef,
@@ -36,6 +38,8 @@ __all__ = [
     "ActionDef",
     "AppMeta",
     "CardBlock",
+    "Alert",
+    "AlertFilter",
     "DashboardSummary",
     "DirectionMeta",
     "DistrictMeta",

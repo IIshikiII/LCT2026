@@ -123,6 +123,7 @@ export const PredictionSchema = dto({
   facility: FacilityRefSchema,
   summary: z.string(),
   orderId: opt(z.string()),
+  facilityOrderId: opt(z.string()),
   assignee: opt(z.string()),
   verdict: opt(z.string()),
   dispatcherLevel: opt(z.string()),
@@ -157,14 +158,40 @@ export const WorkOrderSchema = dto({
   outcome: opt(WorkOrderOutcomeSchema),
 })
 
+/**
+ * Пустые `precision` и `recall` значат «точность не измерена». Тогда `note`
+ * говорит почему, а `method` называет способ работы направления.
+ */
 export const ModelMetricSchema = dto({
   direction: z.string(),
-  precision: z.number(),
-  recall: z.number(),
+  precision: opt(z.number()),
+  recall: opt(z.number()),
   targetPrecision: z.number(),
   targetRecall: z.number(),
   evaluatedAt: z.string(),
+  method: opt(z.string()),
+  note: opt(z.string()),
+  baselineRule: opt(z.string()),
+  baselinePrecision: opt(z.number()),
+  baselineRecall: opt(z.number()),
 })
+
+/**
+ * Уведомление о тревоге. Текст, фильтр журнала и шаг повтора готовит сервер:
+ * фронт не знает, какие уровень и статус тревожны.
+ */
+export const AlertSchema = dto({
+  code: z.string(),
+  level: z.string(),
+  count: z.number(),
+  title: z.string(),
+  hint: opt(z.string()),
+  filter: z.record(z.string(), z.array(z.string())),
+  repeatMinutes: z.number(),
+  newestAt: z.string().nullable().optional(),
+})
+
+export const AlertListSchema = z.array(AlertSchema)
 
 export const PipelineHealthSchema = dto({
   lastRunAt: z.string(),
@@ -174,6 +201,10 @@ export const PipelineHealthSchema = dto({
   minHorizonHours: z.number(),
   targetComputeMs: z.number(),
   targetHorizonHours: z.number(),
+  // Задержка потока. Сервер до ADR 0017 полей не шлёт, поэтому они необязательны.
+  streamLagMs: z.number().nullable().optional(),
+  streamEvents: z.number().optional(),
+  targetStreamLagMs: z.number().optional(),
 })
 
 const counters = z.record(z.string(), z.number())

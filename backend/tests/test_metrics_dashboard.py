@@ -43,6 +43,11 @@ def test_model_metrics_return_a_bare_array() -> None:
         "targetPrecision",
         "targetRecall",
         "evaluatedAt",
+        "method",
+        "note",
+        "baselineRule",
+        "baselinePrecision",
+        "baselineRecall",
     }
 
 
@@ -70,9 +75,15 @@ def test_the_order_follows_the_direction_registry() -> None:
 
 
 def test_metrics_survive_an_empty_table() -> None:
+    """Без замеров остаются только направления, которые сами сказали, что
+    точность не измерена. Чисел у них нет, пояснение есть. ADR 0016."""
     with engine().begin() as conn:
         conn.execute(delete(model_metric))
-    assert get("/metrics/models") == []
+    body = get("/metrics/models")
+    assert [item["direction"] for item in body] == ["FIRE_RISK"]
+    assert body[0]["precision"] is None
+    assert body[0]["method"] == "expert_rules"
+    assert "не измерена" in body[0]["note"]
 
 
 # --- здоровье конвейера ---
@@ -95,6 +106,28 @@ def test_pipeline_health_carries_both_targets() -> None:
     body = get("/metrics/pipeline")
     assert body["targetComputeMs"] == TARGET_COMPUTE_MS == 300_000
     assert body["targetHorizonHours"] == TARGET_HORIZON_HOURS == 24
+
+
+def test_stream_lag_comes_from_the_last_run_with_events() -> None:
+    """Тихая минута без событий не стирает задержку: виджет не мигает."""
+    with engine().begin() as conn:
+        for shift, events, lag in ((-0.6, 3, 45_000), (-0.5, 0, None)):
+            conn.execute(
+                pipeline_run.insert(),
+                {
+                    "started_at": NOW + timedelta(hours=shift),
+                    "finished_at": NOW + timedelta(hours=shift, seconds=10),
+                    "duration_ms": 10_000,
+                    "prediction_count": 0,
+                    "status": "DONE",
+                    "stream_events": events,
+                    "stream_lag_ms": lag,
+                },
+            )
+
+    body = get("/metrics/pipeline")
+    assert body["streamLagMs"] == 45_000
+    assert body["streamEvents"] == 3
 
 
 def test_freshness_grows_from_the_moment_of_the_run() -> None:
@@ -154,14 +187,14 @@ def test_a_direction_without_predictions_still_gets_a_key(
 ) -> None:
     """Иначе направление пропало бы с дашборда до первого прогноза.
 
-    FLOOD_RISK выключен по умолчанию и прогнозов в наборе не имеет. Включаем
+    COLD_RISK выключен по умолчанию и прогнозов в наборе не имеет. Включаем
     его только здесь, чтобы проверить именно пустое направление.
     """
     import app.api.dashboard as dash
     from app.meta.directions import REGISTRY
 
     monkeypatch.setattr(dash, "active", lambda: REGISTRY)
-    assert get("/dashboard/summary")["byDirection"]["FLOOD_RISK"] == 0
+    assert get("/dashboard/summary")["byDirection"]["COLD_RISK"] == 0
 
 
 # --- верх списка риска ---

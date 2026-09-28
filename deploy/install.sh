@@ -87,7 +87,9 @@ if [ "$DEPLOY_BACKEND" = yes ]; then
     publish_model
     backend_up
     backend_migrate
+    backend_metrics
     backend_seed
+    backend_stream
 else
     warn "DEPLOY_BACKEND=no: фронтенд будет работать на заглушках."
 fi

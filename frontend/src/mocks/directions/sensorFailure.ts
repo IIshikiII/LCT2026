@@ -45,7 +45,11 @@ export const sensorFailure: DirectionPlugin = {
 
   workTypes: ['Диагностика датчика', 'Замена датчика', 'Чистка и калибровка', 'Ремонт шлейфа'],
 
-  quality: { precision: 0.81, recall: 0.63 },
+  quality: {
+    precision: 0.31,
+    recall: 0.28,
+    baseline: { rule: 'сбой датчика был вчера', precision: 0.18, recall: 0.17 },
+  },
   share: 0.34,
 
   appliesTo: (f) => f.kind === FACILITY_KINDS.sensor,

@@ -24,10 +24,10 @@
   --color-danger-strong: var(--danger-strong);
   --color-danger-hover: var(--danger-hover);
   --color-secondary-hover: var(--secondary-hover);
-  --color-risk-low: var(--risk-low);
-  --color-risk-medium: var(--risk-medium);
-  --color-risk-high: var(--risk-high);
-  --color-risk-critical: var(--risk-critical);
+  --color-risk-low: color-mix(in srgb, var(--risk-low) var(--risk-text-mix), var(--text));
+  --color-risk-medium: color-mix(in srgb, var(--risk-medium) var(--risk-text-mix), var(--text));
+  --color-risk-high: color-mix(in srgb, var(--risk-high) var(--risk-text-mix), var(--text));
+  --color-risk-critical: color-mix(in srgb, var(--risk-critical) var(--risk-text-mix), var(--text));
   --color-state-attention: var(--state-attention);
   --color-state-progress: var(--state-progress);
   --color-state-done: var(--state-done);
@@ -50,4 +50,20 @@
 [data-cluster-open='true'] .maplibregl-ctrl-top-right,
 [data-cluster-open='true'] .maplibregl-ctrl-bottom-right {
   transform: translateX(-288px);
+}
+
+/*
+ * Появление уведомления о тревоге: короткий сдвиг сверху. Анимация идёт только
+ * в ответ на событие и выключена при `prefers-reduced-motion` (класс
+ * `motion-safe:`).
+ */
+@keyframes alert-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }

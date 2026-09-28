@@ -28,6 +28,19 @@
 | [0005-test-database.md](adr/0005-test-database.md) | Почему тесты работают только с базой на суффиксе `_test` |
 | [0006-prediction-lifecycle.md](adr/0006-prediction-lifecycle.md) | Статусы прогноза и заявки, решение диспетчера отдельными полями |
 | [0007-roles-and-auth.md](adr/0007-roles-and-auth.md) | Роли, вход в систему, второй фактор, журнал действий |
+| [0008-flood-target.md](adr/0008-flood-target.md) | Первая метка направления «риск подтопления» |
+| [0009-flood-model.md](adr/0009-flood-model.md) | Первая модель подтопления. Заменена |
+| [0010-flood-real-water.md](adr/0010-flood-real-water.md) | Вода и плановые проверки по маске времени. Заменено ADR 0012 |
+| [0011-flood-model-real-water.md](adr/0011-flood-model-real-water.md) | Протокол: отложенный год и растущее окно. Модель заменена |
+| [0012-flood-pu-label.md](adr/0012-flood-pu-label.md) | Метка по признакам события, ансамбль, скользящий бюджет тревог |
+| [0013-flood-model-in-service.md](adr/0013-flood-model-in-service.md) | Модель ADR 0012 в сервисе: разметка суток, погода, бюджет в конвейере |
+| [0014-fire-target.md](adr/0014-fire-target.md) | Метка пожара: сигнал вне пачки обхода или сбоя линии. Графики ППР и ТО |
+| [0015-fire-model.md](adr/0015-fire-model.md) | Модель пожара не обогнала правило «событие было вчера» |
+| [0016-fire-expert-rules.md](adr/0016-fire-expert-rules.md) | Пожар на экспертных правилах: уровни, охлаждение, точность не измерена |
+| [0019-critical-alerts.md](adr/0019-critical-alerts.md) | Уведомление о критических инцидентах, которые никто не взял в работу |
+| [0020-order-follows-prediction.md](adr/0020-order-follows-prediction.md) | Автозаявка идёт за свежим прогнозом объекта или отклоняется, когда риск упал |
+| [0018-fire-sections-and-live-cards.md](adr/0018-fire-sections-and-live-cards.md) | Пожар на участке, живые графики карточек, демонстрационный режим, порядок журнала |
+| [0017-ingest-and-stream.md](adr/0017-ingest-and-stream.md) | Загрузчик выгрузки, сдвиг времени на целые недели, заглушка СМВУ, ритм направлений, карточка на происшествие, задержка потока |
 
 Целевое состояние сервиса описывает `../../ARM-ODS-backend-spec.md`. Эти
 документы описывают текущее состояние и отклонения от спецификации.

@@ -1,0 +1,971 @@
+[
+  {
+    "name": "base",
+    "kind": "search",
+    "note": "история,_соседи,_обходы",
+    "config": {
+      "groups": [
+        "evt",
+        "line",
+        "chk",
+        "obj",
+        "cal"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "evt_days_all",
+      "line_events_1d",
+      "line_events_7d",
+      "line_events_30d",
+      "obj_walk_days_since",
+      "obj_walks_365d",
+      "obj_walk_phase",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000407,
+        "pr_auc": 0.032161,
+        "naive": {
+          "precision": 0.125683,
+          "recall": 0.127424,
+          "alerts": 366,
+          "hits": 46
+        },
+        "at_threshold": {
+          "precision": 0.111984,
+          "recall": 0.157895,
+          "alerts": 509,
+          "hits": 57
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.000404,
+        "pr_auc": 0.019609,
+        "naive": {
+          "precision": 0.114206,
+          "recall": 0.113889,
+          "alerts": 359,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.097252,
+          "recall": 0.127778,
+          "alerts": 473,
+          "hits": 46
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000354,
+        "pr_auc": 0.053723,
+        "naive": {
+          "precision": 0.106452,
+          "recall": 0.104762,
+          "alerts": 310,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.167742,
+          "recall": 0.08254,
+          "alerts": 155,
+          "hits": 26
+        }
+      }
+    ],
+    "pr_auc_mean": 0.035164,
+    "pr_auc_seed_spread": 0.003055,
+    "oof_naive": {
+      "precision": 0.115942,
+      "recall": 0.11583,
+      "alerts": 1035,
+      "hits": 120
+    },
+    "oof_threshold": 0.178611,
+    "oof_at_threshold": {
+      "precision": 0.113456,
+      "recall": 0.124517,
+      "alerts": 1137,
+      "hits": 129
+    },
+    "beats_naive_both_oof": false,
+    "seconds": 50
+  },
+  {
+    "name": "sensors",
+    "kind": "search",
+    "note": "плюс_температура_и_неисправности",
+    "config": {
+      "groups": [
+        "evt",
+        "line",
+        "chk",
+        "obj",
+        "cal",
+        "tmp",
+        "hw"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "evt_days_all",
+      "line_events_1d",
+      "line_events_7d",
+      "line_events_30d",
+      "obj_walk_days_since",
+      "obj_walks_365d",
+      "obj_walk_phase",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "tmp_max_1d",
+      "tmp_mean_1d",
+      "tmp_mean_7d",
+      "tmp_delta_30d",
+      "tmp_max_rise",
+      "hw_faults_1d",
+      "hw_faults_7d",
+      "hw_faults_30d",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000407,
+        "pr_auc": 0.030497,
+        "naive": {
+          "precision": 0.125683,
+          "recall": 0.127424,
+          "alerts": 366,
+          "hits": 46
+        },
+        "at_threshold": {
+          "precision": 0.118987,
+          "recall": 0.130194,
+          "alerts": 395,
+          "hits": 47
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.000404,
+        "pr_auc": 0.022725,
+        "naive": {
+          "precision": 0.114206,
+          "recall": 0.113889,
+          "alerts": 359,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.109489,
+          "recall": 0.125,
+          "alerts": 411,
+          "hits": 45
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000354,
+        "pr_auc": 0.043253,
+        "naive": {
+          "precision": 0.106452,
+          "recall": 0.104762,
+          "alerts": 310,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.139098,
+          "recall": 0.11746,
+          "alerts": 266,
+          "hits": 37
+        }
+      }
+    ],
+    "pr_auc_mean": 0.032158,
+    "pr_auc_seed_spread": 0.006413,
+    "oof_naive": {
+      "precision": 0.115942,
+      "recall": 0.11583,
+      "alerts": 1035,
+      "hits": 120
+    },
+    "oof_threshold": 0.39836,
+    "oof_at_threshold": {
+      "precision": 0.120336,
+      "recall": 0.124517,
+      "alerts": 1072,
+      "hits": 129
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 50
+  },
+  {
+    "name": "env",
+    "kind": "search",
+    "note": "плюс_газ,_питание,_люди,_погода",
+    "config": {
+      "groups": [
+        "evt",
+        "line",
+        "chk",
+        "obj",
+        "cal",
+        "tmp",
+        "hw",
+        "gas",
+        "pwr",
+        "ppl",
+        "wx"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "evt_days_all",
+      "line_events_1d",
+      "line_events_7d",
+      "line_events_30d",
+      "obj_walk_days_since",
+      "obj_walks_365d",
+      "obj_walk_phase",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "tmp_max_1d",
+      "tmp_mean_1d",
+      "tmp_mean_7d",
+      "tmp_delta_30d",
+      "tmp_max_rise",
+      "gas_max_1d",
+      "gas_max_7d",
+      "gas_mean_30d",
+      "gas_mid_7d",
+      "gas_ge1_30d",
+      "gas_ge1_off_365d",
+      "gas_days_since_ge1",
+      "hw_faults_1d",
+      "hw_faults_7d",
+      "hw_faults_30d",
+      "pwr_phase_off_1d",
+      "pwr_phase_off_7d",
+      "pwr_fan_off_1d",
+      "pwr_fan_off_7d",
+      "ppl_talk_1d",
+      "ppl_talk_7d",
+      "ppl_door_1d",
+      "ppl_door_7d",
+      "wx_temp_mean_1d",
+      "wx_temp_max_1d",
+      "wx_temp_max_7d",
+      "wx_precip_1d",
+      "wx_rh_mean_1d",
+      "wx_rh_max_1d",
+      "wx_rh_mean_7d",
+      "wx_dew_mean_1d",
+      "wx_pressure_change_1d",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000407,
+        "pr_auc": 0.025732,
+        "naive": {
+          "precision": 0.125683,
+          "recall": 0.127424,
+          "alerts": 366,
+          "hits": 46
+        },
+        "at_threshold": {
+          "precision": 0.081522,
+          "recall": 0.083102,
+          "alerts": 368,
+          "hits": 30
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.000404,
+        "pr_auc": 0.01872,
+        "naive": {
+          "precision": 0.114206,
+          "recall": 0.113889,
+          "alerts": 359,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.080488,
+          "recall": 0.091667,
+          "alerts": 410,
+          "hits": 33
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000354,
+        "pr_auc": 0.057266,
+        "naive": {
+          "precision": 0.106452,
+          "recall": 0.104762,
+          "alerts": 310,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.139535,
+          "recall": 0.114286,
+          "alerts": 258,
+          "hits": 36
+        }
+      }
+    ],
+    "pr_auc_mean": 0.033906,
+    "pr_auc_seed_spread": 0.001933,
+    "oof_naive": {
+      "precision": 0.115942,
+      "recall": 0.11583,
+      "alerts": 1035,
+      "hits": 120
+    },
+    "oof_threshold": 0.345512,
+    "oof_at_threshold": {
+      "precision": 0.09556,
+      "recall": 0.09556,
+      "alerts": 1036,
+      "hits": 99
+    },
+    "beats_naive_both_oof": false,
+    "seconds": 72
+  },
+  {
+    "name": "recent",
+    "kind": "search",
+    "note": "плюс вчерашнее событие изнутри суток",
+    "config": {
+      "groups": [
+        "evt",
+        "line",
+        "chk",
+        "obj",
+        "cal",
+        "rec"
+      ],
+      "params": {}
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "evt_days_all",
+      "line_events_1d",
+      "line_events_7d",
+      "line_events_30d",
+      "obj_walk_days_since",
+      "obj_walks_365d",
+      "obj_walk_phase",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "cal_fireworks",
+      "cal_fireworks_1d",
+      "rec_to_midnight_1d",
+      "rec_channels_1d",
+      "rec_moments_1d",
+      "rec_smoke_1d",
+      "rec_heat_1d",
+      "rec_temp_1d",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000407,
+        "pr_auc": 0.031889,
+        "naive": {
+          "precision": 0.125683,
+          "recall": 0.127424,
+          "alerts": 366,
+          "hits": 46
+        },
+        "at_threshold": {
+          "precision": 0.130564,
+          "recall": 0.121884,
+          "alerts": 337,
+          "hits": 44
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.000404,
+        "pr_auc": 0.021623,
+        "naive": {
+          "precision": 0.114206,
+          "recall": 0.113889,
+          "alerts": 359,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.108401,
+          "recall": 0.111111,
+          "alerts": 369,
+          "hits": 40
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000354,
+        "pr_auc": 0.060929,
+        "naive": {
+          "precision": 0.106452,
+          "recall": 0.104762,
+          "alerts": 310,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.118182,
+          "recall": 0.12381,
+          "alerts": 330,
+          "hits": 39
+        }
+      }
+    ],
+    "pr_auc_mean": 0.038147,
+    "pr_auc_seed_spread": 0.011698,
+    "oof_naive": {
+      "precision": 0.115942,
+      "recall": 0.11583,
+      "alerts": 1035,
+      "hits": 120
+    },
+    "oof_threshold": 0.217567,
+    "oof_at_threshold": {
+      "precision": 0.118726,
+      "recall": 0.118726,
+      "alerts": 1036,
+      "hits": 123
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 53
+  },
+  {
+    "name": "recent_reg",
+    "kind": "search",
+    "note": "рецепт регуляризации recent_reg2 подтопления",
+    "config": {
+      "groups": [
+        "evt",
+        "line",
+        "chk",
+        "obj",
+        "cal",
+        "rec"
+      ],
+      "params": {
+        "num_leaves": 4,
+        "min_data_in_leaf": 1000,
+        "lambda_l2": 30.0,
+        "learning_rate": 0.02,
+        "feature_fraction": 0.5
+      }
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "evt_days_all",
+      "line_events_1d",
+      "line_events_7d",
+      "line_events_30d",
+      "obj_walk_days_since",
+      "obj_walks_365d",
+      "obj_walk_phase",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "cal_fireworks",
+      "cal_fireworks_1d",
+      "rec_to_midnight_1d",
+      "rec_channels_1d",
+      "rec_moments_1d",
+      "rec_smoke_1d",
+      "rec_heat_1d",
+      "rec_temp_1d",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000407,
+        "pr_auc": 0.037083,
+        "naive": {
+          "precision": 0.125683,
+          "recall": 0.127424,
+          "alerts": 366,
+          "hits": 46
+        },
+        "at_threshold": {
+          "precision": 0.126712,
+          "recall": 0.102493,
+          "alerts": 292,
+          "hits": 37
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.000404,
+        "pr_auc": 0.040167,
+        "naive": {
+          "precision": 0.114206,
+          "recall": 0.113889,
+          "alerts": 359,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.115385,
+          "recall": 0.125,
+          "alerts": 390,
+          "hits": 45
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000354,
+        "pr_auc": 0.054566,
+        "naive": {
+          "precision": 0.106452,
+          "recall": 0.104762,
+          "alerts": 310,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.116147,
+          "recall": 0.130159,
+          "alerts": 353,
+          "hits": 41
+        }
+      }
+    ],
+    "pr_auc_mean": 0.043939,
+    "pr_auc_seed_spread": 0.004529,
+    "oof_naive": {
+      "precision": 0.115942,
+      "recall": 0.11583,
+      "alerts": 1035,
+      "hits": 120
+    },
+    "oof_threshold": 0.05187,
+    "oof_at_threshold": {
+      "precision": 0.118841,
+      "recall": 0.118726,
+      "alerts": 1035,
+      "hits": 123
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 172
+  },
+  {
+    "name": "wide_reg",
+    "kind": "search",
+    "note": "плюс неделя, конденсат, геометрия, погода и воздух, температура, неисправности",
+    "config": {
+      "groups": [
+        "evt",
+        "line",
+        "chk",
+        "obj",
+        "cal",
+        "rec",
+        "week",
+        "cond",
+        "geo",
+        "wx",
+        "tmp",
+        "hw"
+      ],
+      "params": {
+        "num_leaves": 4,
+        "min_data_in_leaf": 1000,
+        "lambda_l2": 30.0,
+        "learning_rate": 0.02,
+        "feature_fraction": 0.5
+      }
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "evt_days_all",
+      "line_events_1d",
+      "line_events_7d",
+      "line_events_30d",
+      "obj_walk_days_since",
+      "obj_walks_365d",
+      "obj_walk_phase",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "tmp_max_1d",
+      "tmp_mean_1d",
+      "tmp_mean_7d",
+      "tmp_delta_30d",
+      "tmp_max_rise",
+      "hw_faults_1d",
+      "hw_faults_7d",
+      "hw_faults_30d",
+      "wx_temp_mean_1d",
+      "wx_temp_max_1d",
+      "wx_temp_max_7d",
+      "wx_precip_1d",
+      "wx_rh_mean_1d",
+      "wx_rh_max_1d",
+      "wx_rh_mean_7d",
+      "wx_dew_mean_1d",
+      "wx_pressure_change_1d",
+      "wx_wind_mean_1d",
+      "wx_gust_max_1d",
+      "wx_cloud_mean_1d",
+      "wx_soil_temp_1d",
+      "wx_pm25_mean_1d",
+      "wx_pm25_max_7d",
+      "wx_pm10_mean_1d",
+      "wx_co_max_1d",
+      "cal_fireworks",
+      "cal_fireworks_1d",
+      "cond_dew_minus_unit",
+      "cond_dew_minus_object",
+      "cond_outside_minus_object",
+      "rec_to_midnight_1d",
+      "rec_channels_1d",
+      "rec_moments_1d",
+      "rec_smoke_1d",
+      "rec_heat_1d",
+      "rec_temp_1d",
+      "geo_position",
+      "geo_to_edge",
+      "geo_object_units",
+      "week_day_of_week",
+      "week_is_day_off",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000407,
+        "pr_auc": 0.037017,
+        "naive": {
+          "precision": 0.125683,
+          "recall": 0.127424,
+          "alerts": 366,
+          "hits": 46
+        },
+        "at_threshold": {
+          "precision": 0.136364,
+          "recall": 0.108033,
+          "alerts": 286,
+          "hits": 39
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.000404,
+        "pr_auc": 0.0489,
+        "naive": {
+          "precision": 0.114206,
+          "recall": 0.113889,
+          "alerts": 359,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.12931,
+          "recall": 0.125,
+          "alerts": 348,
+          "hits": 45
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000354,
+        "pr_auc": 0.051352,
+        "naive": {
+          "precision": 0.106452,
+          "recall": 0.104762,
+          "alerts": 310,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.099751,
+          "recall": 0.126984,
+          "alerts": 401,
+          "hits": 40
+        }
+      }
+    ],
+    "pr_auc_mean": 0.045756,
+    "pr_auc_seed_spread": 0.004066,
+    "oof_naive": {
+      "precision": 0.115942,
+      "recall": 0.11583,
+      "alerts": 1035,
+      "hits": 120
+    },
+    "oof_threshold": 0.043213,
+    "oof_at_threshold": {
+      "precision": 0.119807,
+      "recall": 0.119691,
+      "alerts": 1035,
+      "hits": 124
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 344
+  },
+  {
+    "name": "repeat_reg",
+    "kind": "search",
+    "note": "recent_reg плюс прошлые повторы пикета",
+    "config": {
+      "groups": [
+        "evt",
+        "line",
+        "chk",
+        "obj",
+        "cal",
+        "rec"
+      ],
+      "params": {
+        "num_leaves": 4,
+        "min_data_in_leaf": 1000,
+        "lambda_l2": 30.0,
+        "learning_rate": 0.02,
+        "feature_fraction": 0.5
+      }
+    },
+    "columns": [
+      "evt_days_1d",
+      "evt_days_7d",
+      "evt_days_30d",
+      "evt_days_90d",
+      "evt_days_365d",
+      "evt_moments_30d",
+      "evt_days_since",
+      "evt_days_all",
+      "line_events_1d",
+      "line_events_7d",
+      "line_events_30d",
+      "obj_walk_days_since",
+      "obj_walks_365d",
+      "obj_walk_phase",
+      "unit_smoke",
+      "unit_temp",
+      "unit_heat",
+      "unit_age_days",
+      "chk_days_30d",
+      "chk_days_365d",
+      "chk_days_since",
+      "obj_events_1d",
+      "obj_events_7d",
+      "obj_events_30d",
+      "obj_check_share_1d",
+      "obj_checks_30d",
+      "obj_temp_max_1d",
+      "obj_temp_rise",
+      "cal_fireworks",
+      "cal_fireworks_1d",
+      "rec_to_midnight_1d",
+      "rec_channels_1d",
+      "rec_repeats_365d",
+      "rec_repeats_all",
+      "rec_moments_1d",
+      "rec_smoke_1d",
+      "rec_heat_1d",
+      "rec_temp_1d",
+      "cal_season",
+      "cal_month",
+      "cal_day_of_year"
+    ],
+    "folds": [
+      {
+        "valid": "2022-07-01..2023-07-01",
+        "base": 0.000407,
+        "pr_auc": 0.036953,
+        "naive": {
+          "precision": 0.125683,
+          "recall": 0.127424,
+          "alerts": 366,
+          "hits": 46
+        },
+        "at_threshold": {
+          "precision": 0.130564,
+          "recall": 0.121884,
+          "alerts": 337,
+          "hits": 44
+        }
+      },
+      {
+        "valid": "2023-07-01..2024-07-01",
+        "base": 0.000404,
+        "pr_auc": 0.041895,
+        "naive": {
+          "precision": 0.114206,
+          "recall": 0.113889,
+          "alerts": 359,
+          "hits": 41
+        },
+        "at_threshold": {
+          "precision": 0.139535,
+          "recall": 0.116667,
+          "alerts": 301,
+          "hits": 42
+        }
+      },
+      {
+        "valid": "2024-07-01..2025-07-01",
+        "base": 0.000354,
+        "pr_auc": 0.056777,
+        "naive": {
+          "precision": 0.106452,
+          "recall": 0.104762,
+          "alerts": 310,
+          "hits": 33
+        },
+        "at_threshold": {
+          "precision": 0.103275,
+          "recall": 0.130159,
+          "alerts": 397,
+          "hits": 41
+        }
+      }
+    ],
+    "pr_auc_mean": 0.045208,
+    "pr_auc_seed_spread": 0.004873,
+    "oof_naive": {
+      "precision": 0.115942,
+      "recall": 0.11583,
+      "alerts": 1035,
+      "hits": 120
+    },
+    "oof_threshold": 0.047553,
+    "oof_at_threshold": {
+      "precision": 0.122705,
+      "recall": 0.122587,
+      "alerts": 1035,
+      "hits": 127
+    },
+    "beats_naive_both_oof": true,
+    "seconds": 152
+  }
+]
