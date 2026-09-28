@@ -81,6 +81,11 @@ from app.tables import facility, pipeline_run, prediction
 log = logging.getLogger(__name__)
 
 STATUS_NEW = "NEW"
+
+# Статусы прогноза, в которых по объекту идёт работа: диспетчер взял прогноз
+# или по нему открыта заявка. Такой объект новых прогнозов направления не
+# получает, пока работа не кончилась. ADR 0020.
+IN_WORK = ("IN_REVIEW", "ORDER_OPEN")
 DEFAULT_MODEL_VERSION = "latest"
 CADENCE_STREAM = "stream"
 MOSCOW = timedelta(hours=3)
@@ -290,6 +295,18 @@ def _plan(
     return at, [fid for fid in facility_ids if fid in chosen]
 
 
+def _in_work(conn: Connection, direction: Direction) -> set[str]:
+    """Объекты направления, по которым сейчас идёт работа."""
+    return set(
+        conn.execute(
+            select(prediction.c.facility_id)
+            .where(prediction.c.direction == direction.code)
+            .where(prediction.c.status.in_(IN_WORK))
+            .distinct()
+        ).scalars()
+    )
+
+
 def _stream_lag(
     conn: Connection, run_id: int, started: datetime, finished: datetime
 ) -> tuple[int, int | None]:
@@ -317,9 +334,7 @@ def _stream_lag(
     return int(row[0]), int(row[1])
 
 
-def _refresh(
-    conn: Connection, direction: Direction, predictor: Predictor, at: datetime
-) -> None:
+def _refresh(conn: Connection, direction: Direction, predictor: Predictor, at: datetime) -> None:
     """Обновляет живые блоки суточных карточек этих суток. ADR 0018.
 
     Вероятность суточной модели посчитана в полночь и не меняется. Графики и
@@ -409,8 +424,15 @@ def _run_direction(
     computed = _relative(computed)
     fresh = {item.facility_id: (item.probability, item.features) for item in computed}
     bands = level_bands(predictor, conn, point, fresh)
+    # Объект в работе ждёт итога: новый прогноз поверх взятого дублировал бы
+    # его в журнале и в тревоге. Взятая карточка того же происшествия всё равно
+    # обновляет графики и хронику (ADR 0018), новой карточки объект не получает.
+    busy = _in_work(conn, direction)
     written = 0
     for item in computed:
+        if item.facility_id in busy:
+            _refresh_taken(conn, direction, item, point)
+            continue
         if _write_prediction(conn, direction, item, point, run_id, bands):
             written += 1
     return written

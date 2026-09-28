@@ -8,10 +8,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.exc import OperationalError
 
 from app import migrate
@@ -187,3 +187,35 @@ def test_a_real_run_after_the_seeded_fixture_does_not_collide_on_the_run_id(
     result = pipeline_run_module.run(engine(), at=NOW)
 
     assert result.run_id is not None
+
+
+def test_a_facility_in_work_gets_no_new_prediction_until_work_ends(
+    db: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Диспетчер взял прогноз по F-1: следующие сутки F-1 новой карточки не
+    получают, F-2 получает. Работа кончилась, и F-1 снова считается. ADR 0020."""
+    _predictors(monkeypatch, {"SENSOR_FAILURE": FakePredictor("SENSOR_FAILURE")})
+    pipeline_run_module.run(engine(), at=NOW)
+    with engine().begin() as conn:
+        conn.execute(
+            update(prediction).where(prediction.c.facility_id == "F-1").values(status="IN_REVIEW")
+        )
+
+    next_day = pipeline_run_module.run(engine(), at=NOW + timedelta(days=1))
+
+    assert next_day.prediction_count == 1
+    with engine().connect() as conn:
+        per_facility = {
+            fid: count
+            for fid, count in conn.execute(
+                text("SELECT facility_id, count(*) FROM prediction GROUP BY facility_id")
+            )
+        }
+    assert per_facility == {"F-1": 1, "F-2": 2}
+
+    with engine().begin() as conn:
+        conn.execute(
+            update(prediction).where(prediction.c.facility_id == "F-1").values(status="DECIDED")
+        )
+    after = pipeline_run_module.run(engine(), at=NOW + timedelta(days=2))
+    assert after.prediction_count == 2

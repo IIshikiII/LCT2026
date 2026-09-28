@@ -14,7 +14,7 @@ from app import migrate
 from app.db import engine
 from app.domain import auto_orders
 from app.meta import by_code
-from app.tables import facility, prediction, work_order
+from app.tables import action_log, facility, prediction, work_order
 
 NOW = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
 
@@ -30,7 +30,7 @@ def conn() -> Iterator[Connection]:
 
     migrate.run()
     with engine().begin() as connection:
-        for table in (work_order, prediction, facility):
+        for table in (action_log, work_order, prediction, facility):
             connection.execute(delete(table))
         connection.execute(
             facility.insert(),
@@ -48,7 +48,7 @@ def conn() -> Iterator[Connection]:
             ],
         )
         yield connection
-        for table in (work_order, prediction, facility):
+        for table in (action_log, work_order, prediction, facility):
             connection.execute(delete(table))
 
 
@@ -109,11 +109,22 @@ def test_a_calm_level_creates_nothing(conn: Connection, level: str) -> None:
     assert orders(conn) == []
 
 
-def test_the_due_date_is_half_of_the_horizon(conn: Connection) -> None:
+def test_a_stream_due_date_is_half_of_the_horizon(conn: Connection) -> None:
     # Срок в конце горизонта привёл бы бригаду ровно к предполагаемой аварии.
-    auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH", horizon=48))
+    auto_orders.create_for(
+        conn, add_prediction(conn, "P-1", "HIGH", direction="FIRE_RISK", horizon=48)
+    )
     row = orders(conn)[0]
     assert row.due_at == NOW + timedelta(hours=24)
+
+
+def test_a_daily_due_date_is_the_end_of_the_forecast_day(conn: Connection) -> None:
+    """Суточный прогноз говорит о московских сутках: заявка должна успеть в них.
+
+    NOW это 12:00 UTC, 15:00 по Москве. Конец московских суток 21:00 UTC.
+    """
+    auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH", horizon=48))
+    assert orders(conn)[0].due_at == datetime(2026, 9, 10, 21, 0, tzinfo=UTC)
 
 
 def test_the_coefficient_comes_from_the_direction(conn: Connection) -> None:
@@ -219,3 +230,60 @@ def test_a_repeated_run_creates_nothing(conn: Connection) -> None:
     assert len(auto_orders.create_missing(conn, NOW)) == 1
     assert auto_orders.create_missing(conn, NOW) == []
     assert len(orders(conn)) == 1
+
+
+# --- автозаявка идёт за свежим прогнозом объекта, ADR 0020 ---
+
+DAY = timedelta(days=1)
+
+
+def test_an_untouched_order_moves_to_the_fresh_prediction(conn: Connection) -> None:
+    order_id = auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
+    fresh = add_prediction(conn, "P-2", "CRITICAL", at=NOW + DAY)
+
+    assert auto_orders.follow(conn, fresh) == order_id
+
+    row = conn.execute(select(work_order)).one()
+    assert row.prediction_id == "P-2"
+    assert row.status == "AUTO_CREATED"
+    # Срок считается от свежего прогноза: конец его московских суток.
+    assert row.due_at == datetime(2026, 9, 11, 21, 0, tzinfo=UTC)
+    logged = conn.execute(select(action_log)).one()
+    assert (logged.action_code, logged.actor) == ("relink", "pipeline")
+    assert logged.payload == {"from": "P-1", "to": "P-2", "level": "CRITICAL"}
+
+
+def test_a_dropped_risk_rejects_the_untouched_order(conn: Connection) -> None:
+    order_id = auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
+    calm = add_prediction(conn, "P-2", "MEDIUM", at=NOW + DAY)
+
+    assert auto_orders.follow(conn, calm) == order_id
+
+    row = conn.execute(select(work_order)).one()
+    assert row.status == "REJECTED"
+    assert row.prediction_id == "P-1"
+    logged = conn.execute(select(action_log)).one()
+    assert logged.action_code == "reject"
+    assert logged.payload["reason"] == auto_orders.RISK_DROPPED
+
+
+def test_a_confirmed_order_stays_with_the_prediction_it_was_decided_on(conn: Connection) -> None:
+    """Решение человека относится к прогнозу, который он видел."""
+    auto_orders.create_for(conn, add_prediction(conn, "P-1", "HIGH"))
+    conn.execute(update(work_order).values(status="CONFIRMED"))
+
+    assert auto_orders.follow(conn, add_prediction(conn, "P-2", "LOW", at=NOW + DAY)) is None
+    row = conn.execute(select(work_order)).one()
+    assert (row.prediction_id, row.status) == ("P-1", "CONFIRMED")
+
+
+def test_a_run_moves_the_order_instead_of_creating_a_second_one(conn: Connection) -> None:
+    add_prediction(conn, "P-1", "HIGH")
+    auto_orders.create_missing(conn, NOW)
+    add_prediction(conn, "P-2", "HIGH", at=NOW + DAY)
+
+    assert auto_orders.create_missing(conn, NOW + DAY) == []
+
+    rows = orders(conn)
+    assert len(rows) == 1
+    assert rows[0].prediction_id == "P-2"
