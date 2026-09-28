@@ -35,6 +35,13 @@ class CardBlock(Dto):
     data: Any = None
 
 
+class FieldCondition(Dto):
+    """Условие доступности поля: значение другого поля формы не равно `not_equals`."""
+
+    field: str
+    not_equals: str
+
+
 class FieldDef(Dto):
     name: str
     label: str
@@ -44,6 +51,12 @@ class FieldDef(Dto):
     options_ref: str | None = None
     placeholder: str | None = None
     help: str | None = None
+    # Значение, с которым поле открывается. Сервер знает его, фронт нет:
+    # например, уровень модели в форме решения диспетчера.
+    default: str | None = None
+    # Поле доступно, только пока условие выполняется. Иначе оно заблокировано
+    # и не уходит на сервер.
+    enabled_when: FieldCondition | None = None
 
 
 class ActionDef(Dto):
@@ -69,6 +82,8 @@ class Prediction(Dto):
     facility: FacilityRef
     summary: str
     order_id: str | None = None
+    # Статус своей заявки: плашка карточки показывает, что с ней сейчас.
+    order_status: str | None = None
     # Открытая заявка того же объекта и направления от другого прогноза.
     # Приходит, только когда своей заявки нет: автозаявка на объект одна.
     facility_order_id: str | None = None

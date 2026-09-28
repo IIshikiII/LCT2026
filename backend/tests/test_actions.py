@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -134,12 +135,21 @@ def test_agreeing_with_a_low_level_closes_the_prediction() -> None:
     assert body["actions"] == []
 
 
+def free_facility_of_p2() -> None:
+    """Закрывает заявку O-1 объекта F-1: на объекте P-2 открытых заявок нет."""
+    with engine().begin() as conn:
+        conn.execute(
+            order_table.update().where(order_table.c.id == "O-1").values(status="REJECTED")
+        )
+
+
 def test_raising_a_low_level_creates_an_order() -> None:
     """Диспетчер поднял средний до критического значит заявка обязательна.
 
     Это и есть отказ с последствием: до ADR 0006 отклонение среднего прогноза
     не влекло ничего, кроме подавления объекта на неделю.
     """
+    free_facility_of_p2()
     body = decide("P-2", "CRITICAL")
 
     assert body["status"] == "ORDER_OPEN"
@@ -241,6 +251,7 @@ def test_the_order_lifecycle_runs_to_the_end() -> None:
 
 def test_a_dispatcher_order_is_born_confirmed() -> None:
     """Заявка диспетчера рождается подтверждённой: он только что это решил."""
+    free_facility_of_p2()
     decide("P-2", "HIGH")
     order = orders_of("P-2")[0]
 
@@ -337,3 +348,97 @@ def test_the_audit_keeps_the_body() -> None:
     assert row.action_code == "decide"
     assert row.payload["dispatcherLevel"] == "HIGH"
     assert row.payload["comment"] == "поднял уровень, люк вскрыт"
+
+
+# --- форма решения: причина только при изменении уровня ----------------------
+
+
+def test_the_decision_form_opens_with_the_model_level_and_a_locked_reason() -> None:
+    """Подтверждению причина не нужна: поле открывается, когда уровень изменён."""
+    body = ok("predictions", "P-1", "take")
+    decide_action = next(a for a in body["actions"] if a["code"] == "decide")
+    fields = {f["name"]: f for f in decide_action["fields"]}
+
+    assert fields["dispatcherLevel"]["default"] == "CRITICAL"
+    assert fields["reason"]["enabledWhen"] == {
+        "field": "dispatcherLevel",
+        "notEquals": "CRITICAL",
+    }
+
+
+def test_a_reason_sent_with_an_agreement_is_not_recorded() -> None:
+    decide("P-1", "CRITICAL", reason="MODEL_ERROR")
+
+    with engine().connect() as conn:
+        logged = conn.execute(
+            select(action_log.c.payload).where(
+                action_log.c.entity_id == "P-1", action_log.c.action_code == "decide"
+            )
+        ).scalar_one()
+    assert "reason" not in logged
+
+
+def test_a_reason_sent_with_a_correction_is_recorded() -> None:
+    decide("P-1", "LOW", reason="MODEL_ERROR")
+
+    with engine().connect() as conn:
+        logged = conn.execute(
+            select(action_log.c.payload).where(
+                action_log.c.entity_id == "P-1", action_log.c.action_code == "decide"
+            )
+        ).scalar_one()
+    assert logged["reason"] == "MODEL_ERROR"
+
+
+# --- одна открытая заявка на объект и направление, ADR 0022 ------------------
+
+
+def test_a_decision_moves_the_untouched_order_of_the_facility() -> None:
+    """P-2 лежит на объекте P-1, у которого нетронутая заявка O-1. Решение по
+    P-2 «выезд нужен» забирает O-1, а не создаёт вторую."""
+    decide("P-2", "HIGH")
+
+    moved = orders_of("P-2")
+    assert [order.id for order in moved] == ["O-1"]
+    assert moved[0].status == "CONFIRMED"
+    assert orders_of("P-1") == []
+
+
+def test_a_decision_does_not_open_a_second_order_while_work_goes_on() -> None:
+    """Заявка объекта уже в работе: вторую не создаём, прогноз закрыт решением."""
+    with engine().begin() as conn:
+        conn.execute(
+            order_table.update().where(order_table.c.id == "O-1").values(status="CONFIRMED")
+        )
+
+    body = decide("P-2", "CRITICAL")
+
+    assert body["status"] == "DECIDED"
+    assert orders_of("P-2") == []
+    with engine().connect() as conn:
+        logged = conn.execute(
+            select(action_log.c.payload).where(
+                action_log.c.entity_id == "P-2", action_log.c.action_code == "decide"
+            )
+        ).scalar_one()
+    assert logged["facilityOrderId"] == "O-1"
+
+
+def test_the_database_refuses_a_second_open_order() -> None:
+    """Индекс держит правило для любого пути записи."""
+    from sqlalchemy.exc import IntegrityError
+
+    with pytest.raises(IntegrityError), engine().begin() as conn:
+        conn.execute(
+            order_table.insert().values(
+                id="O-dup",
+                number="2026-9999",
+                prediction_id="P-2",
+                facility_id="F-1",
+                direction="SENSOR_FAILURE",
+                work_type="Диагностика датчика",
+                due_at=datetime.now(UTC),
+                status="AUTO_CREATED",
+                created_at=datetime.now(UTC),
+            )
+        )

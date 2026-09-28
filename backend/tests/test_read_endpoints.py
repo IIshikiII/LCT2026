@@ -34,12 +34,25 @@ def test_journal_returns_the_envelope() -> None:
 SEVERITY = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
 
 
+# Законченные статусы фикстуры. Такие карточки стоят в конце журнала. ADR 0021.
+FINISHED = {"DECIDED", "CLOSED_CONFIRMED", "CLOSED_NOT_CONFIRMED"}
+
+
 def test_journal_sorts_by_risk_then_recency_by_default() -> None:
-    """Критичнее выше; при равной критичности новее выше."""
+    """Открытые выше законченных; критичнее выше; при равной критичности
+    новее выше."""
     items = get("/predictions")["items"]
-    keys = [(SEVERITY[i["level"]], i["computedAt"]) for i in items]
+    keys = [(i["status"] not in FINISHED, SEVERITY[i["level"]], i["computedAt"]) for i in items]
     assert keys == sorted(keys, reverse=True)
     assert items[0]["level"] == "CRITICAL"
+
+
+def test_finished_cards_go_last_under_any_sort() -> None:
+    """Законченная карточка это история решений, а не работа. ADR 0021."""
+    for sort in (None, "probability:desc", "computedAt:asc"):
+        params = {"sort": sort} if sort else {}
+        statuses = [item["status"] in FINISHED for item in get("/predictions", **params)["items"]]
+        assert statuses == sorted(statuses), sort
 
 
 def test_repeated_direction_means_any_of() -> None:
@@ -63,8 +76,11 @@ def test_to_covers_the_whole_last_day() -> None:
 
 
 def test_sort_by_probability_ascending() -> None:
-    values = [item["probability"] for item in get("/predictions", sort="probability:asc")["items"]]
-    assert values == sorted(values)
+    """Внутри открытых и внутри законченных вероятность растёт."""
+    items = get("/predictions", sort="probability:asc")["items"]
+    for finished in (False, True):
+        values = [i["probability"] for i in items if (i["status"] in FINISHED) == finished]
+        assert values == sorted(values)
 
 
 def test_unknown_sort_field_is_not_an_error() -> None:

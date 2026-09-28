@@ -6,12 +6,18 @@
  * только там, где требуется нестандартный UI, см. actionRegistry.
  */
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import type { ActionDef, AppMeta } from '@/shared/api/types'
 import { Button, toButtonKind } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/states'
 import { FieldRenderer } from './FieldRenderer'
-import { buildZodSchema, defaultValuesFor, type FormValues } from './buildZodSchema'
+import {
+  buildZodSchema,
+  defaultValuesFor,
+  enabledValues,
+  isFieldEnabled,
+  type FormValues,
+} from './buildZodSchema'
 
 export interface ActionFormProps {
   action: ActionDef
@@ -25,12 +31,15 @@ export function DynamicForm({ action, meta, onSubmit, onCancel, pending }: Actio
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(buildZodSchema(action.fields)),
     defaultValues: defaultValuesFor(action.fields),
     mode: 'onSubmit',
   })
+  // Значения нужны условиям доступности полей (`enabledWhen`).
+  const values = useWatch({ control }) as FormValues
 
   return (
     <form
@@ -39,7 +48,7 @@ export function DynamicForm({ action, meta, onSubmit, onCancel, pending }: Actio
       // ни программе чтения с экрана, ни тесту.
       aria-label={action.label}
       className="flex flex-col gap-3"
-      onSubmit={handleSubmit((values) => onSubmit(values))}
+      onSubmit={handleSubmit((submitted) => onSubmit(enabledValues(action.fields, submitted)))}
       noValidate
     >
       {action.confirm ? (
@@ -55,6 +64,7 @@ export function DynamicForm({ action, meta, onSubmit, onCancel, pending }: Actio
           field={field}
           meta={meta}
           register={register(field.name)}
+          disabled={!isFieldEnabled(field, values)}
           error={errors[field.name]?.message as string | undefined}
         />
       ))}

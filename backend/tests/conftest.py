@@ -319,6 +319,7 @@ def _insert(conn: object) -> None:
                 "number": number,
                 "prediction_id": prediction_id,
                 "facility_id": facility_id,
+                "direction": {p[0]: p[1] for p in PREDICTIONS}[prediction_id],
                 "work_type": "Диагностика датчика",
                 "due_at": NOW + timedelta(hours=due_shift),
                 "status": status,

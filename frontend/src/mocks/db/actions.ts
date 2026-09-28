@@ -32,7 +32,7 @@ export const REJECTION_REASONS = [
  * Действия карточки прогноза.
  * `directionRef` — ключ справочника фактических причин этого направления.
  */
-export function predictionActions(status: string, assignee?: string): ActionDef[] {
+export function predictionActions(status: string, assignee?: string, level?: string): ActionDef[] {
   if (status === 'NEW') {
     return [
       {
@@ -41,13 +41,13 @@ export function predictionActions(status: string, assignee?: string): ActionDef[
         kind: 'secondary',
         fields: [],
       },
-      decideAction(),
+      decideAction(level),
     ]
   }
 
   if (status === 'IN_REVIEW') {
     return [
-      decideAction(),
+      decideAction(level),
       {
         code: 'release',
         label: 'Вернуть в очередь',
@@ -67,7 +67,7 @@ export function predictionActions(status: string, assignee?: string): ActionDef[
  * Диспетчер отвечает на один вопрос: верен ли уровень. Нужен ли выезд, решает
  * итоговый уровень, а не согласие. Поэтому действие одно, а не два.
  */
-function decideAction(): ActionDef {
+function decideAction(level?: string): ActionDef {
   return {
     code: 'decide',
     label: 'Принять решение',
@@ -79,6 +79,7 @@ function decideAction(): ActionDef {
         type: 'select',
         required: true,
         optionsRef: RISK_LEVELS_REF,
+        default: level,
         help: 'Высокий и критический требуют выезда: система создаст заявку.',
       },
       {
@@ -86,7 +87,10 @@ function decideAction(): ActionDef {
         label: 'Причина изменения уровня',
         type: 'select',
         optionsRef: REJECTION_REASONS_REF,
-        help: 'Заполняется, когда уровень отличается от предложенного моделью',
+        help: 'Доступна, когда уровень отличается от предложенного моделью',
+        // Подтверждению причина не нужна: поле открывается, только когда
+        // диспетчер поменял уровень модели.
+        ...(level ? { enabledWhen: { field: 'dispatcherLevel', notEquals: level } } : {}),
       },
       {
         name: 'comment',

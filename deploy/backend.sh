@@ -83,6 +83,7 @@ ensure_backend_env() {
     # строки compose подставит адрес несуществующей службы.
     set_env_line "$env_file" MLFLOW_TRACKING_URI ""
     set_env_line "$env_file" DEMO_LEVELS "${DEMO_LEVELS:-}"
+    set_env_line "$env_file" FORECAST_LOG "${FORECAST_LOG:-}"
     # Ключ потока СМВУ создаётся один раз, как ключ подписи: заглушка и API
     # читают его из одного файла. ADR 0017.
     if [ -z "$(read_env "$env_file" STREAM_TOKEN)" ]; then

@@ -17,7 +17,7 @@ import {
 } from 'recharts'
 import { z } from 'zod'
 import type { CardBlock } from '@/shared/api/types'
-import { fmtDateTime, fmtTime } from '@/shared/lib/format'
+import { axisTimeFormatter, fmtDateTime } from '@/shared/lib/format'
 import { BlockFrame } from './BlockFrame'
 import { GenericBlock } from './GenericBlock'
 
@@ -45,6 +45,10 @@ export function TimeSeriesBlock({ block }: { block: CardBlock }) {
       <div className="flex flex-col gap-3">
         {series.map((row) => {
           const data = row.points.map((p) => ({ t: new Date(p.t).getTime(), v: p.v }))
+          const times = data.map((p) => p.t)
+          const tickLabel = axisTimeFormatter(
+            times.length ? Math.max(...times) - Math.min(...times) : 0,
+          )
           return (
             <figure key={row.name} className="m-0">
               <figcaption className="mb-1 text-[12px] text-text-dim">
@@ -59,7 +63,7 @@ export function TimeSeriesBlock({ block }: { block: CardBlock }) {
                       dataKey="t"
                       type="number"
                       domain={['dataMin', 'dataMax']}
-                      tickFormatter={(value: number) => fmtTime(new Date(value))}
+                      tickFormatter={(value: number) => tickLabel(new Date(value))}
                       tick={axisStyle}
                       stroke="var(--line)"
                       minTickGap={40}

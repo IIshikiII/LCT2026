@@ -41,11 +41,13 @@ HIGH держит скользящий бюджет тревог (ADR 0013).
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import time
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import and_, literal_column, select, text
@@ -55,8 +57,8 @@ from sqlalchemy.engine import Connection, Engine
 from app.config import config
 from app.domain import auto_orders
 from app.ingest import weather_loop
+from app.meta import PREDICTION_SCOPE, level_for, statuses_for
 from app.meta import active as active_directions
-from app.meta import level_for
 from app.meta.directions import Direction
 from app.ml.protocol import (
     Bands,
@@ -67,6 +69,7 @@ from app.ml.protocol import (
     applies,
     candidates,
     incident,
+    last_event,
     level_bands,
     live_blocks,
     own_level,
@@ -86,6 +89,10 @@ STATUS_NEW = "NEW"
 # или по нему открыта заявка. Такой объект новых прогнозов направления не
 # получает, пока работа не кончилась. ADR 0020.
 IN_WORK = ("IN_REVIEW", "ORDER_OPEN")
+# Законченные статусы прогноза. Карточка в таком статусе заморожена: она
+# хранит решение и итог такими, какими их видели люди, и конвейер её больше не
+# меняет. ADR 0021.
+FINISHED = tuple(item.code for item in statuses_for(PREDICTION_SCOPE) if item.terminal)
 DEFAULT_MODEL_VERSION = "latest"
 CADENCE_STREAM = "stream"
 MOSCOW = timedelta(hours=3)
@@ -138,6 +145,9 @@ class Computed:
     bucket: datetime
     level: str | None = None
     summary: str | None = None
+    # Последнее событие, на котором стоит прогноз. Нужен, чтобы отличить новые
+    # данные от старых у замороженной карточки происшествия. ADR 0021.
+    event_at: datetime | None = None
 
 
 def _compute(
@@ -170,6 +180,7 @@ def _compute(
         compute_ms=int((time.monotonic() - started) * 1000),
         bucket=incident(predictor, features, at) or fallback,
         level=own_level(predictor, features, probability),
+        event_at=last_event(predictor, features, at),
         summary=own_summary(predictor, features, probability),
     )
 
@@ -196,6 +207,10 @@ def _write_prediction(
     Карточка, которую взял диспетчер или по которой открыта заявка, хранит
     уровень, вероятность и объяснение такими, какими их видел человек. Её
     графики, хроника и таблица датчиков всё равно обновляются (ADR 0018).
+
+    Открытая карточка на объект и направление одна. Нетронутая карточка идёт
+    за свежим прогнозом: конвейер переписывает её, а не заводит вторую.
+    ADR 0022.
     """
     values = {
         "probability": item.probability,
@@ -207,12 +222,18 @@ def _write_prediction(
         "features": _stored(item.features),
         "run_id": run_id,
     }
+    followed = _follow_open_card(conn, direction, item, values)
+    if followed is not None:
+        return followed
+    bucket = _card_bucket(conn, direction, item, at)
+    if bucket is None:
+        return False
     statement = pg_insert(prediction).values(
-        id=f"{direction.code}-{item.facility_id}-{int(item.bucket.timestamp())}",
+        id=f"{direction.code}-{item.facility_id}-{int(bucket.timestamp())}",
         direction=direction.code,
         facility_id=item.facility_id,
         horizon_hours=direction.min_horizon_hours,
-        computed_at_bucket=item.bucket,
+        computed_at_bucket=bucket,
         status=STATUS_NEW,
         model_version=DEFAULT_MODEL_VERSION,
         **values,
@@ -228,13 +249,102 @@ def _write_prediction(
     ).returning(prediction.c.id, literal_column("(xmax = 0)").label("inserted"))
     row = conn.execute(upsert).first()
     if row is None:
-        _refresh_taken(conn, direction, item, at)
+        _refresh_taken(conn, direction, item, at, bucket)
         return False
     return bool(row.inserted)
 
 
-def _refresh_taken(conn: Connection, direction: Direction, item: Computed, at: datetime) -> None:
-    """Живые блоки взятой карточки. Уровень и факторы остаются прежними."""
+def _untouched() -> Any:
+    """Условие нетронутой карточки: никто её не брал и не решал."""
+    return and_(
+        prediction.c.status == STATUS_NEW,
+        prediction.c.assignee.is_(None),
+        prediction.c.verdict.is_(None),
+    )
+
+
+def _follow_open_card(
+    conn: Connection, direction: Direction, item: Computed, values: dict[str, Any]
+) -> bool | None:
+    """Переписывает нетронутую карточку объекта свежим прогнозом. ADR 0022.
+
+    Решений людей в нетронутой карточке нет, поэтому переписать её нечем
+    навредить истории. Ключ переезжает на свежие сутки или происшествие, чтобы
+    конвейер видел, что сутки посчитаны. Ключ, занятый другой карточкой того
+    же объекта, остаётся прежним.
+
+    Отдаёт None, если нетронутой карточки нет. Иначе отдаёт, открыл ли прогноз
+    новые сутки или новое происшествие: такой прогноз прогон считает новым,
+    хотя карточка та же.
+    """
+    card = conn.execute(
+        select(prediction.c.id, prediction.c.computed_at_bucket)
+        .where(prediction.c.facility_id == item.facility_id)
+        .where(prediction.c.direction == direction.code)
+        .where(_untouched())
+        .order_by(prediction.c.computed_at_bucket.desc())
+        .limit(1)
+    ).first()
+    if card is None:
+        return None
+    taken = conn.execute(
+        select(prediction.c.id)
+        .where(prediction.c.facility_id == item.facility_id)
+        .where(prediction.c.direction == direction.code)
+        .where(prediction.c.computed_at_bucket == item.bucket)
+        .where(prediction.c.id != card.id)
+        .limit(1)
+    ).first()
+    bucket = card.computed_at_bucket if taken else item.bucket
+    conn.execute(
+        prediction.update()
+        .where(prediction.c.id == card.id)
+        .where(_untouched())
+        .values(**values, computed_at_bucket=bucket)
+    )
+    return bool(bucket != card.computed_at_bucket)
+
+
+def _card_bucket(
+    conn: Connection, direction: Direction, item: Computed, at: datetime
+) -> datetime | None:
+    """Ключ карточки, в которую идёт прогноз. None значит, что писать некуда.
+
+    Карточка происшествия одна, пока её не закончили. Законченная карточка
+    заморожена: в ней решение диспетчера и итог бригады, и конвейер их не
+    трогает. Новые данные того же происшествия идут в её чистую копию с ключом
+    момента прогона. Новыми данные считаются, когда последнее событие позже
+    заморозки. Без новых данных законченная карточка просто остаётся как есть,
+    иначе закрытое происшествие тут же всплыло бы снова. ADR 0021.
+    """
+    latest = conn.execute(
+        select(prediction.c.computed_at_bucket, prediction.c.status, prediction.c.computed_at)
+        .where(prediction.c.facility_id == item.facility_id)
+        .where(prediction.c.direction == direction.code)
+        .where(prediction.c.computed_at_bucket >= item.bucket)
+        .order_by(prediction.c.computed_at_bucket.desc())
+        .limit(1)
+    ).first()
+    if latest is None:
+        return item.bucket
+    if latest.status not in FINISHED:
+        return latest.computed_at_bucket
+    if item.event_at is not None and item.event_at > latest.computed_at:
+        return at
+    return None
+
+
+def _refresh_taken(
+    conn: Connection,
+    direction: Direction,
+    item: Computed,
+    at: datetime,
+    bucket: datetime | None = None,
+) -> None:
+    """Живые блоки взятой карточки. Уровень и факторы остаются прежними.
+
+    Законченную карточку это не касается: она заморожена. ADR 0021.
+    """
     live = [
         Block(type=b["type"], title=b["title"], data=b.get("data", {}))
         for b in item.blocks
@@ -245,7 +355,8 @@ def _refresh_taken(conn: Connection, direction: Direction, item: Computed, at: d
     key = (
         (prediction.c.facility_id == item.facility_id)
         & (prediction.c.direction == direction.code)
-        & (prediction.c.computed_at_bucket == item.bucket)
+        & (prediction.c.computed_at_bucket == (bucket or item.bucket))
+        & prediction.c.status.notin_(FINISHED)
     )
     stored = conn.execute(select(prediction.c.blocks).where(key)).scalar()
     conn.execute(
@@ -293,6 +404,40 @@ def _plan(
     if chosen is None:
         return at, facility_ids
     return at, [fid for fid in facility_ids if fid in chosen]
+
+
+def _log_forecasts(
+    direction: Direction,
+    computed: list[Computed],
+    at: datetime,
+    run_id: int,
+    bands: Bands | None,
+) -> None:
+    """Дописывает каждый посчитанный прогноз в журнал-файл. ADR 0022.
+
+    Карточка журнала диспетчера переписывается свежим прогнозом, и история
+    самих прогнозов живёт здесь. Включается флагом `FORECAST_LOG`. Ошибка
+    записи прогон не останавливает: журнал вспомогательный.
+    """
+    if not config.forecast_log or not computed:
+        return
+    path = Path(config.forecast_log_path)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as sink:
+            for item in computed:
+                record = {
+                    "at": at.isoformat(),
+                    "runId": run_id,
+                    "direction": direction.code,
+                    "facilityId": item.facility_id,
+                    "probability": None if math.isnan(item.probability) else item.probability,
+                    "level": item.level or level_for(item.probability, direction, bands),
+                    "bucket": item.bucket.isoformat(),
+                }
+                sink.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except OSError as error:
+        log.warning("журнал прогнозов не записан", extra={"path": str(path), "error": str(error)})
 
 
 def _in_work(conn: Connection, direction: Direction) -> set[str]:
@@ -346,6 +491,8 @@ def _refresh(conn: Connection, direction: Direction, predictor: Predictor, at: d
         .where(prediction.c.direction == direction.code)
         .where(prediction.c.computed_at_bucket == day_start(at))
         .where(prediction.c.computed_at <= at - timedelta(minutes=REFRESH_MINUTES))
+        # Законченная карточка заморожена. ADR 0021.
+        .where(prediction.c.status.notin_(FINISHED))
     ).all()
     for row in stale:
         live = live_blocks(predictor, conn, row.facility_id, at)
@@ -428,6 +575,7 @@ def _run_direction(
     # его в журнале и в тревоге. Взятая карточка того же происшествия всё равно
     # обновляет графики и хронику (ADR 0018), новой карточки объект не получает.
     busy = _in_work(conn, direction)
+    _log_forecasts(direction, computed, point, run_id, bands)
     written = 0
     for item in computed:
         if item.facility_id in busy:

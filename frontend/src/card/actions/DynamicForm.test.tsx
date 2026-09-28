@@ -188,3 +188,57 @@ describe('ActionBar с действием, у которого своя форм
     })
   })
 })
+
+describe('условное поле формы', () => {
+  /** Решение диспетчера: уровень модели «Б», причина нужна только при изменении. */
+  const decide: ActionDef = {
+    code: 'решить',
+    label: 'Принять решение',
+    kind: 'primary',
+    fields: [
+      {
+        name: 'level',
+        label: 'Уровень',
+        type: 'select',
+        required: true,
+        optionsRef: 'причины',
+        default: 'B',
+      },
+      {
+        name: 'reason',
+        label: 'Причина изменения',
+        type: 'select',
+        optionsRef: 'причины',
+        enabledWhen: { field: 'level', notEquals: 'B' },
+      },
+    ],
+  }
+
+  it('открывается со значением сервера и заблокированной причиной', async () => {
+    const user = userEvent.setup()
+    renderBar(decide)
+    await user.click(screen.getByRole('button', { name: decide.label }))
+
+    expect(screen.getByLabelText(/^Уровень/)).toHaveValue('B')
+    expect(screen.getByLabelText(/^Причина изменения/)).toBeDisabled()
+  })
+
+  it('открывает причину, когда уровень изменён, и не шлёт её при подтверждении', async () => {
+    const user = userEvent.setup()
+    const onRun = renderBar(decide)
+    await user.click(screen.getByRole('button', { name: decide.label }))
+
+    await user.selectOptions(screen.getByLabelText(/^Уровень/), 'A')
+    const reason = screen.getByLabelText(/^Причина изменения/)
+    expect(reason).toBeEnabled()
+    await user.selectOptions(reason, 'A')
+
+    // Вернул уровень модели: причина снова заблокирована и не уходит.
+    await user.selectOptions(screen.getByLabelText(/^Уровень/), 'B')
+    await user.click(submitButton(decide.label))
+
+    expect(onRun).toHaveBeenCalledTimes(1)
+    const [, values] = onRun.mock.calls[0]!
+    expect(values).toEqual({ level: 'B' })
+  })
+})

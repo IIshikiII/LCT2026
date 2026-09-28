@@ -16,7 +16,7 @@ from sqlalchemy import delete
 from app.api.metrics import NEVER_MINUTES, TARGET_COMPUTE_MS, TARGET_HORIZON_HOURS
 from app.db import engine
 from app.main import API_PREFIX, app
-from app.tables import model_metric, pipeline_run
+from app.tables import model_metric, pipeline_run, prediction
 from tests.conftest import NOW, RUNS
 
 pytestmark = pytest.mark.usefixtures("seeded")
@@ -160,13 +160,24 @@ def test_summary_returns_four_dictionaries_and_the_total() -> None:
     assert body["total"] == 5
 
 
-def test_summary_counts_predictions_by_level() -> None:
+def test_summary_counts_open_cards_by_level() -> None:
+    """Законченные P-4 и P-5 это история, а не риск: в счётчик не идут."""
     assert get("/dashboard/summary")["byLevel"] == {
-        "LOW": 1,
+        "LOW": 0,
         "MEDIUM": 1,
         "HIGH": 1,
-        "CRITICAL": 2,
+        "CRITICAL": 1,
     }
+
+
+def test_summary_takes_the_level_of_the_dispatcher() -> None:
+    """P-3 в работе, диспетчер понизил его до среднего."""
+    with engine().begin() as conn:
+        conn.execute(
+            prediction.update().where(prediction.c.id == "P-3").values(dispatcher_level="MEDIUM")
+        )
+    by_level = get("/dashboard/summary")["byLevel"]
+    assert (by_level["HIGH"], by_level["MEDIUM"]) == (0, 2)
 
 
 def test_summary_counts_orders_separately_from_predictions() -> None:

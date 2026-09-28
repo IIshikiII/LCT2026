@@ -5,10 +5,10 @@
 проверяют, что одно происшествие даёт одну карточку, когда окно сдвигается,
 сигнал опаздывает, сигнал уходит в пачку или газ пришёл раньше дыма.
 
-Сейчас все четыре теста падают: начало происшествия каждый прогон считается
-заново из скользящего окна, и любое изменение окна даёт новый ключ. Пометка
-`xfail(strict=True)` держит дефект на виду. Исправление переведёт тесты в
-зелёные, и тогда пометку надо снять. Задача стоит в `backend/TODO.md` §3.
+Все четыре случая держит одно правило: открытая карточка на объект и
+направление одна, и нетронутая карточка идёт за свежим прогнозом (ADR 0021,
+ADR 0022). Ключ карточки при этом может переехать, а вторая карточка не
+появляется.
 """
 
 from __future__ import annotations
@@ -26,11 +26,6 @@ from app.ml.plugins.fire_risk import FireRisk
 from app.pipeline import run as pipeline_run_module
 from app.tables import collector, facility, prediction, sensor
 from tests.conftest import reset_database
-
-pytestmark = pytest.mark.xfail(
-    strict=True,
-    reason="ключ карточки пожара считается из скользящего окна, backend/TODO.md §3",
-)
 
 T0 = datetime(2026, 9, 16, 9, 0, tzinfo=UTC)  # среда, 12:00 по Москве
 SECTION = "S-20-1"

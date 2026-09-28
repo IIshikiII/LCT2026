@@ -112,7 +112,7 @@ describe('полный цикл: подтверждение, работа, за�
     renderWithProviders(<AppShell />, { route: `/journal?prediction=${withOrder.id}` })
 
     const panel = await screen.findByRole('complementary', { name: 'Карточка прогноза' })
-    await user.click(await within(panel).findByRole('link', { name: /Создана заявка/ }))
+    await user.click(await within(panel).findByRole('link', { name: /Заявка на превентивное обслуживание/ }))
 
     await waitFor(() => expect(currentSearch()).toContain(`order=${withOrder.orderId}`))
   })

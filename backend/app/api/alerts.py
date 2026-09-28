@@ -9,6 +9,10 @@
 он получает число, готовый текст, фильтр журнала для ссылки и шаг повтора.
 Граница роли та же, что у журнала: диспетчер района слышит только свои
 инциденты.
+
+Уведомление зовёт взять инцидент в работу, поэтому слышит его только роль с
+правом `take`: диспетчер ОДС и диспетчер района. Технику и группе
+реагирования звать некого, у них уведомлений нет.
 """
 
 from __future__ import annotations
@@ -33,6 +37,8 @@ ALERT_CODE = "critical_untaken"
 ALERT_LEVELS = ("CRITICAL",)
 ALERT_STATUSES = ("NEW",)
 REPEAT_MINUTES = 5
+# Право, которое делает роль адресатом уведомления.
+ALERT_ACTION = "take"
 
 
 def _plural(n: int) -> str:
@@ -48,6 +54,8 @@ def _plural(n: int) -> str:
 @router.get("/alerts", response_model=list[Alert], response_model_by_alias=True)
 def alerts(conn: Annotated[Connection, Depends(get_conn)], actor: CurrentActor) -> list[Alert]:
     """Действующие уведомления. Пустой список значит тревоги нет."""
+    if not actor.may(ALERT_ACTION):
+        return []
     statement = scope.apply_joined(
         select(func.count(), func.max(prediction.c.computed_at)).select_from(JOINED), actor
     ).where(
