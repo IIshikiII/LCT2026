@@ -58,7 +58,7 @@ sys.path.insert(0, str(HERE.parents[0] / "common"))
 import calendar_ru
 
 ROOT = HERE.parents[1]
-CHANNELS = ROOT / "notebooks" / "out" / "channel_features.parquet"
+CHANNELS = ROOT / "eda" / "out" / "channels.parquet"
 OBJECTS = ROOT / "raw_task" / "dataset" / "справочник_объектов_диспетчер.csv"
 OUT = HERE / "out"
 HOURLY = OUT / "flood_hourly.parquet"

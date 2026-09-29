@@ -40,7 +40,7 @@
 
 Скрипты запускать из корня репозитория через `.venv`. Путь к интерпретатору на
 Ubuntu и macOS — `.venv/bin/python`, на Windows — `.venv\Scripts\python.exe`.
-Нужны `eda/out/events.parquet` и `notebooks/out/channel_features.parquet`.
+Нужны `eda/out/events.parquet` и `eda/out/channels.parquet`.
 
 ```
 .venv/Scripts/python.exe ml/flood/01_dataset.py

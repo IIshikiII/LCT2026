@@ -4,8 +4,8 @@
 работы направления переносится.
 
 Единица без пикета (канал вне трассы) в свод не идёт: у неё нет координаты.
-Источник координаты канала — `notebooks/out/channel_features.parquet` из
-тетради 01.
+Источник координаты канала — `eda/out/channels.parquet` из
+`ml/common/prepare_inputs.py`.
 
 Скрипт пишет два файла. `sensor_hourly.parquet` держит часы с тревогой,
 `sensor_units.parquet` держит границы жизни каждой единицы. Второй файл нужен
@@ -13,7 +13,8 @@
 жизни единицы.
 
 Список значений взят из `eda/05_feasibility.py`, таблица `dirmap`. Он же дал
-строку `SENSOR_FAILURE` таблицы `INSIGHTS.md` §2.1."""
+разведочный замер на канало-днях: 5 561 канал, 95 743 события, база 0,98 %,
+наивная точность 14,6 %."""
 import pathlib
 import time
 
@@ -21,7 +22,7 @@ import duckdb
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 EVENTS = ROOT / "eda" / "out" / "events.parquet"
-CHANNELS = ROOT / "notebooks" / "out" / "channel_features.parquet"
+CHANNELS = ROOT / "eda" / "out" / "channels.parquet"
 OUT = pathlib.Path(__file__).resolve().parent / "out"
 OUT_HOURLY = OUT / "sensor_hourly.parquet"
 OUT_UNITS = OUT / "sensor_units.parquet"
@@ -111,7 +112,7 @@ con.execute(
 )
 print(f"жизнь единиц посчитана за {time.time() - t:.0f} c")
 
-# Сверка с `INSIGHTS.md` §2.1. Там замер сделан на канало-днях, а
+# Сверка с разведочным замером. Там замер сделан на канало-днях, а
 # не на единицах, поэтому числа обязаны разойтись. Блок показывает, что
 # расходится именно сетка, а не отбор строк.
 check = con.execute(
@@ -133,7 +134,7 @@ check = con.execute(
     """
 ).fetchone()
 print(
-    f"сверка §A4: каналов {check[0]}, канало-дней {check[1]}, "
+    f"сверка на канало-днях: каналов {check[0]}, канало-дней {check[1]}, "
     f"событий {check[2]}, база {100.0 * check[2] / check[1]:.3f} %, "
     f"наивная точность {100.0 * check[3] / check[2]:.3f} %"
 )

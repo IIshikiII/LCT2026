@@ -36,7 +36,7 @@
 
 Скрипты запускать из корня репозитория. Путь к интерпретатору на Ubuntu и
 macOS `.venv/bin/python`, на Windows `.venv\Scripts\python.exe`. Нужны
-`eda/out/events.parquet`, `notebooks/out/channel_features.parquet` и
+`eda/out/events.parquet`, `eda/out/channels.parquet` и
 `ml/flood/out/weather_daily.parquet`.
 
 ```

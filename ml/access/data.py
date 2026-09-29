@@ -2,7 +2,7 @@
 скрипт направления, который читает выгрузку. Остальные скрипты читают только
 его результат в `out/`.
 
-Входы: `eda/out/events.parquet` (журнал) и `notebooks/out/channel_features.parquet`
+Входы: `eda/out/events.parquet` (журнал) и `eda/out/channels.parquet`
 (справочник каналов с объектом, галереей и пикетом).
 
 Единица это участок хода вокруг узла входа. Узел входа это аварийный выход,
@@ -63,7 +63,7 @@ import duckdb
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 EVENTS = ROOT / "eda" / "out" / "events.parquet"
-CHANNELS = ROOT / "notebooks" / "out" / "channel_features.parquet"
+CHANNELS = ROOT / "eda" / "out" / "channels.parquet"
 OUT = pathlib.Path(__file__).resolve().parent / "out"
 
 HOURLY = OUT / "access_hourly.parquet"

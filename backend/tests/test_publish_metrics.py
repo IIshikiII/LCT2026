@@ -114,8 +114,13 @@ def test_publishing_twice_keeps_one_row(artifacts: Path, seeded: None) -> None:
 
 def test_the_naive_rule_is_published_next_to_the_model(artifacts: Path, seeded: None) -> None:
     """Дашборд сравнивает модель с правилом «событие было вчера» на той же выборке."""
-    _write(artifacts, {**MEASURE, "decision": {**MEASURE["decision"],
-                                               "naive": {"precision": 0.14, "recall": 0.136}}})
+    _write(
+        artifacts,
+        {
+            **MEASURE,
+            "decision": {**MEASURE["decision"], "naive": {"precision": 0.14, "recall": 0.136}},
+        },
+    )
 
     with engine().begin() as conn:
         publish_module.publish(conn, DIRECTION)

@@ -10,7 +10,7 @@
 | [`flood/`](flood/README.md) | Риск подтопления | ансамбль бустеров в сервисе |
 | [`fire/`](fire/README.md) | Пожарный риск | модель отклонена, в сервисе экспертные правила |
 | [`sensor/`](sensor/README.md) | Отказ датчика | готовы метка и витрина |
-| [`common/`](common/README.md) | Общее | производственный календарь России |
+| [`common/`](common/README.md) | Общее | входные файлы, производственный календарь России |
 
 Правила общие для всех направлений. Выборка делится только по времени. Признак
 видит данные строго до момента расчёта, и тест утечки это проверяет. Модель
@@ -27,11 +27,14 @@
    ```
 2. Поставьте библиотеки:
    ```
-   uv pip install --python .venv duckdb numpy pandas pyarrow scipy scikit-learn lightgbm shap joblib optuna umap-learn pytest matplotlib jupyterlab
+   uv pip install --python .venv duckdb numpy pandas pyarrow scipy scikit-learn lightgbm shap joblib optuna pytest matplotlib
    ```
-3. Соберите входные файлы. Тетрадь `notebooks/01-eda-clustering.ipynb` пишет
-   журнал целиком в `eda/out/events.parquet` и признаки каналов в
-   `notebooks/out/channel_features.parquet`. Оба файла в git не входят.
+3. Соберите входные файлы. Скрипт `ml/common/prepare_inputs.py` пишет
+   журнал целиком в `eda/out/events.parquet` и справочник каналов с пикетом в
+   `eda/out/channels.parquet`. Оба файла в git не входят.
+   ```
+   .venv/bin/python ml/common/prepare_inputs.py
+   ```
 
 Интерпретатор лежит в `.venv/bin/python` на Ubuntu и macOS и в
 `.venv\Scripts\python.exe` на Windows.

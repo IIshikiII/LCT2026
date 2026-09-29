@@ -27,7 +27,7 @@ import duckdb
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 EVENTS = ROOT / "eda" / "out" / "events.parquet"
-CHANNELS = ROOT / "notebooks" / "out" / "channel_features.parquet"
+CHANNELS = ROOT / "eda" / "out" / "channels.parquet"
 OBJECTS = ROOT / "raw_task" / "dataset" / "справочник_объектов_диспетчер.csv"
 OUT = pathlib.Path(__file__).resolve().parent / "out"
 OUT_HOURLY = OUT / "pump_hourly.parquet"

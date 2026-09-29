@@ -10,7 +10,7 @@
    круг единиц общий. Иначе базы версий нельзя сравнивать.
 3. Скрипт печатает, сколько тревог теряется на каналах без пикета.
 
-Источник координаты канала — `notebooks/out/channel_features.parquet`.
+Источник координаты канала — `eda/out/channels.parquet`.
 
 Скрипт пишет два файла. `flood_hourly.parquet` держит часы с тревогой по
 значению. `flood_units.parquet` держит границы жизни каждой единицы."""
@@ -22,7 +22,7 @@ import duckdb
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 EVENTS = ROOT / "eda" / "out" / "events.parquet"
-CHANNELS = ROOT / "notebooks" / "out" / "channel_features.parquet"
+CHANNELS = ROOT / "eda" / "out" / "channels.parquet"
 OUT = pathlib.Path(__file__).resolve().parent / "out"
 OUT_HOURLY = OUT / "flood_hourly.parquet"
 OUT_UNITS = OUT / "flood_units.parquet"

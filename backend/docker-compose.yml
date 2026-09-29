@@ -196,7 +196,7 @@ services:
       - "127.0.0.1:8888:8888"
     volumes:
       - .:/srv
-      # Корень репозитория: ml/, eda/out и notebooks/out лежат выше backend.
+      # Корень репозитория: ml/ и eda/out лежат выше backend.
       - ..:/repo
     depends_on:
       db:

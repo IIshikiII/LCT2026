@@ -37,7 +37,7 @@ import calendar_ru
 ROOT = HERE.parents[1]
 XLSX = ROOT / "raw_task" / "dataset" / "График_ТО_АКМ_и_ДУ_на_2026г_РЭК_3_на_А4.xlsx"
 EVENTS = ROOT / "eda" / "out" / "events.parquet"
-CHANNELS = ROOT / "notebooks" / "out" / "channel_features.parquet"
+CHANNELS = ROOT / "eda" / "out" / "channels.parquet"
 OUT = HERE / "out"
 RESULT = OUT / "to_schedule.parquet"
 CHECK = OUT / "to_check.json"

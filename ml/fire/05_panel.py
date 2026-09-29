@@ -70,7 +70,7 @@ import calendar_ru
 ROOT = HERE.parents[1]
 OBJECTS = ROOT / "raw_task" / "dataset" / "справочник_объектов_диспетчер.csv"
 EVENTS = ROOT / "eda" / "out" / "events.parquet"
-CHANNELS = ROOT / "notebooks" / "out" / "channel_features.parquet"
+CHANNELS = ROOT / "eda" / "out" / "channels.parquet"
 FLOOD_OUT = HERE.parents[0] / "flood" / "out"
 OUT = HERE / "out"
 ALARMS = OUT / "fire_alarms.parquet"

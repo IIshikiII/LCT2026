@@ -40,20 +40,18 @@ def _daily_counts(
     start = (at.astimezone(UTC) + MOSCOW).replace(hour=0, minute=0, second=0, microsecond=0)
     start = start - MOSCOW - (days - 1) * DAY
     scope = "AND facility_id = :facility" if facility else ""
-    found = (
-        conn.execute(
-            text(
-                f"""
+    found = conn.execute(
+        text(
+            f"""
                 SELECT floor(extract(epoch FROM (occurred_at - :start)) / 86400)::int, count(*)
                 FROM alarm_event
                 WHERE alarm_type = ANY(:types) AND occurred_at >= :start AND occurred_at < :at
                 {scope}
                 GROUP BY 1
                 """
-            ),
-            {"types": list(types), "start": start, "at": at, "facility": facility},
-        ).all()
-    )
+        ),
+        {"types": list(types), "start": start, "at": at, "facility": facility},
+    ).all()
     rows: dict[int, int] = {int(day): int(n) for day, n in found}
     return [(start + i * DAY + 12 * HOUR, float(rows.get(i, 0))) for i in range(days)]
 

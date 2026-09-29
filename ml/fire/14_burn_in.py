@@ -31,7 +31,7 @@ from scipy.stats import chi2
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 EVENTS = ROOT / "eda" / "out" / "events.parquet"
-CHANNELS = ROOT / "notebooks" / "out" / "channel_features.parquet"
+CHANNELS = ROOT / "eda" / "out" / "channels.parquet"
 ALARMS = HERE / "out" / "fire_alarms.parquet"
 RESULT = HERE / "out" / "burn_in.json"
 JOURNAL_END = "2026-06-30"
