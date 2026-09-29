@@ -15,6 +15,7 @@ COMMANDS = (
     "create-user",
     "reset-demo",
     "reset-predictions",
+    "assign-districts",
     "reset-keys",
     "run-pipeline",
     "publish-metrics",
@@ -215,6 +216,18 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"прогнозы с нуля: удалено {done.predictions} прогнозов, {done.orders} заявок, "
             f"{done.log_entries} записей журнала. Первый прогон посчитает всё заново"
+        )
+        return 0
+
+    if args.command == "assign-districts":
+        from app.db import engine
+        from app.ingest.districts import assign
+
+        with engine().begin() as conn:
+            assigned = assign(conn)
+        print(
+            f"районы: {assigned.collectors} коллекторов и {assigned.facilities} объектов "
+            f"получили код округа, {assigned.accounts} тестовых учёток получили новые границы"
         )
         return 0
 

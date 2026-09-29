@@ -34,6 +34,7 @@ def prediction(
     facility: FacilityRef,
     order_id: str | None,
     facility_order_id: str | None = None,
+    order_status: str | None = None,
 ) -> Prediction:
     # Итог бригады выводится из терминального статуса, а не из отдельного поля:
     # заявка закрывает прогноз своим исходом, и второго источника нет. ADR 0006.
@@ -55,6 +56,7 @@ def prediction(
         facility=facility,
         summary=row.summary,
         order_id=order_id,
+        order_status=order_status,
         facility_order_id=facility_order_id,
         assignee=getattr(row, "assignee", None),
         verdict=getattr(row, "verdict", None),

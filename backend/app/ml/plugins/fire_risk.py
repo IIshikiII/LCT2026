@@ -223,6 +223,15 @@ class FireRisk:
         epoch = features.get("first_signal_epoch") or 0.0
         return datetime.fromtimestamp(epoch, UTC) if epoch > 0 else None
 
+    def last_event(self, features: FeatureVector, at: datetime) -> datetime | None:
+        """Последний сигнал пожарной сигнализации в окне. ADR 0021.
+
+        Сигнал позже заморозки законченной карточки открывает её чистую копию.
+        """
+        if not features.get("signals_24h"):
+            return None
+        return at - timedelta(hours=float(features.get("hours_since_signal") or 0.0))
+
     def live_blocks(self, conn: Connection, facility_id: str, at: datetime) -> list[Block]:
         """Датчики участка, температура и сигналы за сутки. ADR 0018."""
         return fire_live.blocks(conn, facility_id, at)

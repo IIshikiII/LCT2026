@@ -17,9 +17,11 @@ export interface FieldRendererProps {
   register: UseFormRegisterReturn
   error?: string
   id: string
+  /** поле заблокировано условием `enabledWhen` */
+  disabled?: boolean
 }
 
-export function FieldRenderer({ field, meta, register, error, id }: FieldRendererProps) {
+export function FieldRenderer({ field, meta, register, error, id, disabled }: FieldRendererProps) {
   if (field.type === 'boolean') {
     return (
       <label htmlFor={id} className="flex items-center gap-2 text-[13px] text-text-dim">
@@ -40,7 +42,7 @@ export function FieldRenderer({ field, meta, register, error, id }: FieldRendere
     )
   }
 
-  const common = { id, 'aria-invalid': Boolean(error), ...register }
+  const common = { id, 'aria-invalid': Boolean(error), disabled, ...register }
 
   return (
     <Field id={id} label={field.label} required={field.required} help={field.help} error={error}>

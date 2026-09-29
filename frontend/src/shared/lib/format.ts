@@ -61,6 +61,8 @@ const dateFmt = new Intl.DateTimeFormat('ru-RU', {
 
 const timeFmt = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
+const dayMonthFmt = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit' })
+
 export function fmtDateTime(value: unknown): string {
   const d = date(value)
   return d ? dateTimeFmt.format(d).replace(', ', ' ') : DASH
@@ -74,6 +76,23 @@ export function fmtDate(value: unknown): string {
 export function fmtTime(value: unknown): string {
   const d = date(value)
   return d ? timeFmt.format(d) : DASH
+}
+
+/** Число и месяц без года: подпись деления на оси длинного графика. */
+export function fmtDayMonth(value: unknown): string {
+  const d = date(value)
+  return d ? dayMonthFmt.format(d) : DASH
+}
+
+/** Ряд длиннее этого подписывает деления оси датами, короче — временем. */
+const AXIS_DATES_AFTER_MS = 36 * 3_600_000
+
+/**
+ * Формат делений оси времени по длине ряда. Суточный ряд за месяц с подписями
+ * «12:00, 00:33» читался бы как часы одних суток.
+ */
+export function axisTimeFormatter(spanMs: number): (value: unknown) => string {
+  return spanMs > AXIS_DATES_AFTER_MS ? fmtDayMonth : fmtTime
 }
 
 /** Русское склонение: plural(5, ['час','часа','часов']) → 'часов'. */

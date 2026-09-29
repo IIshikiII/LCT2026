@@ -176,7 +176,7 @@ export function buildDetail(record: PredictionRecord): PredictionDetail {
   return {
     ...prediction,
     blocks,
-    actions: predictionActions(record.status, record.assignee),
+    actions: predictionActions(record.status, record.assignee, record.level),
   }
 }
 

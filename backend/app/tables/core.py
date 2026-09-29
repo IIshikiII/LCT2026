@@ -237,6 +237,9 @@ work_order = Table(
     Column("created_by", Text, nullable=False, default="PIPELINE"),
     _ts("created_at", nullable=False),
     Column("outcome", JSONB),
+    # Направление прогноза. Держит уникальный индекс «одна открытая заявка на
+    # объект и направление». Миграция 016, ADR 0022.
+    Column("direction", Text),
 )
 
 # Учётная запись. Замещает каталог Active Directory, которого нам не дадут:

@@ -136,6 +136,7 @@ if [ "$DEPLOY_BACKEND" = yes ] && [ "$FRONT_ONLY" != yes ]; then
     backend_up
     backend_migrate
     backend_metrics
+    backend_districts
     backend_seed
     backend_stream
     [ "$DO_RESET" != yes ] || backend_reset

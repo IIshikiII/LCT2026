@@ -131,6 +131,11 @@ export function OrderCard({ id, meta }: OrderCardProps) {
         pending={action.isPending}
         error={action.error}
         onRun={(code, values) => action.mutateAsync({ code, values })}
+        emptyText={
+          isTerminalStatus(order.status, 'order', meta)
+            ? `${statusLabel(order.status, 'order', meta)}: заявка закрыта.`
+            : 'Действий по заявке для вашей роли нет.'
+        }
       />
     </div>
   )

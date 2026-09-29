@@ -171,6 +171,7 @@ def create_for(conn: Connection, candidate: Candidate, created_by: str = BY_PIPE
             number=number,
             prediction_id=candidate.id,
             facility_id=candidate.facility_id,
+            direction=candidate.direction,
             work_type=direction.work_types[0],
             due_at=due_at,
             status=status,
@@ -194,8 +195,9 @@ def create_for(conn: Connection, candidate: Candidate, created_by: str = BY_PIPE
 def untouched_order(conn: Connection, candidate: Candidate) -> tuple[str, str] | None:
     """Автозаявка объекта и направления, которой человек ещё не касался.
 
-    Отдаёт номер заявки и прогноз, которому она принадлежит. Заявку своего же
-    прогноза не отдаёт: её свежесть держит сам прогноз.
+    Отдаёт номер заявки и прогноз, которому она принадлежит. Это может быть и
+    заявка самого прогноза: нетронутая карточка идёт за свежим прогнозом
+    вместе со своей заявкой (ADR 0022).
     """
     found = conn.execute(
         select(work_order.c.id, work_order.c.prediction_id)
@@ -204,7 +206,6 @@ def untouched_order(conn: Connection, candidate: Candidate) -> tuple[str, str] |
             work_order.c.facility_id == candidate.facility_id,
             prediction.c.direction == candidate.direction,
             work_order.c.status == AUTO_CREATED,
-            work_order.c.prediction_id != candidate.id,
         )
         .order_by(work_order.c.created_at.desc())
         .limit(1)
@@ -243,6 +244,14 @@ def follow(conn: Connection, candidate: Candidate) -> str | None:
 
     if candidate.level in direction.order_levels:
         due_at = default_due(candidate, direction)
+        if previous == candidate.id:
+            # Своя заявка: карточка переписана свежим прогнозом, срок за ним.
+            conn.execute(
+                work_order.update()
+                .where(work_order.c.id == order_id, work_order.c.status == AUTO_CREATED)
+                .values(due_at=due_at)
+            )
+            return order_id
         conn.execute(
             work_order.update()
             .where(work_order.c.id == order_id, work_order.c.status == AUTO_CREATED)

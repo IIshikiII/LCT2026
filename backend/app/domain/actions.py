@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.auth.actor import Actor
 from app.meta import REJECTION_REASONS_REF, RISK_LEVELS_REF, by_code
-from app.schemas import ActionDef, FieldDef
+from app.schemas import ActionDef, FieldCondition, FieldDef
 
 
 @dataclass(frozen=True)
@@ -89,7 +89,10 @@ def allowed(actions: list[ActionDef], actor: Actor | None) -> list[ActionDef]:
 
 
 def prediction_actions(
-    status: str, assignee: str | None = None, actor: Actor | None = None
+    status: str,
+    assignee: str | None = None,
+    actor: Actor | None = None,
+    level: str | None = None,
 ) -> list[ActionDef]:
     """Действия прогноза. ADR 0006.
 
@@ -97,10 +100,10 @@ def prediction_actions(
     попадает в поля `verdict` и `dispatcher_level`, а нужен ли выезд, решает
     итоговый уровень, а не согласие. Поэтому действие одно, а не два.
     """
-    return allowed(_prediction_actions(status, assignee), actor)
+    return allowed(_prediction_actions(status, assignee, level), actor)
 
 
-def _prediction_actions(status: str, assignee: str | None) -> list[ActionDef]:
+def _prediction_actions(status: str, assignee: str | None, level: str | None) -> list[ActionDef]:
     if status == "NEW":
         # Одно действие: пока прогноз ничей, решать по нему нельзя. Имя
         # исполнителя записывается первым, и только потом открывается решение.
@@ -115,7 +118,7 @@ def _prediction_actions(status: str, assignee: str | None) -> list[ActionDef]:
         ]
     if status == "IN_REVIEW":
         return [
-            _decide(),
+            _decide(level),
             ActionDef(
                 code="release",
                 label="Вернуть в очередь",
@@ -131,12 +134,15 @@ def _prediction_actions(status: str, assignee: str | None) -> list[ActionDef]:
     return []
 
 
-def _decide() -> ActionDef:
+def _decide(level: str | None = None) -> ActionDef:
     """Единственное решение диспетчера по прогнозу.
 
     Уровень обязателен и подставляется уровнем модели. Диспетчер либо
     соглашается, либо ставит свой, и по итоговому уровню система сама решает,
     нужна ли заявка. Отклонение без последствия стало невозможным.
+
+    Причина изменения доступна, только когда уровень отличается от уровня
+    модели: подтверждению причина не нужна.
     """
     return ActionDef(
         code="decide",
@@ -149,6 +155,7 @@ def _decide() -> ActionDef:
                 type="select",
                 required=True,
                 options_ref=RISK_LEVELS_REF,
+                default=level,
                 help=(
                     "Уровни «Высокий» и «Критический» требуют выезда: система "
                     "создаст заявку. На «Низком» и «Среднем» прогноз закрывается."
@@ -159,7 +166,10 @@ def _decide() -> ActionDef:
                 label="Причина изменения уровня",
                 type="select",
                 options_ref=REJECTION_REASONS_REF,
-                help="Заполняется, когда уровень отличается от предложенного моделью",
+                help="Доступна, когда уровень отличается от предложенного моделью",
+                enabled_when=(
+                    FieldCondition(field="dispatcherLevel", not_equals=level) if level else None
+                ),
             ),
             FieldDef(
                 name="comment",

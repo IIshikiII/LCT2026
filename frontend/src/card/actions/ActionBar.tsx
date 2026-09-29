@@ -25,6 +25,11 @@ export interface ActionBarProps {
   onRun: (code: string, values: FormValues) => Promise<unknown>
   pending?: boolean
   error?: unknown
+  /**
+   * Что сказать, когда действий нет. Знает вызывающий: у законченной
+   * сущности, у прогноза с заявкой в работе и у роли без прав причины разные.
+   */
+  emptyText?: string
 }
 
 /**
@@ -32,14 +37,14 @@ export interface ActionBarProps {
  * (см. PredictionCard и OrderCard), а не эффектом внутри: это дешевле и не
  * вызывает лишнего рендера.
  */
-export function ActionBar({ actions, meta, onRun, pending, error }: ActionBarProps) {
+export function ActionBar({ actions, meta, onRun, pending, error, emptyText }: ActionBarProps) {
   const [openCode, setOpenCode] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
 
   if (actions.length === 0) {
     return (
       <div className="border-t border-line bg-panel px-3 py-2.5 text-[12px] text-text-mute">
-        Доступных действий нет — сущность в конечном статусе.
+        {emptyText ?? 'Доступных действий нет.'}
       </div>
     )
   }

@@ -7,8 +7,12 @@
 
 from __future__ import annotations
 
+import dataclasses
+import json
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any
 
 import pytest
 from sqlalchemy import select, text, update
@@ -192,8 +196,9 @@ def test_a_real_run_after_the_seeded_fixture_does_not_collide_on_the_run_id(
 def test_a_facility_in_work_gets_no_new_prediction_until_work_ends(
     db: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Диспетчер взял прогноз по F-1: следующие сутки F-1 новой карточки не
-    получают, F-2 получает. Работа кончилась, и F-1 снова считается. ADR 0020."""
+    """Диспетчер взял прогноз по F-1: следующие сутки F-1 не трогаются, а
+    нетронутая карточка F-2 переписывается свежим прогнозом. Работа по F-1
+    кончилась, и F-1 получает новую карточку. ADR 0020, ADR 0022."""
     _predictors(monkeypatch, {"SENSOR_FAILURE": FakePredictor("SENSOR_FAILURE")})
     pipeline_run_module.run(engine(), at=NOW)
     with engine().begin() as conn:
@@ -201,21 +206,161 @@ def test_a_facility_in_work_gets_no_new_prediction_until_work_ends(
             update(prediction).where(prediction.c.facility_id == "F-1").values(status="IN_REVIEW")
         )
 
-    next_day = pipeline_run_module.run(engine(), at=NOW + timedelta(days=1))
+    next_day = NOW + timedelta(days=1)
+    pipeline_run_module.run(engine(), at=next_day)
 
-    assert next_day.prediction_count == 1
     with engine().connect() as conn:
-        per_facility = {
-            fid: count
-            for fid, count in conn.execute(
-                text("SELECT facility_id, count(*) FROM prediction GROUP BY facility_id")
-            )
-        }
-    assert per_facility == {"F-1": 1, "F-2": 2}
+        rows = {(row.facility_id, row.status): row for row in conn.execute(select(prediction))}
+    assert set(rows) == {("F-1", "IN_REVIEW"), ("F-2", "NEW")}
+    assert rows[("F-2", "NEW")].computed_at_bucket == pipeline_run_module.day_start(next_day)
 
     with engine().begin() as conn:
         conn.execute(
             update(prediction).where(prediction.c.facility_id == "F-1").values(status="DECIDED")
         )
     after = pipeline_run_module.run(engine(), at=NOW + timedelta(days=2))
+    # Новая карточка F-1 и новые сутки в карточке F-2.
     assert after.prediction_count == 2
+    with engine().connect() as conn:
+        count = conn.execute(text("SELECT count(*) FROM prediction")).scalar_one()
+    assert count == 3
+
+
+def test_an_untouched_card_follows_the_fresh_forecast(
+    db: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Одна открытая карточка на объект: нетронутая переписывается. ADR 0022."""
+    predictor = FakePredictor("SENSOR_FAILURE", probability=0.9)
+    _predictors(monkeypatch, {"SENSOR_FAILURE": predictor})
+    pipeline_run_module.run(engine(), at=NOW)
+    predictor.probability = 0.2
+
+    pipeline_run_module.run(engine(), at=NOW + timedelta(days=1))
+
+    with engine().connect() as conn:
+        rows = list(conn.execute(select(prediction).where(prediction.c.facility_id == "F-1")))
+    assert len(rows) == 1
+    assert rows[0].probability == pytest.approx(0.2)
+
+
+# --- заморозка законченной карточки, ADR 0021 --------------------------------
+
+
+class IncidentPredictor(FakePredictor):
+    """Потоковое направление с происшествием и моментом последнего события."""
+
+    def __init__(self, code: str, started: datetime) -> None:
+        super().__init__(code)
+        self.started = started
+        self.event_at = started
+
+    def incident(self, features: FeatureVector, at: datetime) -> datetime | None:
+        return self.started
+
+    def last_event(self, features: FeatureVector, at: datetime) -> datetime | None:
+        return self.event_at
+
+
+def _finish(card_id: str) -> None:
+    with engine().begin() as conn:
+        conn.execute(
+            update(prediction)
+            .where(prediction.c.id == card_id)
+            .values(status="DECIDED", verdict="AGREED", dispatcher_level="HIGH")
+        )
+
+
+def _rows() -> list[Any]:
+    with engine().connect() as conn:
+        return list(
+            conn.execute(
+                select(prediction)
+                .where(prediction.c.facility_id == "F-1")
+                .order_by(prediction.c.computed_at_bucket)
+            )
+        )
+
+
+def test_a_finished_card_stays_frozen_without_new_events(
+    db: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Закрытое происшествие не всплывает снова, пока нет новых событий."""
+    fire = IncidentPredictor("FIRE_RISK", started=NOW - timedelta(minutes=30))
+    _predictors(monkeypatch, {"FIRE_RISK": fire})
+    pipeline_run_module.run(engine(), at=NOW)
+    frozen = _rows()[0]
+    _finish(frozen.id)
+
+    pipeline_run_module.run(engine(), at=NOW + timedelta(minutes=1))
+
+    rows = _rows()
+    assert len(rows) == 1
+    assert rows[0].computed_at == frozen.computed_at
+    assert rows[0].blocks == frozen.blocks
+    assert rows[0].status == "DECIDED"
+
+
+def test_new_events_go_to_a_clean_copy_of_a_finished_card(
+    db: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Решение остаётся в замороженной карточке, новые данные идут в копию."""
+    fire = IncidentPredictor("FIRE_RISK", started=NOW - timedelta(minutes=30))
+    _predictors(monkeypatch, {"FIRE_RISK": fire})
+    pipeline_run_module.run(engine(), at=NOW)
+    frozen = _rows()[0]
+    _finish(frozen.id)
+
+    fire.event_at = NOW + timedelta(minutes=2)
+    later = NOW + timedelta(minutes=3)
+    pipeline_run_module.run(engine(), at=later)
+    pipeline_run_module.run(engine(), at=later + timedelta(minutes=1))
+
+    rows = _rows()
+    assert [row.status for row in rows] == ["DECIDED", "NEW"]
+    assert rows[0].computed_at == frozen.computed_at
+    assert rows[0].verdict == "AGREED"
+    # Второй прогон пишет в ту же копию, а не плодит третью.
+    assert rows[1].computed_at_bucket == later
+
+
+# --- журнал всех прогнозов, ADR 0022 ------------------------------------------
+
+
+def test_the_forecast_log_keeps_every_forecast_when_enabled(
+    db: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Карточка переписывается, а каждый прогноз остаётся строкой в файле."""
+    path = tmp_path / "forecasts.jsonl"
+    monkeypatch.setattr(
+        pipeline_run_module,
+        "config",
+        dataclasses.replace(
+            pipeline_run_module.config, forecast_log=True, forecast_log_path=str(path)
+        ),
+    )
+    _predictors(monkeypatch, {"SENSOR_FAILURE": FakePredictor("SENSOR_FAILURE")})
+
+    pipeline_run_module.run(engine(), at=NOW)
+    pipeline_run_module.run(engine(), at=NOW + timedelta(days=1))
+
+    records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    assert len(records) == 4
+    assert {r["facilityId"] for r in records} == {"F-1", "F-2"}
+    assert records[0]["direction"] == "SENSOR_FAILURE"
+    assert records[0]["level"] == "CRITICAL"
+
+
+def test_the_forecast_log_is_off_by_default(
+    db: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "forecasts.jsonl"
+    monkeypatch.setattr(
+        pipeline_run_module,
+        "config",
+        dataclasses.replace(pipeline_run_module.config, forecast_log_path=str(path)),
+    )
+    _predictors(monkeypatch, {"SENSOR_FAILURE": FakePredictor("SENSOR_FAILURE")})
+
+    pipeline_run_module.run(engine(), at=NOW)
+
+    assert not path.exists()

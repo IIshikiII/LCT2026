@@ -452,9 +452,8 @@ def _geography(con: Any) -> tuple[list[dict[str, Any]], dict[str, tuple[float, f
 
     collectors: list[dict[str, Any]] = []
     points: dict[str, tuple[float, float]] = {}
-    for index, (complex_id, oids) in enumerate(sorted(complexes.items())):
+    for index, (_complex_id, oids) in enumerate(sorted(complexes.items())):
         okrug = OKRUGS[index % len(OKRUGS)]
-        complex_name = objects.get(complex_id, (f"комплекс {complex_id}", 0))[0]
         for k, oid in enumerate(oids):
             lo, hi = k / len(oids), (k + 1) / len(oids)
             line = [point_on(okrug.line, lo + (hi - lo) * i / 7) for i in range(8)]
@@ -462,7 +461,9 @@ def _geography(con: Any) -> tuple[list[dict[str, Any]], dict[str, tuple[float, f
                 {
                     "code": str(oid),
                     "label": objects.get(oid, (f"объект {oid}", 0))[0],
-                    "district": complex_name,
+                    # Район это округ, на трассу которого лёг комплекс: его
+                    # знает справочник районов и роль диспетчера района.
+                    "district": okrug.code,
                     "line": [list(p) for p in line],
                 }
             )
@@ -729,6 +730,11 @@ def load(
     _commissioning(con)
     collectors, points = _geography(con)
     facilities = _facility_rows(con, points, plan.shift)
+    # Район объекта это округ его коллектора, а не имя комплекса: фильтр по
+    # районам и роль диспетчера района знают коды округов.
+    okrug_of = {row["code"]: row["district"] for row in collectors}
+    for row in facilities:
+        row["district"] = okrug_of.get(row["collector"], row["district"])
 
     tmp = Path(tempfile.mkdtemp(prefix="arm-ingest-"))
     try:
