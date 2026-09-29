@@ -32,15 +32,6 @@ eda/
 # Тетради: результаты счёта и кэш раскладки UMAP, пересчитываются запуском
 notebooks/out/
 
-# Автономный цикл: сессионные файлы. Цель, план и журнал остаются в репозитории.
-loop/logs/
-loop/scratch/
-loop/settings.loop.json
-loop/GATES.md
-loop/STATUS.md
-loop/STOP
-loop/BLOCKED.txt
-
 # Витрины обучения: пересчитываются скриптом. Модель и замер остаются.
 ml/*/out/*.parquet
 ml/*/out/*.npy

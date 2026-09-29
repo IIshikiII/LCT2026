@@ -108,7 +108,7 @@ services:
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI-http://mlflow:5000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # В образе нет git, и MLflow пишет об этом три абзаца на каждый вызов.
-      # Логи автономного цикла от этого становятся нечитаемыми.
+      # Логи сервиса от этого становятся нечитаемыми.
       GIT_PYTHON_REFRESH: quiet
     volumes:
       - ./app:/srv/app:ro
@@ -189,7 +189,7 @@ services:
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # В образе нет git, и MLflow пишет об этом три абзаца на каждый вызов.
-      # Логи автономного цикла от этого становятся нечитаемыми.
+      # Логи сервиса от этого становятся нечитаемыми.
       GIT_PYTHON_REFRESH: quiet
     # Только петлевой интерфейс: JupyterLab поднят без токена.
     ports:
