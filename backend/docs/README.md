@@ -41,6 +41,7 @@
 | [0020-order-follows-prediction.md](adr/0020-order-follows-prediction.md) | Автозаявка идёт за свежим прогнозом объекта или отклоняется, когда риск упал |
 | [0021-finished-card-freezes.md](adr/0021-finished-card-freezes.md) | Законченная карточка замораживается, новые данные идут в её чистую копию |
 | [0022-one-open-card.md](adr/0022-one-open-card.md) | Одна открытая карточка и одна открытая заявка на объект, журнал всех прогнозов в файл |
+| [0023-access-series-features.md](adr/0023-access-series-features.md) | Признаки обрыва серии доступа подняли PR-AUC на отрезках, но не рабочую точку. В модель не идут |
 | [0018-fire-sections-and-live-cards.md](adr/0018-fire-sections-and-live-cards.md) | Пожар на участке, живые графики карточек, демонстрационный режим, порядок журнала |
 | [0017-ingest-and-stream.md](adr/0017-ingest-and-stream.md) | Загрузчик выгрузки, сдвиг времени на целые недели, заглушка СМВУ, ритм направлений, карточка на происшествие, задержка потока |
 
