@@ -1,0 +1,62 @@
+{
+  "рабочий": {
+    "features": 20,
+    "pr_auc_mean": 0.078472,
+    "pr_auc_se": 0.00744,
+    "precision_at_naive_recall_mean": 0.193734,
+    "series_pr_auc_mean": 0.300458
+  },
+  "рабочий и серия": {
+    "features": 24,
+    "pr_auc_mean": 0.08601,
+    "pr_auc_se": 0.007805,
+    "precision_at_naive_recall_mean": 0.199855,
+    "series_pr_auc_mean": 0.346195,
+    "delta_pr_auc": 0.007538,
+    "delta_se": 0.002523,
+    "significant": true
+  },
+  "рабочий и все кандидаты": {
+    "features": 31,
+    "pr_auc_mean": 0.081352,
+    "pr_auc_se": 0.006207,
+    "precision_at_naive_recall_mean": 0.195675,
+    "series_pr_auc_mean": 0.337644,
+    "delta_pr_auc": 0.00288,
+    "delta_se": 0.004062,
+    "significant": false
+  },
+  "gain_share_all": {
+    "armed_day_share_30d": 0.25814,
+    "hours_since_last_armed": 0.16692,
+    "days_since_last_armed": 0.07251,
+    "disarm_share_30d": 0.05286,
+    "streak_len": 0.03796,
+    "n_armed_7d": 0.03388,
+    "net_event_share_7d": 0.02953,
+    "day_of_week": 0.02762,
+    "net_event_share_1d": 0.0272,
+    "gap_before_streak": 0.02674,
+    "date_event_share_prev_years": 0.02449,
+    "day_of_year": 0.02395,
+    "hours_since_last_alarm": 0.02316,
+    "unit_age_days": 0.02138,
+    "obj_alarms_1d": 0.02062,
+    "disarm_hours_7d": 0.02003,
+    "hours_since_guard_change": 0.01995,
+    "day_of_month": 0.01837,
+    "obj_alarms_7d": 0.01825,
+    "obj_units_alarmed_7d": 0.01756,
+    "is_day_off": 0.01484,
+    "last_ev_span_h": 0.01207,
+    "last_ev_hours": 0.00764,
+    "fire_obj_7d": 0.0068,
+    "uir_obj_1d": 0.00591,
+    "fault_obj_1d": 0.00437,
+    "armed_same_weekday_1w": 0.00259,
+    "ev_near_uir": 0.00182,
+    "flood_obj_7d": 0.00129,
+    "power_obj_7d": 0.00107,
+    "uir_sec_1d": 0.00049
+  }
+}

@@ -1,0 +1,1381 @@
+{
+  "threshold": 0.140342,
+  "groups": {
+    "верно оборвала": 289,
+    "ошибочно продлила": 123,
+    "верно продлила": 54,
+    "ошибочно оборвала": 13
+  },
+  "mean_shap": {
+    "верно оборвала": {
+      "armed_day_share_30d": -0.1026,
+      "hours_since_last_armed": 1.2539,
+      "days_since_last_armed": 0.8936,
+      "disarm_share_30d": 0.0048,
+      "net_event_share_7d": 0.0482,
+      "net_event_share_1d": 0.0397,
+      "armed_same_weekday_1w": -0.0004,
+      "day_of_week": 0.0037,
+      "date_event_share_prev_years": 0.0033,
+      "disarm_hours_7d": 0.0103,
+      "n_armed_7d": 0.1546,
+      "obj_alarms_7d": 0.0053,
+      "hours_since_last_alarm": 0.1763,
+      "hours_since_guard_change": 0.0029,
+      "day_of_month": 0.0019,
+      "obj_alarms_1d": -0.0045,
+      "unit_age_days": 0.008,
+      "obj_units_alarmed_7d": 0.0108,
+      "day_of_year": 0.0092,
+      "is_day_off": 0.0083
+    },
+    "верно продлила": {
+      "armed_day_share_30d": 0.783,
+      "hours_since_last_armed": 1.49,
+      "days_since_last_armed": 1.1763,
+      "disarm_share_30d": 0.0341,
+      "net_event_share_7d": 0.0449,
+      "net_event_share_1d": 0.0235,
+      "armed_same_weekday_1w": -0.0015,
+      "day_of_week": 0.001,
+      "date_event_share_prev_years": 0.0005,
+      "disarm_hours_7d": 0.0468,
+      "n_armed_7d": 0.3095,
+      "obj_alarms_7d": 0.0081,
+      "hours_since_last_alarm": 0.3532,
+      "hours_since_guard_change": -0.0149,
+      "day_of_month": 0.0013,
+      "obj_alarms_1d": 0.0049,
+      "unit_age_days": -0.0083,
+      "obj_units_alarmed_7d": 0.0097,
+      "day_of_year": 0.0117,
+      "is_day_off": 0.0059
+    },
+    "ошибочно оборвала": {
+      "armed_day_share_30d": 0.1229,
+      "hours_since_last_armed": 1.3418,
+      "days_since_last_armed": 0.9296,
+      "disarm_share_30d": 0.0232,
+      "net_event_share_7d": 0.0179,
+      "net_event_share_1d": 0.0105,
+      "armed_same_weekday_1w": -0.0005,
+      "day_of_week": 0.0233,
+      "date_event_share_prev_years": 0.003,
+      "disarm_hours_7d": 0.0126,
+      "n_armed_7d": 0.156,
+      "obj_alarms_7d": 0.0114,
+      "hours_since_last_alarm": 0.16,
+      "hours_since_guard_change": 0.0129,
+      "day_of_month": -0.0003,
+      "obj_alarms_1d": 0.0049,
+      "unit_age_days": 0.0003,
+      "obj_units_alarmed_7d": 0.0105,
+      "day_of_year": -0.0012,
+      "is_day_off": 0.0117
+    },
+    "ошибочно продлила": {
+      "armed_day_share_30d": 0.6119,
+      "hours_since_last_armed": 1.4773,
+      "days_since_last_armed": 1.1145,
+      "disarm_share_30d": 0.0196,
+      "net_event_share_7d": 0.0476,
+      "net_event_share_1d": 0.0412,
+      "armed_same_weekday_1w": -0.0014,
+      "day_of_week": -0.0009,
+      "date_event_share_prev_years": 0.0081,
+      "disarm_hours_7d": 0.0434,
+      "n_armed_7d": 0.2543,
+      "obj_alarms_7d": 0.0089,
+      "hours_since_last_alarm": 0.3421,
+      "hours_since_guard_change": -0.0115,
+      "day_of_month": 0.0004,
+      "obj_alarms_1d": 0.0089,
+      "unit_age_days": -0.0061,
+      "obj_units_alarmed_7d": 0.0128,
+      "day_of_year": 0.0086,
+      "is_day_off": 0.004
+    }
+  },
+  "mean_candidates": {
+    "верно оборвала": {
+      "streak_len": 1.09,
+      "gap_before_streak": 159.326,
+      "last_ev_hours": 1.26,
+      "last_ev_span_h": 0.433,
+      "ev_near_uir": 0.125,
+      "uir_obj_1d": 0.768,
+      "uir_sec_1d": 0.038,
+      "fault_obj_1d": 0.208,
+      "flood_obj_7d": 0.128,
+      "power_obj_7d": 0.436,
+      "fire_obj_7d": 1.782
+    },
+    "верно продлила": {
+      "streak_len": 1.389,
+      "gap_before_streak": 18.481,
+      "last_ev_hours": 2.278,
+      "last_ev_span_h": 4.889,
+      "ev_near_uir": 0.0,
+      "uir_obj_1d": 0.204,
+      "uir_sec_1d": 0.037,
+      "fault_obj_1d": 0.259,
+      "flood_obj_7d": 0.093,
+      "power_obj_7d": 0.074,
+      "fire_obj_7d": 0.704
+    },
+    "ошибочно оборвала": {
+      "streak_len": 1.231,
+      "gap_before_streak": 111.636,
+      "last_ev_hours": 1.154,
+      "last_ev_span_h": 0.615,
+      "ev_near_uir": 0.0,
+      "uir_obj_1d": 0.0,
+      "uir_sec_1d": 0.0,
+      "fault_obj_1d": 0.231,
+      "flood_obj_7d": 0.0,
+      "power_obj_7d": 0.462,
+      "fire_obj_7d": 8.615
+    },
+    "ошибочно продлила": {
+      "streak_len": 1.333,
+      "gap_before_streak": 56.805,
+      "last_ev_hours": 1.561,
+      "last_ev_span_h": 2.016,
+      "ev_near_uir": 0.041,
+      "uir_obj_1d": 0.13,
+      "uir_sec_1d": 0.016,
+      "fault_obj_1d": 0.195,
+      "flood_obj_7d": 0.228,
+      "power_obj_7d": 0.049,
+      "fire_obj_7d": 1.041
+    }
+  },
+  "longest_stopped": [
+    {
+      "object_id": 165,
+      "gallery": -1,
+      "section": 1,
+      "day": "2026-06-01",
+      "probability": 0.1363,
+      "candidates": {
+        "streak_len": 4.0,
+        "gap_before_streak": 22.0,
+        "last_ev_hours": 2.0,
+        "last_ev_span_h": 2.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 16.0,
+          "shap": 1.2407
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 1.1299
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1667,
+          "shap": 0.6059
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 66.0,
+          "shap": 0.3297
+        },
+        {
+          "feature": "unit_age_days",
+          "value": 2707.0,
+          "shap": -0.1377
+        }
+      ]
+    },
+    {
+      "object_id": 3356,
+      "gallery": -1,
+      "section": 14,
+      "day": "2026-01-07",
+      "probability": 0.13,
+      "candidates": {
+        "streak_len": 3.0,
+        "gap_before_streak": 3.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 18.0,
+          "shap": 1.3571
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 1.092
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1667,
+          "shap": 0.4819
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 4.0,
+          "shap": 0.1968
+        },
+        {
+          "feature": "disarm_share_30d",
+          "value": 0.2266,
+          "shap": 0.063
+        }
+      ]
+    },
+    {
+      "object_id": 28,
+      "gallery": 1,
+      "section": 1,
+      "day": "2026-06-19",
+      "probability": 0.1173,
+      "candidates": {
+        "streak_len": 3.0,
+        "gap_before_streak": 2.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 17.0,
+          "shap": 1.2382
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 1.2041
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1333,
+          "shap": 0.5489
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 35.0,
+          "shap": 0.3059
+        },
+        {
+          "feature": "unit_age_days",
+          "value": 2716.0,
+          "shap": -0.1573
+        }
+      ]
+    },
+    {
+      "object_id": 4391,
+      "gallery": -1,
+      "section": 7,
+      "day": "2026-02-08",
+      "probability": 0.1386,
+      "candidates": {
+        "streak_len": 3.0,
+        "gap_before_streak": 4.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 24.0,
+          "shap": 1.3312
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 1.0894
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1333,
+          "shap": 0.5263
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 6.0,
+          "shap": 0.2309
+        },
+        {
+          "feature": "disarm_share_30d",
+          "value": 0.1831,
+          "shap": 0.0851
+        }
+      ]
+    },
+    {
+      "object_id": 42,
+      "gallery": -1,
+      "section": 16,
+      "day": "2026-04-13",
+      "probability": 0.137,
+      "candidates": {
+        "streak_len": 3.0,
+        "gap_before_streak": 309.0,
+        "last_ev_hours": 7.0,
+        "last_ev_span_h": 9.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 14.0,
+          "shap": 1.283
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 1.2495
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1,
+          "shap": 0.545
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 26.0,
+          "shap": 0.3148
+        },
+        {
+          "feature": "unit_age_days",
+          "value": 1415.0,
+          "shap": -0.1666
+        }
+      ]
+    },
+    {
+      "object_id": 3215,
+      "gallery": -1,
+      "section": 6,
+      "day": "2026-05-31",
+      "probability": 0.1356,
+      "candidates": {
+        "streak_len": 3.0,
+        "gap_before_streak": 29.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 24.0,
+          "shap": 1.2618
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 1.2252
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1,
+          "shap": 0.5346
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 217.0,
+          "shap": 0.302
+        },
+        {
+          "feature": "unit_age_days",
+          "value": 2706.0,
+          "shap": -0.1401
+        }
+      ]
+    },
+    {
+      "object_id": 4648,
+      "gallery": -1,
+      "section": 10,
+      "day": "2026-01-22",
+      "probability": 0.1259,
+      "candidates": {
+        "streak_len": 3.0,
+        "gap_before_streak": 181.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 22.0,
+          "shap": 1.371
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.9689
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1,
+          "shap": 0.4116
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 4.0,
+          "shap": 0.1901
+        },
+        {
+          "feature": "day_of_week",
+          "value": 3.0,
+          "shap": 0.0561
+        }
+      ]
+    },
+    {
+      "object_id": 4648,
+      "gallery": -1,
+      "section": 27,
+      "day": "2026-01-15",
+      "probability": 0.1096,
+      "candidates": {
+        "streak_len": 2.0,
+        "gap_before_streak": 6.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 21.0,
+          "shap": 1.3579
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.9207
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1333,
+          "shap": 0.4823
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 2.0,
+          "shap": 0.1854
+        },
+        {
+          "feature": "net_event_share_1d",
+          "value": 0.008,
+          "shap": -0.0483
+        }
+      ]
+    }
+  ],
+  "surest_stopped": [
+    {
+      "object_id": 5113,
+      "gallery": -1,
+      "section": 3,
+      "day": "2026-02-10",
+      "probability": 0.0286,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 104.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 1.0,
+        "uir_obj_1d": 6.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 2.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 13.0,
+          "shap": 0.8896
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.7547
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.2989
+        },
+        {
+          "feature": "net_event_share_1d",
+          "value": 0.0587,
+          "shap": 0.2163
+        },
+        {
+          "feature": "obj_alarms_1d",
+          "value": 347.0,
+          "shap": -0.1219
+        }
+      ]
+    },
+    {
+      "object_id": 5113,
+      "gallery": -1,
+      "section": 4,
+      "day": "2026-02-10",
+      "probability": 0.0286,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 104.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 1.0,
+        "uir_obj_1d": 6.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 2.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 13.0,
+          "shap": 0.8896
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.7547
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.2967
+        },
+        {
+          "feature": "net_event_share_1d",
+          "value": 0.0587,
+          "shap": 0.2163
+        },
+        {
+          "feature": "obj_alarms_1d",
+          "value": 347.0,
+          "shap": -0.1219
+        }
+      ]
+    },
+    {
+      "object_id": 5113,
+      "gallery": -1,
+      "section": 6,
+      "day": "2026-02-10",
+      "probability": 0.0286,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 104.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 1.0,
+        "uir_obj_1d": 6.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 2.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 13.0,
+          "shap": 0.8896
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.7547
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.2989
+        },
+        {
+          "feature": "net_event_share_1d",
+          "value": 0.0587,
+          "shap": 0.2163
+        },
+        {
+          "feature": "obj_alarms_1d",
+          "value": 347.0,
+          "shap": -0.1219
+        }
+      ]
+    },
+    {
+      "object_id": 5113,
+      "gallery": -1,
+      "section": 8,
+      "day": "2026-02-10",
+      "probability": 0.0286,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 29.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 1.0,
+        "uir_obj_1d": 6.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 2.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 13.0,
+          "shap": 0.8896
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.7547
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.2967
+        },
+        {
+          "feature": "net_event_share_1d",
+          "value": 0.0587,
+          "shap": 0.2163
+        },
+        {
+          "feature": "obj_alarms_1d",
+          "value": 347.0,
+          "shap": -0.1219
+        }
+      ]
+    },
+    {
+      "object_id": 5113,
+      "gallery": -1,
+      "section": 9,
+      "day": "2026-02-10",
+      "probability": 0.0286,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 104.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 1.0,
+        "uir_obj_1d": 6.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 2.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 13.0,
+          "shap": 0.8896
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.7547
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.2967
+        },
+        {
+          "feature": "net_event_share_1d",
+          "value": 0.0587,
+          "shap": 0.2163
+        },
+        {
+          "feature": "obj_alarms_1d",
+          "value": 347.0,
+          "shap": -0.1219
+        }
+      ]
+    }
+  ],
+  "wrongly_stopped": [
+    {
+      "object_id": 42,
+      "gallery": -1,
+      "section": 8,
+      "day": "2026-03-05",
+      "probability": 0.0873,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 19.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 22.0,
+          "shap": 1.2683
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 1.1094
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0667,
+          "shap": 0.2701
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 1.0,
+          "shap": 0.121
+        },
+        {
+          "feature": "hours_since_last_alarm",
+          "value": 22.0,
+          "shap": 0.0576
+        }
+      ]
+    },
+    {
+      "object_id": 42,
+      "gallery": -1,
+      "section": 16,
+      "day": "2026-04-11",
+      "probability": 0.0988,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 309.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 4.0,
+          "shap": 1.5464
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.8839
+        },
+        {
+          "feature": "hours_since_last_alarm",
+          "value": 4.0,
+          "shap": 0.362
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 1.0,
+          "shap": 0.1989
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.1506
+        }
+      ]
+    },
+    {
+      "object_id": 3356,
+      "gallery": -1,
+      "section": 14,
+      "day": "2026-01-06",
+      "probability": 0.1343,
+      "candidates": {
+        "streak_len": 2.0,
+        "gap_before_streak": 3.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 1.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 15.0,
+          "shap": 1.357
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 1.1066
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1333,
+          "shap": 0.5457
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 3.0,
+          "shap": 0.1827
+        },
+        {
+          "feature": "disarm_share_30d",
+          "value": 0.2266,
+          "shap": 0.0662
+        }
+      ]
+    },
+    {
+      "object_id": 3356,
+      "gallery": -1,
+      "section": 34,
+      "day": "2026-02-06",
+      "probability": 0.0929,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 358.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 72.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 5.0,
+          "shap": 1.5527
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.8669
+        },
+        {
+          "feature": "hours_since_last_alarm",
+          "value": 5.0,
+          "shap": 0.4068
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 1.0,
+          "shap": 0.1968
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.1399
+        }
+      ]
+    },
+    {
+      "object_id": 4391,
+      "gallery": -1,
+      "section": 6,
+      "day": "2026-03-24",
+      "probability": 0.1235,
+      "candidates": {
+        "streak_len": 2.0,
+        "gap_before_streak": 36.0,
+        "last_ev_hours": 2.0,
+        "last_ev_span_h": 3.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 19.0,
+          "shap": 1.2731
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 1.1097
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0667,
+          "shap": 0.295
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 6.0,
+          "shap": 0.2385
+        },
+        {
+          "feature": "net_event_share_7d",
+          "value": 0.0173,
+          "shap": 0.0521
+        }
+      ]
+    },
+    {
+      "object_id": 4648,
+      "gallery": -1,
+      "section": 10,
+      "day": "2026-01-20",
+      "probability": 0.1109,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 181.0,
+        "last_ev_hours": 2.0,
+        "last_ev_span_h": 5.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 5.0,
+          "shap": 1.592
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.8659
+        },
+        {
+          "feature": "hours_since_last_alarm",
+          "value": 5.0,
+          "shap": 0.4062
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 2.0,
+          "shap": 0.2556
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.13
+        }
+      ]
+    },
+    {
+      "object_id": 4648,
+      "gallery": -1,
+      "section": 10,
+      "day": "2026-01-21",
+      "probability": 0.0806,
+      "candidates": {
+        "streak_len": 2.0,
+        "gap_before_streak": 181.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 13.0,
+          "shap": 1.2084
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.9291
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0667,
+          "shap": 0.2576
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 3.0,
+          "shap": 0.1931
+        },
+        {
+          "feature": "disarm_share_30d",
+          "value": 0.055,
+          "shap": -0.1053
+        }
+      ]
+    },
+    {
+      "object_id": 4648,
+      "gallery": -1,
+      "section": 10,
+      "day": "2026-02-03",
+      "probability": 0.1012,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 8.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 39.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 19.0,
+          "shap": 1.2317
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 1.0228
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1667,
+          "shap": 0.5341
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 1.0,
+          "shap": 0.1281
+        },
+        {
+          "feature": "disarm_share_30d",
+          "value": 0.1066,
+          "shap": 0.0764
+        }
+      ]
+    },
+    {
+      "object_id": 4648,
+      "gallery": -1,
+      "section": 27,
+      "day": "2026-01-14",
+      "probability": 0.0974,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 6.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 3.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 16.0,
+          "shap": 1.3781
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.9244
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.1,
+          "shap": 0.4471
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 1.0,
+          "shap": 0.0826
+        },
+        {
+          "feature": "disarm_share_30d",
+          "value": 0.0464,
+          "shap": -0.0563
+        }
+      ]
+    },
+    {
+      "object_id": 5540,
+      "gallery": -1,
+      "section": 1017,
+      "day": "2026-02-19",
+      "probability": 0.1083,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 6.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 4.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 14.0,
+          "shap": 1.1689
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.9044
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0667,
+          "shap": 0.2711
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 2.0,
+          "shap": 0.166
+        },
+        {
+          "feature": "day_of_week",
+          "value": 3.0,
+          "shap": 0.1099
+        }
+      ]
+    },
+    {
+      "object_id": 5676,
+      "gallery": -1,
+      "section": 12,
+      "day": "2026-01-02",
+      "probability": 0.042,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": 121.0,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 0.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 15.0,
+          "shap": 1.204
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.9025
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.2568
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 1.0,
+          "shap": 0.1011
+        },
+        {
+          "feature": "hours_since_last_alarm",
+          "value": 15.0,
+          "shap": 0.0686
+        }
+      ]
+    },
+    {
+      "object_id": 5966,
+      "gallery": -1,
+      "section": 1072,
+      "day": "2026-04-21",
+      "probability": 0.0615,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": null,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 1.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 10.0,
+          "shap": 1.3358
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.698
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.1934
+        },
+        {
+          "feature": "disarm_share_30d",
+          "value": 0.0,
+          "shap": 0.1194
+        },
+        {
+          "feature": "hours_since_guard_change",
+          "value": null,
+          "shap": 0.1144
+        }
+      ]
+    },
+    {
+      "object_id": 5966,
+      "gallery": -1,
+      "section": 1079,
+      "day": "2026-04-14",
+      "probability": 0.0995,
+      "candidates": {
+        "streak_len": 1.0,
+        "gap_before_streak": null,
+        "last_ev_hours": 1.0,
+        "last_ev_span_h": 0.0,
+        "ev_near_uir": 0.0,
+        "uir_obj_1d": 0.0,
+        "uir_sec_1d": 0.0,
+        "fault_obj_1d": 0.0,
+        "flood_obj_7d": 0.0,
+        "power_obj_7d": 1.0,
+        "fire_obj_7d": 0.0
+      },
+      "factors": [
+        {
+          "feature": "hours_since_last_armed",
+          "value": 2.0,
+          "shap": 1.3268
+        },
+        {
+          "feature": "days_since_last_armed",
+          "value": 1.0,
+          "shap": 0.7614
+        },
+        {
+          "feature": "hours_since_last_alarm",
+          "value": 2.0,
+          "shap": 0.4464
+        },
+        {
+          "feature": "n_armed_7d",
+          "value": 1.0,
+          "shap": 0.1782
+        },
+        {
+          "feature": "armed_day_share_30d",
+          "value": 0.0333,
+          "shap": -0.1522
+        }
+      ]
+    }
+  ]
+}
