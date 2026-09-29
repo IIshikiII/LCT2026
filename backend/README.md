@@ -30,7 +30,7 @@ curl http://127.0.0.1:8000/healthz
 | `migrations/` | Миграции SQL |
 | `tests/` | Тесты pytest на отдельной базе `arm_test` |
 | `artifacts/` | Обученные модели. В git не хранятся |
-| `docs/` | Документация сервера и ADR. Начинать с [`docs/README.md`](docs/README.md) |
+| `docs/` | Документация сервера. Начинать с [`docs/README.md`](docs/README.md). Решения лежат в [`../docs/adr/`](../docs/adr/README.md) |
 
 Все порты открыты только на `127.0.0.1`. Наружу их открывает
 `BIND_HOST=0.0.0.0`. На Ubuntu опубликованный Docker порт обходит `ufw`.

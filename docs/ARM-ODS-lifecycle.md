@@ -4,7 +4,7 @@
 связана заявка. Источник истины по статусам: `backend/app/meta/catalog.py` и
 `backend/app/domain/transitions.py`. Правки схемы и кода идут одним коммитом.
 
-Обоснование модели лежит в `backend/docs/adr/0006-prediction-lifecycle.md`.
+Обоснование модели лежит в `docs/adr/backend/0006-prediction-lifecycle.md`.
 
 ## Главное в двух предложениях
 
@@ -230,7 +230,7 @@ sequenceDiagram
 ## Кто что может
 
 Роли из ответа заказчика 4.1. Полный разбор в
-`backend/docs/adr/0007-roles-and-auth.md`, порядок работы — в
+`docs/adr/backend/0007-roles-and-auth.md`, порядок работы — в
 `backend/docs/09-auth.md`.
 
 | Роль | Видит | Может |

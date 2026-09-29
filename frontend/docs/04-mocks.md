@@ -13,7 +13,7 @@
 Отсюда правило: **ничто вне `src/mocks/` не импортирует из `src/mocks/`**, кроме
 одной строки в `src/main.tsx` и тестового сервера в `src/test/`. Удали папку —
 приложение соберётся и пойдёт на реальный API.
-См. [adr/0007-mocks-as-a-backend-stub.md](adr/0007-mocks-as-a-backend-stub.md).
+См. [adr/0007-mocks-as-a-backend-stub.md](../../docs/adr/frontend/0007-mocks-as-a-backend-stub.md).
 
 ## Раскладка
 

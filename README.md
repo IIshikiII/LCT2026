@@ -167,6 +167,7 @@
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | Архитектура и стек |
 | [`docs/api.md`](docs/api.md) | REST API: ручки, вход, где лежит полный контракт |
+| [`docs/adr/`](docs/adr/README.md) | Принятые решения с числами и доводами |
 | [`deploy/README.md`](deploy/README.md) | Установка на сервер |
 | [`docs/README.md`](docs/README.md) | Полный список документов |
 

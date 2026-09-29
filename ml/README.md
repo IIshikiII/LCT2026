@@ -27,8 +27,11 @@
    ```
 2. Поставьте библиотеки:
    ```
-   uv pip install --python .venv duckdb numpy pandas pyarrow scipy scikit-learn lightgbm shap joblib optuna umap-learn pytest
+   uv pip install --python .venv duckdb numpy pandas pyarrow scipy scikit-learn lightgbm shap joblib optuna umap-learn pytest matplotlib jupyterlab
    ```
+3. Соберите входные файлы. Тетрадь `notebooks/01-eda-clustering.ipynb` пишет
+   журнал целиком в `eda/out/events.parquet` и признаки каналов в
+   `notebooks/out/channel_features.parquet`. Оба файла в git не входят.
 
 Интерпретатор лежит в `.venv/bin/python` на Ubuntu и macOS и в
 `.venv\Scripts\python.exe` на Windows.

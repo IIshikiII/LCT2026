@@ -2,7 +2,7 @@
 
 Глобального стора нет: ни Zustand, ни Redux, ни контекста с фильтрами.
 Серверные данные — в кэше TanStack Query, состояние интерфейса — в параметрах URL.
-См. [adr/0001-no-global-store.md](adr/0001-no-global-store.md).
+См. [adr/0001-no-global-store.md](../../docs/adr/frontend/0001-no-global-store.md).
 
 ## Что это даёт
 

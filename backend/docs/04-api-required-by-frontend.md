@@ -491,7 +491,7 @@ omit `note`.
 The frontend does not scale the bar axis to the strongest item in the list: the
 axis is fixed at -1 to 1 for every card. A `weight` outside that range is clamped
 to the border, not dropped. See
-[../../frontend/docs/adr/0011-shap-block.md](../../frontend/docs/adr/0011-shap-block.md)
+[../../docs/adr/frontend/0011-shap-block.md](../../docs/adr/frontend/0011-shap-block.md)
 for why this block carries SHAP output instead of a new block type.
 
 ## 7. Actions

@@ -6,14 +6,14 @@
 
 Решения по числам лежат в ADR бэкенда:
 
-- `backend/docs/adr/0008-flood-target.md` — первая метка, заменена;
-- `backend/docs/adr/0009-flood-model.md` — первая модель, заменена;
-- `backend/docs/adr/0010-flood-real-water.md` — маска времени, заменена;
-- `backend/docs/adr/0011-flood-model-real-water.md` — протокол: отложенный
+- `docs/adr/backend/0008-flood-target.md` — первая метка, заменена;
+- `docs/adr/backend/0009-flood-model.md` — первая модель, заменена;
+- `docs/adr/backend/0010-flood-real-water.md` — маска времени, заменена;
+- `docs/adr/backend/0011-flood-model-real-water.md` — протокол: отложенный
   год и растущее окно. Модель заменена;
-- `backend/docs/adr/0012-flood-pu-label.md` — действующая метка и модель:
+- `docs/adr/backend/0012-flood-pu-label.md` — действующая метка и модель:
   классификатор «вода или проверка», ансамбль, скользящий бюджет тревог;
-- `backend/docs/adr/0013-flood-model-in-service.md` — та же модель в сервисе.
+- `docs/adr/backend/0013-flood-model-in-service.md` — та же модель в сервисе.
 
 ## Файлы
 

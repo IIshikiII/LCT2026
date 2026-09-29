@@ -54,7 +54,7 @@
    ни один запрос данных не уходит. Токен подставляет `shared/api/client.ts`,
    читая его из `sessionStorage`; ответ 401 снимает сессию, и экран входа
    возвращается сам. Роли и права разобраны в
-   `backend/docs/adr/0007-roles-and-auth.md`.
+   `docs/adr/backend/0007-roles-and-auth.md`.
 4. Дальше `AppShell` дёргает `useMeta()`. Пока `/meta` не пришла,
    показывается скелет. Если `/meta` сломана — берётся `FALLBACK_META` из
    `shared/config/fallbacks.ts`, и приложение поднимается как ни в чём не бывало.
@@ -89,9 +89,9 @@
 ## Чего в архитектуре нет и почему
 
 - **Глобального стора.** Всё состояние UI — в URL, все серверные данные — в кэше
-  TanStack Query. См. [adr/0001-no-global-store.md](adr/0001-no-global-store.md).
+  TanStack Query. См. [adr/0001-no-global-store.md](../../docs/adr/frontend/0001-no-global-store.md).
 - **WebSocket.** Горизонт прогноза ≥ 24 ч, опрос раз в минуту избыточен уже.
-  См. [adr/0005-polling-not-websocket.md](adr/0005-polling-not-websocket.md).
+  См. [adr/0005-polling-not-websocket.md](../../docs/adr/frontend/0005-polling-not-websocket.md).
 - **Слоёв FSD.** Пять плоских папок вместо `entities/features/widgets/pages`.
   На 4 экранах слои дают больше церемонии, чем пользы.
 - **UI-библиотеки.** Нужно семь примитивов, они написаны в `shared/ui` за вечер

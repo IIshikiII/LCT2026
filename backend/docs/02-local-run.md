@@ -232,7 +232,7 @@ docker compose run --rm dev uv run --no-sync pytest
 `TEST_DATABASE_URL` названа значит берётся она. Иначе к имени базы из
 `DATABASE_URL` добавляется суффикс `_test`. Имя уже кончается на суффикс значит
 адрес не меняется. Поэтому pytest без переменных идёт на `arm_test`, а не на
-рабочую `arm`. Обоснование в [ADR 0005](adr/0005-test-database.md).
+рабочую `arm`. Обоснование в [ADR 0005](../../docs/adr/backend/0005-test-database.md).
 
 **Тесты опустошают базу целиком.** Фикстура `reset_database` в
 `tests/conftest.py` читает список таблиц из самой базы и снимает их через

@@ -15,33 +15,7 @@
 | [08-ml-plugin.md](08-ml-plugin.md) | Как подключить модель: протокол плагина, реестр версий, набор research |
 | [09-auth.md](09-auth.md) | Как войти, какие роли есть, что каждая может, как обслуживать стенд |
 
-Принятые решения лежат в [adr/](adr/). Один файл это одно решение с контекстом,
-числами и способом проверки.
-
-| Решение | О чём |
-|---|---|
-| [0001-access-target.md](adr/0001-access-target.md) | Метка направления «несанкционированный доступ» и её планка |
-| [0002-access-threshold.md](adr/0002-access-threshold.md) | Порог того же направления и цена ошибки в нарядах |
-| [0003-pipeline-duration.md](adr/0003-pipeline-duration.md) | Сколько длится прогон конвейера и как он укладывается в ТЗ |
-| [0004-level-thresholds-per-direction.md](adr/0004-level-thresholds-per-direction.md) | Почему границы уровней риска задаёт направление |
-| [0005-test-database.md](adr/0005-test-database.md) | Почему тесты работают только с базой на суффиксе `_test` |
-| [0006-prediction-lifecycle.md](adr/0006-prediction-lifecycle.md) | Статусы прогноза и заявки, решение диспетчера отдельными полями |
-| [0007-roles-and-auth.md](adr/0007-roles-and-auth.md) | Роли, вход в систему, второй фактор, журнал действий |
-| [0008-flood-target.md](adr/0008-flood-target.md) | Первая метка направления «риск подтопления» |
-| [0009-flood-model.md](adr/0009-flood-model.md) | Первая модель подтопления. Заменена |
-| [0010-flood-real-water.md](adr/0010-flood-real-water.md) | Вода и плановые проверки по маске времени. Заменено ADR 0012 |
-| [0011-flood-model-real-water.md](adr/0011-flood-model-real-water.md) | Протокол: отложенный год и растущее окно. Модель заменена |
-| [0012-flood-pu-label.md](adr/0012-flood-pu-label.md) | Метка по признакам события, ансамбль, скользящий бюджет тревог |
-| [0013-flood-model-in-service.md](adr/0013-flood-model-in-service.md) | Модель ADR 0012 в сервисе: разметка суток, погода, бюджет в конвейере |
-| [0014-fire-target.md](adr/0014-fire-target.md) | Метка пожара: сигнал вне пачки обхода или сбоя линии. Графики ППР и ТО |
-| [0015-fire-model.md](adr/0015-fire-model.md) | Модель пожара не обогнала правило «событие было вчера» |
-| [0016-fire-expert-rules.md](adr/0016-fire-expert-rules.md) | Пожар на экспертных правилах: уровни, охлаждение, точность не измерена |
-| [0019-critical-alerts.md](adr/0019-critical-alerts.md) | Уведомление о критических инцидентах, которые никто не взял в работу |
-| [0020-order-follows-prediction.md](adr/0020-order-follows-prediction.md) | Автозаявка идёт за свежим прогнозом объекта или отклоняется, когда риск упал |
-| [0021-finished-card-freezes.md](adr/0021-finished-card-freezes.md) | Законченная карточка замораживается, новые данные идут в её чистую копию |
-| [0022-one-open-card.md](adr/0022-one-open-card.md) | Одна открытая карточка и одна открытая заявка на объект, журнал всех прогнозов в файл |
-| [0018-fire-sections-and-live-cards.md](adr/0018-fire-sections-and-live-cards.md) | Пожар на участке, живые графики карточек, демонстрационный режим, порядок журнала |
-| [0017-ingest-and-stream.md](adr/0017-ingest-and-stream.md) | Загрузчик выгрузки, сдвиг времени на целые недели, заглушка СМВУ, ритм направлений, карточка на происшествие, задержка потока |
+Принятые решения лежат в [`docs/adr/`](../../docs/adr/README.md).
 
 Целевое состояние сервиса описывает [`docs/ARM-ODS-backend-spec.md`](../../docs/ARM-ODS-backend-spec.md). Эти
 документы описывают текущее состояние и отклонения от спецификации.
