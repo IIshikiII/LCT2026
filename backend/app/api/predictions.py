@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from sqlalchemy import ColumnElement, Select, UnaryExpression, case, func, select
+from sqlalchemy import ColumnElement, Select, UnaryExpression, case, func, select, update
 from sqlalchemy.engine import Connection
 
 from app.api import common, mappers
@@ -29,6 +29,15 @@ SEVERITY: ColumnElement[Any] = case(
     else_=0,
 )
 
+# Законченная карточка идёт в конец журнала при любой сортировке: это история
+# решений, а не работа. Признак конца даёт `terminal` в реестре статусов.
+# ADR 0021.
+FINISHED_LAST: ColumnElement[Any] = case(
+    {item.code: 1 for item in catalog.statuses_for(catalog.PREDICTION_SCOPE) if item.terminal},
+    value=prediction.c.status,
+    else_=0,
+)
+
 SORT_FIELDS = {
     "computedAt": prediction.c.computed_at,
     "probability": prediction.c.probability,
@@ -46,12 +55,13 @@ def ordering(sort: str | None) -> tuple[UnaryExpression[Any], ...]:
 
     Диспетчер смотрит сверху вниз: критический прогноз выше высокого, а среди
     равных по уровню свежий выше старого. Сортировка по полю из запроса тоже
-    добирает равные значения новизной.
+    добирает равные значения новизной. Законченные карточки при любой
+    сортировке стоят после открытых.
     """
     newest = prediction.c.computed_at.desc()
     if not sort:
-        return (SEVERITY.desc(), newest)
-    return (common.order_by(sort, SORT_FIELDS, SEVERITY.desc()), newest)
+        return (FINISHED_LAST.asc(), SEVERITY.desc(), newest)
+    return (FINISHED_LAST.asc(), common.order_by(sort, SORT_FIELDS, SEVERITY.desc()), newest)
 
 
 # Заявка на прогноз одна. Подзапрос дешевле join с группировкой.
@@ -61,6 +71,14 @@ ORDER_ID = (
     .limit(1)
     .scalar_subquery()
     .label("order_id")
+)
+# Статус своей заявки: плашка карточки показывает, что с заявкой сейчас.
+ORDER_STATUS = (
+    select(work_order.c.status)
+    .where(work_order.c.prediction_id == prediction.c.id)
+    .limit(1)
+    .scalar_subquery()
+    .label("order_status")
 )
 
 # Открытая заявка того же объекта и направления, которую создал другой прогноз.
@@ -85,7 +103,7 @@ FACILITY_ORDER_ID = (
 
 JOINED = prediction.join(facility, facility.c.id == prediction.c.facility_id)
 
-BASE = select(prediction, facility, ORDER_ID, FACILITY_ORDER_ID).select_from(JOINED)
+BASE = select(prediction, facility, ORDER_ID, ORDER_STATUS, FACILITY_ORDER_ID).select_from(JOINED)
 
 
 def _filtered(
@@ -124,7 +142,9 @@ def row_to_prediction(row: Any) -> Prediction:
     # Своя заявка важнее заявки объекта: ссылка на чужую нужна, только когда
     # своей нет.
     facility_order = None if row.order_id else row.facility_order_id
-    return mappers.prediction(row, mappers.facility_ref(row), row.order_id, facility_order)
+    return mappers.prediction(
+        row, mappers.facility_ref(row), row.order_id, facility_order, row.order_status
+    )
 
 
 @router.get("/predictions", response_model=Page[Prediction], response_model_by_alias=True)
@@ -189,7 +209,7 @@ def get_prediction(
     return mappers.prediction_detail(
         row_to_prediction(row),
         row.blocks,
-        list(prediction_actions(row.status, row.assignee, actor)),
+        list(prediction_actions(row.status, row.assignee, actor, row.level)),
     )
 
 
@@ -255,7 +275,7 @@ def act_on_prediction(
     row = _load(conn, actor, prediction_id)
     status = row.status
 
-    apply.check_body(list(prediction_actions(status, row.assignee, actor)), code, body)
+    apply.check_body(list(prediction_actions(status, row.assignee, actor, row.level)), code, body)
     new_status = apply.next_status(transitions.PREDICTION, code, status)
 
     extra: dict[str, Any] = {}
@@ -265,17 +285,28 @@ def act_on_prediction(
         extra["assignee"] = None
     elif code == "decide":
         new_status, extra = _decision(row, actor, body)
+        if extra["verdict"] == "AGREED":
+            # Подтверждению причина не нужна: поле заблокировано в форме, и
+            # запрос мимо интерфейса её тоже не запишет.
+            body = {key: value for key, value in body.items() if key != "reason"}
+        if new_status == "ORDER_OPEN" and row.order_id is None:
+            other = _facility_order(conn, row)
+            if other is not None and other.status != auto_orders.AUTO_CREATED:
+                # По объекту уже работает заявка другого прогноза. Вторую не
+                # создаём: прогноз закрыт решением со ссылкой на неё. ADR 0022.
+                new_status = "DECIDED"
+                body = {**body, "facilityOrderId": other.id}
 
     apply.set_status(conn, prediction, prediction_id, status, new_status, **extra)
     if code == "decide":
-        _settle_order(conn, row, extra["dispatcher_level"])
+        _settle_order(conn, row, extra["dispatcher_level"], actor.username)
     apply.log(conn, transitions.PREDICTION, prediction_id, code, actor.username, body)
 
     updated = _load(conn, actor, prediction_id)
     return mappers.prediction_detail(
         row_to_prediction(updated),
         updated.blocks,
-        list(prediction_actions(updated.status, updated.assignee, actor)),
+        list(prediction_actions(updated.status, updated.assignee, actor, updated.level)),
     )
 
 
@@ -306,12 +337,31 @@ def _decision(row: Any, actor: Actor, body: dict[str, Any]) -> tuple[str, dict[s
     return status, extra
 
 
-def _settle_order(conn: Connection, row: Any, level: str) -> None:
+def _facility_order(conn: Connection, row: Any) -> Any:
+    """Открытая заявка того же объекта и направления от другого прогноза."""
+    return conn.execute(
+        select(work_order.c.id, work_order.c.status)
+        .where(
+            work_order.c.facility_id == row.facility_id,
+            work_order.c.direction == row.direction,
+            work_order.c.prediction_id != row.id,
+            work_order.c.status.notin_(auto_orders.CLOSED_STATUSES),
+        )
+        .limit(1)
+    ).first()
+
+
+def _settle_order(conn: Connection, row: Any, level: str, actor: str) -> None:
     """Приводит заявку в соответствие с решением диспетчера.
 
     Четыре случая таблицы ADR 0006 сходятся в два действия: выезд нужен значит
     заявка должна существовать и быть подтверждённой к работе, выезд не нужен
     значит открытая заявка отклоняется.
+
+    На объект и направление открытая заявка одна (ADR 0022). Нетронутая
+    автозаявка другого прогноза переходит на этот прогноз и подтверждается.
+    Заявка, по которой уже идёт работа, остаётся как есть, вторая не
+    создаётся.
     """
     order = None
     if row.order_id is not None:
@@ -319,8 +369,25 @@ def _settle_order(conn: Connection, row: Any, level: str) -> None:
 
     if catalog.needs_order(level):
         if order is None:
-            # Диспетчер поднял уровень: заявки не было, её создаёт решение.
-            auto_orders.create_for(conn, row, created_by=auto_orders.BY_DISPATCHER)
+            other = _facility_order(conn, row)
+            if other is None:
+                # Диспетчер поднял уровень: заявки не было, её создаёт решение.
+                auto_orders.create_for(conn, row, created_by=auto_orders.BY_DISPATCHER)
+            elif other.status == auto_orders.AUTO_CREATED:
+                conn.execute(
+                    update(work_order)
+                    .where(work_order.c.id == other.id)
+                    .values(prediction_id=row.id)
+                )
+                apply.set_status(conn, work_order, other.id, other.status, "CONFIRMED")
+                apply.log(
+                    conn,
+                    transitions.ORDER,
+                    other.id,
+                    auto_orders.RELINK,
+                    actor,
+                    {"to": row.id, "reason": "решение диспетчера"},
+                )
         elif order.status == "AUTO_CREATED":
             # Заявка ждала решения и дождалась. Отдельного подтверждения нет:
             # диспетчер только что сказал, что выезд нужен.

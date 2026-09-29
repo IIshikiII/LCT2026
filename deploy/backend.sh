@@ -83,6 +83,7 @@ ensure_backend_env() {
     # строки compose подставит адрес несуществующей службы.
     set_env_line "$env_file" MLFLOW_TRACKING_URI ""
     set_env_line "$env_file" DEMO_LEVELS "${DEMO_LEVELS:-}"
+    set_env_line "$env_file" FORECAST_LOG "${FORECAST_LOG:-}"
     # Ключ потока СМВУ создаётся один раз, как ключ подписи: заглушка и API
     # читают его из одного файла. ADR 0017.
     if [ -z "$(read_env "$env_file" STREAM_TOKEN)" ]; then
@@ -190,6 +191,14 @@ backend_migrate() {
 backend_metrics() {
     log "Публикую замер моделей"
     dc run --rm pipeline uv run --no-sync python -m app.cli publish-metrics
+}
+
+# Район объекта это код округа его трассы: его знают фильтр по районам и роль
+# диспетчера района. Команда чинит базу, загруженную до этого правила, и
+# обновляет границы тестовых учёток. Повторный запуск ничего не меняет.
+backend_districts() {
+    log "Проставляю объектам округа"
+    dc run --rm pipeline uv run --no-sync python -m app.cli assign-districts
 }
 
 # Посев синтетики. Делается один раз: повторный посев не плодит дублей, но и

@@ -181,10 +181,9 @@ function seesOrder(user: MockUser, order: OrderRecord): boolean {
 /** Карточка прогноза с кнопками, отобранными по правам роли. */
 function detailFor(record: PredictionRecord, user: MockUser) {
   const detail = buildDetail(record)
-  const facilityOrderId = facilityOrderOf(record)
   return {
     ...detail,
-    ...(facilityOrderId ? { facilityOrderId } : {}),
+    ...orderLinks(record),
     actions: allowed(detail.actions, user),
   }
 }
@@ -265,7 +264,21 @@ function severity(p: PredictionRecord): number {
  * значения любой сортировки добираются новизной.
  */
 function byRiskThenTime(a: PredictionRecord, b: PredictionRecord): number {
-  return severity(b) - severity(a) || b.computedAt.localeCompare(a.computedAt)
+  return (
+    finished(a) - finished(b) ||
+    severity(b) - severity(a) ||
+    b.computedAt.localeCompare(a.computedAt)
+  )
+}
+
+/**
+ * Законченная карточка идёт в конец журнала при любой сортировке, как у
+ * сервера: это история решений, а не работа. Признак конца берётся из меты.
+ */
+function finished(p: PredictionRecord): number {
+  return db().meta.statuses.some((s) => s.code === p.status && s.scope === 'prediction' && s.terminal)
+    ? 1
+    : 0
 }
 
 const orderSortValue: Record<string, (o: OrderRecord) => string | number> = {
@@ -324,8 +337,17 @@ function facilityOrderOf(record: PredictionRecord): string | undefined {
 /** Прогноз в том виде, в каком его отдаёт API: без служебных полей сида. */
 function toPrediction(record: PredictionRecord): Prediction {
   const { plugin: _plugin, facilityRecord: _facility, ...rest } = record
+  return { ...rest, ...orderLinks(record) }
+}
+
+/** Статус своей заявки и открытая заявка объекта, как у сервера. */
+function orderLinks(record: PredictionRecord): Pick<Prediction, 'orderStatus' | 'facilityOrderId'> {
+  const own = record.orderId ? db().orderById.get(record.orderId) : undefined
   const facilityOrderId = facilityOrderOf(record)
-  return facilityOrderId ? { ...rest, facilityOrderId } : rest
+  return {
+    ...(own ? { orderStatus: own.status } : {}),
+    ...(facilityOrderId ? { facilityOrderId } : {}),
+  }
 }
 
 /* ---------------------------------------------------------------- ручки */
@@ -438,9 +460,13 @@ export const handlers = [
         (p) => seesPrediction(user, p) && matchesFilters(p, request),
       )
       const sort = param(request, 'sort')
-      const sorted = sort
-        ? applySort([...filtered].sort(byRiskThenTime), sort, predictionSortValue)
-        : [...filtered].sort(byRiskThenTime)
+      // Сортировка массива устойчива: после неё законченные уходят вниз, а
+      // внутри групп остаётся порядок, который выбрал пользователь.
+      const sorted = (
+        sort
+          ? applySort([...filtered].sort(byRiskThenTime), sort, predictionSortValue)
+          : [...filtered].sort(byRiskThenTime)
+      ).sort((a, b) => finished(a) - finished(b))
       const page = paginate(sorted, request)
       return ok({ ...page, items: page.items.map(toPrediction) })
     }),
@@ -682,6 +708,8 @@ export const handlers = [
   http.get(
     url('/alerts'),
     guarded(async (user) => {
+      // Уведомление зовёт взять в работу: слышит только роль с правом take.
+      if (!user.permissions.includes('take')) return ok([])
       const count = db().predictions.filter(
         (p) => seesPrediction(user, p) && p.level === 'CRITICAL' && p.status === 'NEW',
       ).length
@@ -713,7 +741,12 @@ export const handlers = [
         total: visible.length,
       }
       for (const p of visible) {
-        summary.byLevel[p.level] = (summary.byLevel[p.level] ?? 0) + 1
+        // Уровни как у сервера: только открытые карточки, уровень диспетчера
+        // важнее уровня модели.
+        if (!finished(p)) {
+          const level = p.dispatcherLevel ?? p.level
+          summary.byLevel[level] = (summary.byLevel[level] ?? 0) + 1
+        }
         summary.byDirection[p.direction] = (summary.byDirection[p.direction] ?? 0) + 1
         summary.byStatus[p.status] = (summary.byStatus[p.status] ?? 0) + 1
       }

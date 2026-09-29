@@ -91,6 +91,11 @@ export const CardBlockSchema = dto({
   data: z.unknown(),
 })
 
+export const FieldConditionSchema = dto({
+  field: z.string(),
+  notEquals: z.string(),
+})
+
 export const FieldDefSchema = dto({
   name: z.string(),
   label: z.string(),
@@ -100,6 +105,8 @@ export const FieldDefSchema = dto({
   optionsRef: opt(z.string()),
   placeholder: opt(z.string()),
   help: opt(z.string()),
+  default: opt(z.string()),
+  enabledWhen: opt(FieldConditionSchema),
 })
 
 export const ActionDefSchema = dto({
@@ -123,6 +130,7 @@ export const PredictionSchema = dto({
   facility: FacilityRefSchema,
   summary: z.string(),
   orderId: opt(z.string()),
+  orderStatus: opt(z.string()),
   facilityOrderId: opt(z.string()),
   assignee: opt(z.string()),
   verdict: opt(z.string()),

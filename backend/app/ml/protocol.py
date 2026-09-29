@@ -142,6 +142,19 @@ def incident(predictor: object, features: FeatureVector, at: datetime) -> dateti
     return None if hook is None else hook(features, at)
 
 
+def last_event(predictor: object, features: FeatureVector, at: datetime) -> datetime | None:
+    """Момент последнего события, на котором стоит прогноз. ADR 0021.
+
+    Метод `last_event` у предиктора необязателен. Конвейер сравнивает этот
+    момент с заморозкой законченной карточки происшествия: событие позже
+    заморозки значит новые данные, и они идут в чистую копию карточки. None
+    значит, что направление новых данных внутри происшествия не различает, и
+    законченная карточка просто остаётся замороженной.
+    """
+    hook = getattr(predictor, "last_event", None)
+    return None if hook is None else hook(features, at)
+
+
 def candidates(predictor: object, conn: Connection, at: datetime) -> set[str] | None:
     """Объекты, которые стоит пересчитать между полными прогонами. ADR 0017.
 

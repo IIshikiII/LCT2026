@@ -64,6 +64,12 @@ class Config:
     # 6 % высоких, 17 % средних по рангу вероятности. Только для показа.
     # ADR 0018.
     demo_levels: bool = False
+    # Журнал всех посчитанных прогнозов, строка JSON на прогноз. Карточка
+    # журнала диспетчера переписывается свежим прогнозом (ADR 0022), и этот
+    # файл хранит каждый прогноз для сверки модели с фактом. Поток пишет
+    # строки каждую минуту, поэтому флаг выключен по умолчанию.
+    forecast_log: bool = False
+    forecast_log_path: str = "logs/forecasts.jsonl"
 
     @staticmethod
     def from_environ() -> Config:
@@ -89,6 +95,8 @@ class Config:
             test_stand=os.environ.get("TEST_STAND", "").lower() in {"1", "true", "yes"},
             stream_token=os.environ.get("STREAM_TOKEN", ""),
             demo_levels=os.environ.get("DEMO_LEVELS", "").lower() in {"1", "true", "yes"},
+            forecast_log=os.environ.get("FORECAST_LOG", "").lower() in {"1", "true", "yes"},
+            forecast_log_path=os.environ.get("FORECAST_LOG_PATH", "logs/forecasts.jsonl"),
         )
 
 

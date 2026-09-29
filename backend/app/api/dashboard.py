@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import Column, ColumnElement, func, select
+from sqlalchemy import ColumnElement, and_, func, select
 from sqlalchemy.engine import Connection
 
 from app.api.predictions import BASE, ordering, row_to_prediction
@@ -35,7 +35,7 @@ MAX_LIMIT = 100
 
 def _counts(
     conn: Connection,
-    column: Column[str],
+    column: ColumnElement[str],
     keys: tuple[str, ...],
     limit: ColumnElement[bool] | None,
 ) -> dict[str, int]:
@@ -71,9 +71,19 @@ def summary(
     if visible is not None:
         total = total.where(visible)
 
+    # Уровни считают открытые карточки: законченная это история, а не риск,
+    # и тревога её тоже не считает. Уровень берётся по решению диспетчера,
+    # когда оно есть: понижение до среднего не должно считаться критическим.
+    finished = [item.code for item in statuses_for(PREDICTION_SCOPE) if item.terminal]
+    open_cards = prediction.c.status.notin_(finished)
+    level = func.coalesce(prediction.c.dispatcher_level, prediction.c.level)
+
     return DashboardSummary(
         by_level=_counts(
-            conn, prediction.c.level, tuple(item.code for item in RISK_LEVELS), visible
+            conn,
+            level,
+            tuple(item.code for item in RISK_LEVELS),
+            open_cards if visible is None else and_(visible, open_cards),
         ),
         by_direction=_counts(
             conn, prediction.c.direction, tuple(item.code for item in active()), visible

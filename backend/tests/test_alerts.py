@@ -16,6 +16,7 @@ from app.api.alerts import _plural
 from app.db import engine
 from app.main import API_PREFIX, app
 from app.tables import prediction
+from tests import roles
 
 pytestmark = pytest.mark.usefixtures("seeded")
 
@@ -66,3 +67,17 @@ def test_the_alert_goes_away_when_the_incident_is_taken() -> None:
 )
 def test_the_title_agrees_with_the_number(n: int, text: str) -> None:
     assert _plural(n) == text
+
+
+@pytest.mark.parametrize("username", ["ods", "district"])
+def test_dispatchers_hear_the_alert(username: str) -> None:
+    """Уведомление зовёт взять в работу: слышат роли с правом take."""
+    roles.sign_in(username)
+    assert len(alerts()) == 1
+
+
+@pytest.mark.parametrize("username", ["tech", "crew"])
+def test_roles_without_take_hear_nothing(username: str) -> None:
+    """Технику и группе реагирования звать некого."""
+    roles.sign_in(username)
+    assert alerts() == []

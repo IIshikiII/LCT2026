@@ -108,7 +108,7 @@ describe('роль решает состав кнопок', () => {
     renderWithProviders(<AppShell />, { route: `/journal?prediction=${target.id}` })
 
     const panel = await screen.findByRole('complementary', { name: 'Карточка прогноза' })
-    expect(await within(panel).findByText(/Доступных действий нет/)).toBeInTheDocument()
+    expect(await within(panel).findByText(/Действий по прогнозу/)).toBeInTheDocument()
   })
 
   it('диспетчер получает кнопку «Взять в работу»', async () => {

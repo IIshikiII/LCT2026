@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  axisTimeFormatter,
   DASH,
   fmtDuration,
   fmtFacilityPath,
@@ -70,5 +71,17 @@ describe('форматтеры', () => {
     expect(fmtUnknown(null)).toBe(DASH)
     expect(fmtUnknown('текст')).toBe('текст')
     expect(fmtUnknown({ a: 1 })).toBe('{"a":1}')
+  })
+})
+
+describe('axisTimeFormatter', () => {
+  const at = new Date('2026-09-28T09:30:00Z')
+
+  it('подписывает длинный ряд датами', () => {
+    expect(axisTimeFormatter(30 * 24 * 3_600_000)(at)).toMatch(/^\d{2}\.\d{2}$/)
+  })
+
+  it('подписывает ряд в пределах суток временем', () => {
+    expect(axisTimeFormatter(12 * 3_600_000)(at)).toMatch(/^\d{2}:\d{2}$/)
   })
 })

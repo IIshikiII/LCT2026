@@ -88,6 +88,7 @@ if [ "$DEPLOY_BACKEND" = yes ]; then
     backend_up
     backend_migrate
     backend_metrics
+    backend_districts
     backend_seed
     backend_stream
 else

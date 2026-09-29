@@ -60,11 +60,33 @@ export function buildZodSchema(fields: FieldDef[]): z.ZodType<FormValues, FormVa
   return z.object(shape) as unknown as z.ZodType<FormValues, FormValues>
 }
 
-/** Значения по умолчанию: без них react-hook-form считает поля неуправляемыми. */
+/**
+ * Значения по умолчанию: без них react-hook-form считает поля неуправляемыми.
+ * Значение, которое прислал сервер (`default`), важнее пустого.
+ */
 export function defaultValuesFor(fields: FieldDef[]): FormValues {
   const values: FormValues = {}
   for (const field of fields) {
-    values[field.name] = field.type === 'boolean' ? false : ''
+    values[field.name] = field.type === 'boolean' ? false : (field.default ?? '')
   }
   return values
+}
+
+/**
+ * Доступно ли поле при текущих значениях формы. Условие приходит с сервера:
+ * фронт не знает, какие поля от каких зависят.
+ */
+export function isFieldEnabled(field: FieldDef, values: FormValues): boolean {
+  const rule = field.enabledWhen
+  if (!rule) return true
+  return String(values[rule.field] ?? '') !== rule.notEquals
+}
+
+/** Значения для отправки: заблокированное поле на сервер не уходит. */
+export function enabledValues(fields: FieldDef[], values: FormValues): FormValues {
+  const result: FormValues = {}
+  for (const field of fields) {
+    if (isFieldEnabled(field, values)) result[field.name] = values[field.name]
+  }
+  return result
 }

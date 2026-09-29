@@ -117,6 +117,15 @@ export interface FieldDef {
   optionsRef?: string
   placeholder?: string
   help?: string
+  /** значение, с которым поле открывается; его знает сервер, а не фронт */
+  default?: string
+  /** поле доступно, только пока значение поля `field` не равно `notEquals` */
+  enabledWhen?: FieldCondition
+}
+
+export interface FieldCondition {
+  field: string
+  notEquals: string
 }
 
 /** Действие над сущностью. Уходит в единый эндпоинт действий (ADR 0004). */
@@ -150,6 +159,8 @@ export interface Prediction {
   summary: string
   /** автоматически созданная заявка, если она есть */
   orderId?: string
+  /** статус своей заявки: карточка показывает, что с ней сейчас */
+  orderStatus?: string
   /**
    * открытая заявка того же объекта и направления от другого прогноза;
    * приходит, только когда своей заявки нет: автозаявка на объект одна

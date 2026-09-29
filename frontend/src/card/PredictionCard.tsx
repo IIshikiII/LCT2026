@@ -13,6 +13,7 @@ import { fmtDateTime, fmtDuration, fmtFacilityPath, fmtHours, fmtPct } from '@/s
 import {
   directionAccent,
   directionLabel,
+  isTerminalStatus,
   levelColor,
   levelLabel,
   statusColor,
@@ -103,8 +104,15 @@ export function PredictionCard({ id, meta }: PredictionCardProps) {
               to={`/orders?order=${encodeURIComponent(prediction.orderId)}`}
               className="mt-3 flex items-center justify-between gap-2 rounded border border-line bg-sunken px-2 py-1.5 text-[12px] text-text-dim hover:border-line-strong"
             >
-              <span>Создана заявка на превентивное обслуживание</span>
-              <Mono>{prediction.orderId}</Mono>
+              <span>Заявка на превентивное обслуживание</span>
+              <span className="flex shrink-0 items-center gap-2">
+                {prediction.orderStatus ? (
+                  <Badge color={statusColor(prediction.orderStatus, 'order', meta)}>
+                    {statusLabel(prediction.orderStatus, 'order', meta)}
+                  </Badge>
+                ) : null}
+                <Mono>{prediction.orderId}</Mono>
+              </span>
             </Link>
           ) : prediction.facilityOrderId ? (
             // Автозаявка на объект одна, пока открыта. Свежий прогноз своей не
@@ -129,7 +137,21 @@ export function PredictionCard({ id, meta }: PredictionCardProps) {
         pending={action.isPending}
         error={action.error}
         onRun={(code, values) => action.mutateAsync({ code, values })}
+        emptyText={noActionsText(prediction, meta)}
       />
     </div>
   )
+}
+
+/** Почему у прогноза нет действий. Причину знает статус и заявка, а не роль. */
+function noActionsText(
+  prediction: { status: string; orderId?: string; facilityOrderId?: string },
+  meta: AppMeta,
+): string {
+  if (isTerminalStatus(prediction.status, 'prediction', meta)) {
+    return `${statusLabel(prediction.status, 'prediction', meta)}: карточка закрыта и хранится в истории.`
+  }
+  const order = prediction.orderId ?? prediction.facilityOrderId
+  if (order) return `Действий по прогнозу нет: работа идёт по заявке ${order}.`
+  return 'Действий по прогнозу для вашей роли нет.'
 }

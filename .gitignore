@@ -43,3 +43,5 @@ ml/fire/out/kp_since_1932.txt
 ml/fire/out/monthly_progress.txt
 ml/fire/out/*.log
 
+# Журнал всех прогнозов конвейера (FORECAST_LOG, ADR 0022).
+backend/logs/

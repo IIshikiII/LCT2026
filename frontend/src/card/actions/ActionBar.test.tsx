@@ -79,8 +79,20 @@ describe('панель действий', () => {
     expect(onRun).not.toHaveBeenCalled()
   })
 
-  it('сообщает о конечном статусе, когда действий нет', () => {
+  it('говорит, что действий нет, когда их нет', () => {
     renderBar([])
     expect(screen.getByText(/Доступных действий нет/)).toBeInTheDocument()
+  })
+
+  it('называет причину, которую знает вызывающий', () => {
+    render(
+      <ActionBar
+        actions={[]}
+        meta={FALLBACK_META}
+        onRun={vi.fn()}
+        emptyText="Работа идёт по заявке WO-1."
+      />,
+    )
+    expect(screen.getByText('Работа идёт по заявке WO-1.')).toBeInTheDocument()
   })
 })
